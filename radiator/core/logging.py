@@ -110,3 +110,7 @@ def setup_logging() -> None:
 def get_logger(name: str) -> logging.Logger:
     """Get logger with given name."""
     return logging.getLogger(name)
+
+
+# Глобальный логгер для совместимости
+logger = get_logger("radiator")

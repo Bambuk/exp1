@@ -69,7 +69,7 @@ async def init_db() -> None:
     """Initialize database tables."""
     async with async_engine.begin() as conn:
         # Import all models here to ensure they are registered
-        from radiator.models import user, item  # noqa: F401
+        from radiator.models import user, item, tracker  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
 
 

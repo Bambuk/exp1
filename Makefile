@@ -83,3 +83,20 @@ db-init:  ## Initialize database
 
 pre-commit-run:  ## Run pre-commit hooks on all files
 	pre-commit run --all-files
+
+# Tracker sync commands
+sync-tracker:
+	@echo "Syncing tracker data..."
+	@python sync_tracker.py tasks.txt
+
+sync-tracker-debug:
+	@echo "Syncing tracker data with debug..."
+	@python sync_tracker.py tasks.txt --debug
+
+sync-tracker-force:
+	@echo "Force full sync of tracker data..."
+	@python sync_tracker.py tasks.txt --force-full-sync
+
+test-tracker-sync:
+	@echo "Testing tracker sync system..."
+	@python test_tracker_sync.py

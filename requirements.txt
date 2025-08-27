@@ -12,6 +12,7 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-dotenv>=1.0.0
 httpx>=0.25.0
+requests>=2.31.0
 
 # Development dependencies
 pytest>=7.4.0
