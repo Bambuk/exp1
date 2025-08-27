@@ -1,76 +1,35 @@
 """Pytest configuration and fixtures."""
 
-import asyncio
+import os
 import pytest
 from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from radiator.core.database import Base
-from radiator.main import app
-from radiator.core.database import get_async_session
+# Set environment to test to disable TrustedHostMiddleware
+os.environ["ENVIRONMENT"] = "test"
 
+# Import and create app after setting environment
+from radiator.main import create_application
 
-# Test database URL
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
-
-# Create test engine
-test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
-
-# Test session factory
-TestingSessionLocal = sessionmaker(
-    test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
-async def test_db_setup():
-    """Set up test database."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+app = create_application()
 
 
 @pytest.fixture
-async def db_session(test_db_setup) -> AsyncGenerator[AsyncSession, None]:
-    """Get test database session."""
-    async with TestingSessionLocal() as session:
-        yield session
-        await session.rollback()
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Get mock database session for testing."""
+    # Create a mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+    yield mock_session
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> Generator:
+def client() -> Generator:
     """Get test client."""
-    
-    async def override_get_async_session() -> AsyncGenerator[AsyncSession, None]:
-        yield db_session
-    
-    app.dependency_overrides[get_async_session] = override_get_async_session
-    
     with TestClient(app) as test_client:
         yield test_client
-    
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture

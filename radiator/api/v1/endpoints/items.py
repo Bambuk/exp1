@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from radiator.api.deps import get_current_active_user
 from radiator.core.database import get_async_session
 from radiator.crud.item import item
-from radiator.models.user import User
+from radiator.schemas.user import User
 from radiator.schemas.item import Item, ItemCreate, ItemUpdate
 
 router = APIRouter()

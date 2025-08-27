@@ -41,10 +41,12 @@ class CRUDTrackerTask(CRUDBase[TrackerTask, TrackerTask, TrackerTask]):
             existing_task = self.get_by_tracker_id(db, tracker_id)
             
             if existing_task:
-                # Update existing task
+                # Update existing task - update ALL fields except tracker_id
                 for key, value in task_data.items():
                     if key != "tracker_id" and hasattr(existing_task, key):
+                        # Ensure we're setting the value even if it's None or empty string
                         setattr(existing_task, key, value)
+                
                 existing_task.updated_at = datetime.utcnow()
                 existing_task.last_sync_at = datetime.utcnow()
                 updated += 1

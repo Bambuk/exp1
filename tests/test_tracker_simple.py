@@ -14,6 +14,7 @@ class TestTrackerModels:
         """Test TrackerTask model creation."""
         task = TrackerTask(
             tracker_id="TEST-1",
+            key="TEST-123",
             summary="Test Task",
             status="open",
             author="user1",
@@ -21,6 +22,7 @@ class TestTrackerModels:
         )
         
         assert task.tracker_id == "TEST-1"
+        assert task.key == "TEST-123"
         assert task.summary == "Test Task"
         assert task.status == "open"
         assert task.author == "user1"

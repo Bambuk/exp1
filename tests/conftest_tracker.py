@@ -64,6 +64,7 @@ def sample_task_data():
     from datetime import datetime
     return {
         "tracker_id": "TEST-1",
+        "key": "TEST-123",
         "summary": "Test Task",
         "description": "Test Description",
         "status": "open",

@@ -116,6 +116,7 @@ class TrackerAPIService:
         """Extract relevant data from task response."""
         return {
             "tracker_id": str(task.get("id", "")),
+            "key": task.get("key", ""),  # Task code like TEST-123
             "summary": task.get("summary", "")[:500] if task.get("summary") else None,
             "description": task.get("description", ""),
             "status": task.get("status", {}).get("display", ""),

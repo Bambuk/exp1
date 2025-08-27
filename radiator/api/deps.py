@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from radiator.core.database import get_async_session
 from radiator.core.security import decode_token
 from radiator.crud.user import user
-from radiator.models.user import User
+from radiator.schemas.user import User
 
 # Security scheme
 security = HTTPBearer()

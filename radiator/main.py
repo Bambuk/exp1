@@ -34,11 +34,12 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Trusted host middleware
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.ALLOWED_HOSTS,
-    )
+    # Trusted host middleware - only apply in production/development, not in tests
+    if settings.ENVIRONMENT not in ["test", "testing"]:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.ALLOWED_HOSTS,
+        )
     
     # Prometheus metrics middleware
     app.add_middleware(PrometheusMiddleware)

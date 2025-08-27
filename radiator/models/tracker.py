@@ -17,6 +17,7 @@ class TrackerTask(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     tracker_id = Column(String(255), unique=True, nullable=False, index=True)
+    key = Column(String(255), nullable=True, index=True)  # Task code like TEST-123
     summary = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
     status = Column(String(255), nullable=True)
@@ -77,6 +78,7 @@ class TrackerSyncLog(Base):
 
 # Create indexes for better performance
 Index('idx_tracker_tasks_tracker_id', TrackerTask.tracker_id)
+Index('idx_tracker_tasks_key', TrackerTask.key)  # Index for task codes
 Index('idx_tracker_tasks_last_sync', TrackerTask.last_sync_at)
 Index('idx_tracker_history_task_status', TrackerTaskHistory.task_id, TrackerTaskHistory.status)
 Index('idx_tracker_history_dates', TrackerTaskHistory.start_date, TrackerTaskHistory.end_date)
