@@ -35,6 +35,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
     op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
+    op.create_table('items',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('price', sa.Integer(), nullable=True),
+    sa.Column('image_url', sa.String(length=500), nullable=True),
+    sa.Column('is_available', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.Column('owner_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_items_id'), 'items', ['id'], unique=False)
+    op.create_index(op.f('ix_items_title'), 'items', ['title'], unique=False)
     op.drop_table('fact_issue')
     op.drop_table('sync_state')
     op.drop_table('fact_issue_status_event')
@@ -77,6 +92,9 @@ def downgrade() -> None:
     sa.Column('fetched_at', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
     sa.PrimaryKeyConstraint('issue_id', name=op.f('fact_issue_pkey'))
     )
+    op.drop_index(op.f('ix_items_title'), table_name='items')
+    op.drop_index(op.f('ix_items_id'), table_name='items')
+    op.drop_table('items')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')

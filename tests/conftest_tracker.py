@@ -1,61 +1,22 @@
 """Pytest configuration for tracker tests."""
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 from typing import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
-
-# Create test database
-TestBase = declarative_base()
-
-# Test database URL (in-memory SQLite)
-TEST_DATABASE_URL = "sqlite:///:memory:"
-
-# Create test engine
-test_engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
-
-# Test session factory
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=test_engine
-)
-
-
-@pytest.fixture(scope="session")
-def test_db_setup():
-    """Set up test database."""
-    # Import tracker models here to avoid circular imports
-    from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
-    
-    # Create tables
-    TestBase.metadata.create_all(bind=test_engine)
-    yield
-    # Clean up
-    TestBase.metadata.drop_all(bind=test_engine)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
-def db_session(test_db_setup) -> Generator[Session, None, None]:
-    """Get test database session."""
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+def db_session() -> AsyncSession:
+    """Get mock async database session."""
+    return AsyncMock(spec=AsyncSession)
 
 
 @pytest.fixture
 def mock_db_session():
     """Create mock database session."""
-    return Mock(spec=Session)
+    return Mock(spec=AsyncSession)
 
 
 @pytest.fixture
@@ -83,13 +44,10 @@ def sample_history_data():
     from datetime import datetime
     return {
         "tracker_id": "TEST-1",
-        "old_status": "Open",
-        "new_status": "In Progress",
+        "status": "Open",
+        "status_display": "Open",
         "start_date": datetime.utcnow(),
-        "end_date": datetime.utcnow(),
-        "duration_minutes": 120,
-        "changed_by": "user1",
-        "change_reason": "Work started"
+        "end_date": datetime.utcnow()
     }
 
 
@@ -103,8 +61,8 @@ def sample_sync_log_data():
         "tasks_processed": 0,
         "tasks_created": 0,
         "tasks_updated": 0,
-        "history_entries_created": 0,
-        "error_details": None,
+        "history_entries_processed": 0,
+        "error_message": None,
         "sync_completed_at": None
     }
 
@@ -124,6 +82,7 @@ def mock_tracker_service():
         "summary": "Test Task"
     }
     service.get_task_changelog.return_value = []
+    service.get_tasks_by_filter.return_value = ["TEST-5"]
     return service
 
 
@@ -132,10 +91,6 @@ def mock_sync_command():
     """Create mock TrackerSyncCommand."""
     from radiator.commands.sync_tracker import TrackerSyncCommand
     
-    with pytest.MonkeyPatch.context() as m:
-        m.setattr('radiator.commands.sync_tracker.logger', Mock())
-        m.setattr('radiator.commands.sync_tracker.get_db_session', Mock())
-        
-        command = TrackerSyncCommand()
-        command.db = Mock()
-        return command
+    command = TrackerSyncCommand()
+    command.db = Mock()
+    return command

@@ -9,6 +9,7 @@ from radiator.models.user import User
 
 
 @pytest.mark.unit
+@pytest.mark.asyncio
 class TestUserCRUD:
     """Test user CRUD operations."""
 

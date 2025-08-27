@@ -11,7 +11,7 @@ from alembic import context
 
 # Import your models here to ensure they are registered
 from radiator.core.database import Base
-from radiator.models import user, item  # noqa: F401
+from radiator.models import user  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
