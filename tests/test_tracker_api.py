@@ -35,8 +35,8 @@ class TestTrackerAPIService:
         mock.json.return_value = {
             "issues": [
                 {
-                    "id": "TEST-1",
-                    "key": "TEST-1",
+                    "id": "12345",
+                    "key": "TEST-123",
                     "summary": "Test Task 1",
                     "status": {"key": "open", "display": "Open"},
                     "assignee": {"id": "user1", "display": "Test User 1"},
@@ -44,8 +44,8 @@ class TestTrackerAPIService:
                     "updatedAt": "2024-01-02T00:00:00Z"
                 },
                 {
-                    "id": "TEST-2",
-                    "key": "TEST-2",
+                    "id": "67890",
+                    "key": "TEST-456",
                     "summary": "Test Task 2",
                     "status": {"key": "in_progress", "display": "In Progress"},
                     "assignee": {"id": "user2", "display": "Test User 2"},
@@ -68,8 +68,8 @@ class TestTrackerAPIService:
     def mock_task_data(self):
         """Sample task data from API."""
         return {
-            "id": "TEST-1",
-            "key": "TEST-1",
+            "id": "12345",
+            "key": "TEST-123",
             "summary": "Test Task",
             "description": "Test Description",
             "status": {"key": "open", "display": "Open"},
@@ -160,8 +160,8 @@ class TestTrackerAPIService:
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response_success):
             result = service.search_tasks("Updated: >2024-01-01", limit=10)
             assert len(result) == 2
-            assert "TEST-1" in result
-            assert "TEST-2" in result
+            assert "12345" in result
+            assert "67890" in result
 
     def test_search_tasks_different_response_format(self, service):
         """Test task search with different response format."""
@@ -169,15 +169,15 @@ class TestTrackerAPIService:
         mock_response_list = Mock()
         mock_response_list.status_code = 200
         mock_response_list.json.return_value = [
-            {"id": "TEST-1", "key": "TEST-1"},
-            {"id": "TEST-2", "key": "TEST-2"}
+            {"id": "12345", "key": "TEST-123"},
+            {"id": "67890", "key": "TEST-456"}
         ]
         
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response_list):
             result = service.search_tasks("test query")
             assert len(result) == 2
-            assert "TEST-1" in result
-            assert "TEST-2" in result
+            assert "12345" in result
+            assert "67890" in result
 
     def test_search_tasks_api_error(self, service):
         """Test API error handling in task search."""
@@ -190,8 +190,8 @@ class TestTrackerAPIService:
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response_success):
             result = service.get_recent_tasks(days=7, limit=10)
             assert len(result) == 2
-            assert "TEST-1" in result
-            assert "TEST-2" in result
+            assert "12345" in result
+            assert "67890" in result
 
     def test_get_recent_tasks_custom_days(self, service, mock_response_success):
         """Test getting recent tasks with custom days."""
@@ -210,7 +210,7 @@ class TestTrackerAPIService:
         # Mock search_tasks to fail first, then succeed on fallback
         with patch.object(service, 'search_tasks', side_effect=[
             Exception("First call fails"),  # First call fails
-            ["TEST-1", "TEST-2"]  # Fallback call succeeds
+            ["12345", "67890"]  # Fallback call succeeds
         ]):
             result = service.get_active_tasks(limit=10)
             # Fallback should work and return tasks
@@ -251,15 +251,15 @@ class TestTrackerAPIService:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "id": "TEST-1",
-            "key": "TEST-1",
+            "id": "12345",
+            "key": "TEST-123",
             "summary": "Test Task"
         }
         
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
-            result = service.get_task("TEST-1")
-            assert result["id"] == "TEST-1"
-            assert result["key"] == "TEST-1"
+            result = service.get_task("12345")
+            assert result["id"] == "12345"
+            assert result["key"] == "TEST-123"
             assert result["summary"] == "Test Task"
 
     def test_get_task_not_found(self, service):
@@ -287,7 +287,7 @@ class TestTrackerAPIService:
         ]
         
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
-            result = service.get_task_changelog("TEST-1")
+            result = service.get_task_changelog("12345")
             assert len(result) == 1
             assert result[0]["field"]["id"] == "status"
 
@@ -298,15 +298,15 @@ class TestTrackerAPIService:
         mock_response.json.return_value = []
         
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
-            result = service.get_task_changelog("TEST-1")
+            result = service.get_task_changelog("12345")
             assert result == []
 
     def test_extract_task_data(self, service, mock_task_data):
         """Test task data extraction."""
         result = service.extract_task_data(mock_task_data)
         
-        assert result["tracker_id"] == "TEST-1"
-        assert result["key"] == "TEST-1"  # This is what's in mock_task_data
+        assert result["tracker_id"] == "12345"
+        assert result["key"] == "TEST-123"  # This is what's in mock_task_data
         assert result["summary"] == "Test Task"
         assert result["description"] == "Test Description"
         assert result["status"] == "Open"  # Status from mock data is "Open"
@@ -315,20 +315,20 @@ class TestTrackerAPIService:
         assert result["business_client"] == ""  # No business_client field in mock data
         assert result["team"] == ""  # No team field in mock data
         assert result["prodteam"] == ""  # No prodteam field in mock data
-        assert result["profit_forecast"] == ""  # No profit_forecast field in mock data
+        assert result["profit_forecast"] == ""  # No profit_forecast field in mock_data
 
     def test_extract_task_data_minimal(self, service):
         """Test task data extraction with minimal data."""
         minimal_task = {
-            "id": "TEST-1",
-            "key": "TEST-1",
+            "id": "12345",
+            "key": "TEST-123",
             "summary": "Test Task"
         }
 
         result = service.extract_task_data(minimal_task)
     
-        assert result["tracker_id"] == "TEST-1"
-        assert result["key"] == "TEST-1"
+        assert result["tracker_id"] == "12345"
+        assert result["key"] == "TEST-123"
         assert result["summary"] == "Test Task"
         assert result["status"] == ""  # Empty string, not None
 
@@ -380,19 +380,19 @@ class TestTrackerAPIService:
 
     def test_get_tasks_batch(self, service, mock_response_success):
         """Test batch task retrieval."""
-        with patch.object(service, 'get_task', return_value={"id": "TEST-1"}):
-            task_ids = ["TEST-1", "TEST-2", "TEST-3"]
+        with patch.object(service, 'get_task', return_value={"id": "12345"}):
+            task_ids = ["12345", "67890", "11111"]
             result = service.get_tasks_batch(task_ids)
             
             assert len(result) == 3
             # Check that we get tuples with (task_id, task_data)
             assert all(isinstance(task, tuple) for task in result)
-            assert all(task[1]["id"] == "TEST-1" for task in result)
+            assert all(task[1]["id"] == "12345" for task in result)
 
     def test_get_changelogs_batch(self, service):
         """Test batch changelog retrieval."""
         with patch.object(service, 'get_task_changelog', return_value=[]):
-            task_ids = ["TEST-1", "TEST-2", "TEST-3"]
+            task_ids = ["12345", "67890", "11111"]
             result = service.get_changelogs_batch(task_ids)
             
             assert len(result) == 3
@@ -412,13 +412,13 @@ class TestTrackerAPIService:
 
     def test_parallel_processing(self, service):
         """Test parallel processing of requests."""
-        with patch.object(service, 'get_task', return_value={"id": "TEST-1"}):
-            result = service.get_tasks_batch(["TEST-1", "TEST-2"])
+        with patch.object(service, 'get_task', return_value={"id": "12345"}):
+            result = service.get_tasks_batch(["12345", "67890"])
             
             # Check that we get the expected result
             assert len(result) == 2
             assert all(isinstance(task, tuple) for task in result)
-            assert all(task[1]["id"] == "TEST-1" for task in result)
+            assert all(task[1]["id"] == "12345" for task in result)
 
 
 if __name__ == "__main__":

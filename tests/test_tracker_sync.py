@@ -37,8 +37,8 @@ class TestTrackerAPIService:
         mock = Mock()
         mock.json.return_value = {
             "issues": [
-                {"id": "TEST-1", "key": "TEST-1", "summary": "Test Task 1"},
-                {"id": "TEST-2", "key": "TEST-2", "summary": "Test Task 2"}
+                {"id": "12345", "key": "TEST-123", "summary": "Test Task 1"},
+                {"id": "67890", "key": "TEST-456", "summary": "Test Task 2"}
             ]
         }
         mock.status_code = 200
@@ -49,8 +49,8 @@ class TestTrackerAPIService:
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
             result = mock_service.search_tasks("Updated: >2024-01-01")
             assert len(result) == 2
-            assert "TEST-1" in result
-            assert "TEST-2" in result
+            assert "12345" in result
+            assert "67890" in result
 
     def test_search_tasks_api_error(self, mock_service):
         """Test API error handling in task search."""
@@ -80,8 +80,8 @@ class TestTrackerAPIService:
     def test_extract_task_data(self, mock_service):
         """Test task data extraction."""
         mock_task = {
-            "id": "TEST-1",
-            "key": "TEST-1",
+            "id": "12345",
+            "key": "TEST-123",
             "summary": "Test Task",
             "status": {"key": "open", "display": "Open"},
             "assignee": {"id": "user1", "display": "Test User"},
@@ -90,8 +90,8 @@ class TestTrackerAPIService:
         }
         
         result = mock_service.extract_task_data(mock_task)
-        assert result["tracker_id"] == "TEST-1"
-        assert result["key"] == "TEST-1"
+        assert result["tracker_id"] == "12345"
+        assert result["key"] == "TEST-123"
         assert result["summary"] == "Test Task"
         assert result["status"] == "Open"
 
@@ -127,8 +127,8 @@ class TestTrackerCRUD:
     def sample_task_data(self):
         """Sample task data for testing."""
         return {
-            "tracker_id": "TEST-1",
-            "key": "TEST-1",
+            "tracker_id": "12345",
+            "key": "TEST-123",
             "summary": "Test Task",
             "status": "open",
             "assignee": "Test User",
@@ -141,7 +141,7 @@ class TestTrackerCRUD:
         """Sample history data for testing."""
         return {
             "task_id": 1,
-            "tracker_id": "TEST-1",
+            "tracker_id": "12345",
             "status": "In Progress",
             "status_display": "In Progress",
             "start_date": datetime.utcnow(),
@@ -159,7 +159,7 @@ class TestTrackerCRUD:
             import asyncio
             result = asyncio.run(crud.create(mock_db_session, obj_in=sample_task_data))
             
-            assert result.tracker_id == "TEST-1"
+            assert result.tracker_id == "12345"
             assert result.summary == "Test Task"
 
     def test_get_task_by_tracker_id(self, mock_db_session):
@@ -167,11 +167,11 @@ class TestTrackerCRUD:
         crud = CRUDTrackerTask(TrackerTask)
         
         # Mock the get_by_tracker_id method directly
-        mock_task = TrackerTask(tracker_id="TEST-1")
+        mock_task = TrackerTask(tracker_id="12345")
         with patch.object(crud, 'get_by_tracker_id', return_value=mock_task):
-            result = crud.get_by_tracker_id(mock_db_session, tracker_id="TEST-1")
+            result = crud.get_by_tracker_id(mock_db_session, tracker_id="12345")
             
-            assert result.tracker_id == "TEST-1"
+            assert result.tracker_id == "12345"
 
     def test_create_history_entry(self, mock_db_session, sample_history_data):
         """Test creating a history entry."""
@@ -184,22 +184,22 @@ class TestTrackerCRUD:
             import asyncio
             result = asyncio.run(crud.create(mock_db_session, obj_in=sample_history_data))
             
-            assert result.tracker_id == "TEST-1"
+            assert result.tracker_id == "12345"
             assert result.status == "In Progress"
             assert result.status_display == "In Progress"
 
     def test_bulk_create_tasks(self, mock_db_session, sample_task_data):
         """Test bulk creation of tasks."""
         crud = CRUDTrackerTask(TrackerTask)
-        tasks_data = [sample_task_data, {**sample_task_data, "tracker_id": "TEST-2"}]
+        tasks_data = [sample_task_data, {**sample_task_data, "tracker_id": "67890"}]
         
         with patch.object(crud, 'bulk_create_or_update') as mock_bulk_create:
             mock_bulk_create.return_value = [TrackerTask(**data) for data in tasks_data]
             result = crud.bulk_create_or_update(mock_db_session, tasks_data)
             
             assert len(result) == 2
-            assert result[0].tracker_id == "TEST-1"
-            assert result[1].tracker_id == "TEST-2"
+            assert result[0].tracker_id == "12345"
+            assert result[1].tracker_id == "67890"
 
 
 class TestTrackerSyncCommand:
@@ -217,10 +217,10 @@ class TestTrackerSyncCommand:
     def mock_tracker_service(self):
         """Create mock TrackerAPIService."""
         service = Mock(spec=TrackerAPIService)
-        service.get_recent_tasks.return_value = ["TEST-1", "TEST-2"]
-        service.get_active_tasks.return_value = ["TEST-3", "TEST-4"]
-        service.search_tasks.return_value = ["TEST-5"]
-        service.get_tasks_by_filter.return_value = ["TEST-5"]
+        service.get_recent_tasks.return_value = ["12345", "67890"]
+        service.get_active_tasks.return_value = ["11111", "22222"]
+        service.search_tasks.return_value = ["33333"]
+        service.get_tasks_by_filter.return_value = ["33333"]
         return service
 
     def test_get_tasks_to_sync_recent_mode(self, mock_sync_command, mock_tracker_service):
@@ -229,7 +229,7 @@ class TestTrackerSyncCommand:
             result = mock_sync_command.get_tasks_to_sync(
                 sync_mode="recent", days=7, limit=10
             )
-            assert result == ["TEST-1", "TEST-2"]
+            assert result == ["12345", "67890"]
             mock_tracker_service.get_recent_tasks.assert_called_once_with(days=7, limit=10)
 
     def test_get_tasks_to_sync_active_mode(self, mock_sync_command, mock_tracker_service):
@@ -238,7 +238,7 @@ class TestTrackerSyncCommand:
             result = mock_sync_command.get_tasks_to_sync(
                 sync_mode="active", limit=10
             )
-            assert result == ["TEST-3", "TEST-4"]
+            assert result == ["11111", "22222"]
             mock_tracker_service.get_active_tasks.assert_called_once_with(limit=10)
 
     def test_get_tasks_to_sync_filter_mode(self, mock_sync_command, mock_tracker_service):
@@ -248,14 +248,14 @@ class TestTrackerSyncCommand:
             result = mock_sync_command.get_tasks_to_sync(
                 sync_mode="filter", filters=filters, limit=10
             )
-            assert result == ["TEST-5"]
+            assert result == ["33333"]
             mock_tracker_service.get_tasks_by_filter.assert_called_once_with(filters, limit=10)
 
     def test_get_tasks_to_sync_file_mode(self, mock_sync_command):
         """Test getting tasks in file mode."""
         # Create a proper file-like mock
         mock_file = Mock()
-        mock_file.__iter__ = Mock(return_value=iter(["TEST-1\n", "TEST-2\n"]))
+        mock_file.__iter__ = Mock(return_value=iter(["12345\n", "67890\n"]))
         mock_file.__enter__ = Mock(return_value=mock_file)
         mock_file.__exit__ = Mock(return_value=None)
         
@@ -264,7 +264,7 @@ class TestTrackerSyncCommand:
                 result = mock_sync_command.get_tasks_to_sync(
                     sync_mode="file", filters={"file_path": "test.txt"}
                 )
-                assert result == ["TEST-1", "TEST-2"]
+                assert result == ["12345", "67890"]
 
     def test_create_sync_log(self, mock_sync_command):
         """Test creating sync log."""
@@ -300,12 +300,12 @@ class TestTrackerSyncCommand:
         
             # Mock task data
             mock_task = {
-                "tracker_id": "TEST-1",
+                "tracker_id": "12345",
                 "key": "TEST-123",
                 "summary": "Test Task",
                 "status": "open"
             }
-            mock_service.get_tasks_batch.return_value = [("TEST-1", mock_task)]
+            mock_service.get_tasks_batch.return_value = [("12345", mock_task)]
             mock_service.extract_task_data.return_value = mock_task
             
             # Mock CRUD operations
@@ -313,7 +313,7 @@ class TestTrackerSyncCommand:
                 mock_task_crud.get_by_tracker_id.return_value = None
                 mock_task_crud.bulk_create_or_update.return_value = {"created": 1, "updated": 0}
                 
-                result = mock_sync_command.sync_tasks(["TEST-1"])
+                result = mock_sync_command.sync_tasks(["12345"])
                 assert result == {"created": 1, "updated": 0}
 
     def test_sync_tasks_api_error(self, mock_sync_command):
@@ -322,7 +322,7 @@ class TestTrackerSyncCommand:
             # Mock get_tasks_batch to return empty list instead of raising exception
             mock_service.get_tasks_batch.return_value = []
             
-            result = mock_sync_command.sync_tasks(["TEST-1"])
+            result = mock_sync_command.sync_tasks(["12345"])
             assert result == {"created": 0, "updated": 0}
 
 

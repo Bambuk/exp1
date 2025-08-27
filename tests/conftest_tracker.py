@@ -24,7 +24,7 @@ def sample_task_data():
     """Sample task data for testing."""
     from datetime import datetime
     return {
-        "tracker_id": "TEST-1",
+        "tracker_id": "12345",
         "key": "TEST-123",
         "summary": "Test Task",
         "description": "Test Description",
@@ -43,7 +43,7 @@ def sample_history_data():
     """Sample history data for testing."""
     from datetime import datetime
     return {
-        "tracker_id": "TEST-1",
+        "tracker_id": "12345",
         "status": "Open",
         "status_display": "Open",
         "start_date": datetime.utcnow(),
@@ -73,16 +73,16 @@ def mock_tracker_service():
     from radiator.services.tracker_service import TrackerAPIService
     
     service = Mock(spec=TrackerAPIService)
-    service.get_recent_tasks.return_value = ["TEST-1", "TEST-2"]
-    service.get_active_tasks.return_value = ["TEST-3", "TEST-4"]
-    service.search_tasks.return_value = ["TEST-5"]
+    service.get_recent_tasks.return_value = ["12345", "67890"]
+    service.get_active_tasks.return_value = ["11111", "22222"]
+    service.search_tasks.return_value = ["33333"]
     service.get_task.return_value = {
-        "tracker_id": "TEST-1",
-        "key": "TEST-1",
+        "id": "12345",
+        "key": "TEST-123",
         "summary": "Test Task"
     }
     service.get_task_changelog.return_value = []
-    service.get_tasks_by_filter.return_value = ["TEST-5"]
+    service.get_tasks_by_filter.return_value = ["33333"]
     return service
 
 
