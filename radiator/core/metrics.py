@@ -36,11 +36,6 @@ USER_COUNT = Gauge(
     "Total number of users"
 )
 
-ITEM_COUNT = Gauge(
-    "items_total",
-    "Total number of items"
-)
-
 # Custom metrics
 CUSTOM_EVENTS = Counter(
     "custom_events_total",
@@ -84,11 +79,6 @@ def get_metrics():
 def update_user_count(count: int):
     """Update user count metric."""
     USER_COUNT.set(count)
-
-
-def update_item_count(count: int):
-    """Update item count metric."""
-    ITEM_COUNT.set(count)
 
 
 def increment_custom_event(event_type: str):

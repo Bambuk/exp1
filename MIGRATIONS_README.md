@@ -1,56 +1,31 @@
-# Миграции базы данных с Alembic
+# Миграции базы данных
 
-Этот проект использует Alembic для управления миграциями базы данных PostgreSQL.
+Этот документ описывает процесс управления миграциями базы данных в проекте Radiator.
+
+## Обзор
+
+Проект использует Alembic для управления миграциями базы данных PostgreSQL. Миграции позволяют:
+- Отслеживать изменения схемы базы данных
+- Применять изменения к базе данных
+- Откатывать изменения при необходимости
 
 ## Структура
 
 ```
 alembic/
-├── env.py              # Конфигурация окружения Alembic
-├── script.py.mako      # Шаблон для генерации файлов миграций
-├── versions/           # Папка с файлами миграций
-│   └── 99e284f2522b_initial_migration_based_on_existing_.py
-└── alembic.ini        # Основной конфигурационный файл
+├── versions/          # Файлы миграций
+├── env.py            # Конфигурация окружения
+├── script.py.mako    # Шаблон для новых миграций
+└── alembic.ini       # Основной конфиг файл
 ```
 
-## Команды Alembic
+## Команды
 
 ### Основные команды
 
-```bash
-# Проверить текущую версию
-alembic current
-
-# Показать историю миграций
-alembic history
-
-# Создать новую миграцию на основе изменений в моделях
-alembic revision --autogenerate -m "Описание изменений"
-
-# Применить все миграции до последней версии
-alembic upgrade head
-
-# Применить миграции до конкретной версии
-alembic upgrade <revision_id>
-
-# Откатить миграции на одну версию назад
-alembic downgrade -1
-
-# Откатить миграции до конкретной версии
-alembic downgrade <revision_id>
-
-# Показать SQL для миграции без выполнения
-alembic upgrade <revision_id> --sql
-```
-
-### Работа с существующей схемой
-
-Если у вас уже есть существующая схема базы данных:
-
-1. **Сбросить состояние Alembic** (если нужно):
+1. **Инициализация** (выполнено):
    ```bash
-   # Подключиться к БД и очистить таблицу alembic_version
-   DELETE FROM alembic_version;
+   alembic init alembic
    ```
 
 2. **Создать начальную миграцию**:
@@ -80,28 +55,48 @@ alembic upgrade <revision_id> --sql
 - `created_at` - дата создания
 - `updated_at` - дата обновления
 
-### items
+### tracker_tasks
 - `id` - первичный ключ
-- `title` - название предмета
-- `description` - описание
-- `price` - цена в центах
-- `image_url` - URL изображения
-- `is_available` - доступен ли предмет
+- `tracker_id` - уникальный ID задачи в Yandex Tracker
+- `key` - код задачи (например, TEST-123)
+- `summary` - краткое описание
+- `description` - полное описание
+- `status` - текущий статус
+- `assignee` - исполнитель
 - `created_at` - дата создания
 - `updated_at` - дата обновления
-- `owner_id` - внешний ключ на users.id
+- `last_sync_at` - дата последней синхронизации
+
+### tracker_task_history
+- `id` - первичный ключ
+- `task_id` - внешний ключ на tracker_tasks.id
+- `status` - статус
+- `status_display` - отображаемое название статуса
+- `start_date` - дата начала статуса
+- `end_date` - дата окончания статуса
+- `created_at` - дата создания записи
+
+### tracker_sync_log
+- `id` - первичный ключ
+- `sync_started_at` - время начала синхронизации
+- `sync_completed_at` - время завершения синхронизации
+- `status` - статус синхронизации
+- `tasks_processed` - количество обработанных задач
+- `tasks_created` - количество созданных задач
+- `tasks_updated` - количество обновленных задач
+- `history_entries_processed` - количество обработанных записей истории
+- `error_message` - сообщение об ошибке (если есть)
 
 ## Индексы
 
 - `ix_users_email` - уникальный индекс по email
 - `ix_users_username` - уникальный индекс по username
 - `ix_users_id` - индекс по id
-- `ix_items_title` - индекс по title
-- `ix_items_id` - индекс по id
-
-## Связи
-
-- `items.owner_id` -> `users.id` (ForeignKey)
+- `ix_tracker_tasks_tracker_id` - уникальный индекс по tracker_id
+- `ix_tracker_tasks_key` - индекс по коду задачи
+- `ix_tracker_tasks_last_sync` - индекс по дате последней синхронизации
+- `ix_tracker_history_task_status` - составной индекс по task_id и status
+- `ix_tracker_history_dates` - составной индекс по start_date и end_date
 
 ## Добавление новых миграций
 

@@ -8,7 +8,6 @@ FastAPI-based REST API with PostgreSQL database, authentication, and Yandex Trac
 - **PostgreSQL Database**: Robust relational database with SQLAlchemy ORM
 - **Authentication**: JWT-based authentication system
 - **User Management**: User registration, login, and profile management
-- **Item Management**: CRUD operations for items with user ownership
 - **Yandex Tracker Integration**: Automatic synchronization of tasks and their history
 - **Database Migrations**: Alembic-based database schema management
 - **Testing**: Comprehensive test suite with pytest

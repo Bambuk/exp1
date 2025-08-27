@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import relationship
 
 from radiator.core.database import Base
 
@@ -25,9 +24,6 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    items = relationship("Item", back_populates="owner")
 
     def __repr__(self) -> str:
         """String representation."""

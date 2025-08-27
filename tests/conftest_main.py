@@ -43,16 +43,3 @@ def mock_user():
         "is_active": True,
         "is_superuser": False,
     }
-
-
-@pytest.fixture
-def mock_item():
-    """Mock item for testing."""
-    return {
-        "id": 1,
-        "title": "Test Item",
-        "description": "Test Description",
-        "price": 1000,
-        "owner_id": 1,
-        "is_available": True,
-    }
