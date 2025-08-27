@@ -60,15 +60,62 @@ class TrackerSyncCommand:
             # Default to 30 days ago if no previous sync
             return datetime.utcnow() - timedelta(days=30)
     
+    def get_tasks_to_sync(self, sync_mode: str = "recent", filters: Dict[str, Any] = None, 
+                          days: int = 30, limit: int = 100) -> List[str]:
+        """
+        Get list of tasks to sync based on different strategies.
+        
+        Args:
+            sync_mode: Strategy for getting tasks
+                - "recent": Get recently updated tasks
+                - "active": Get active (non-closed) tasks
+                - "filter": Use custom filters
+                - "file": Load from file (legacy mode)
+            filters: Custom filters for "filter" mode
+            days: Number of days to look back for "recent" mode
+            limit: Maximum number of tasks to sync
+            
+        Returns:
+            List of task IDs to sync
+        """
+        try:
+            if sync_mode == "recent":
+                logger.info(f"Getting recent tasks updated in last {days} days")
+                task_ids = tracker_service.get_recent_tasks(days=days, limit=limit)
+                
+            elif sync_mode == "active":
+                logger.info("Getting active tasks")
+                task_ids = tracker_service.get_active_tasks(limit=limit)
+                
+            elif sync_mode == "filter":
+                logger.info(f"Getting tasks using custom filters: {filters}")
+                task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
+                
+            elif sync_mode == "file":
+                # Legacy mode - load from file
+                file_path = filters.get("file_path", "tasks.txt") if filters else "tasks.txt"
+                task_ids = self.load_task_list(file_path)
+                
+            else:
+                logger.warning(f"Unknown sync mode: {sync_mode}, falling back to recent tasks")
+                task_ids = tracker_service.get_recent_tasks(days=days, limit=limit)
+            
+            logger.info(f"Found {len(task_ids)} tasks to sync")
+            return task_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to get tasks to sync: {e}")
+            return []
+    
     def load_task_list(self, file_path: str) -> List[str]:
-        """Load list of task IDs from file."""
+        """Load list of task IDs from file (legacy method)."""
         if not os.path.exists(file_path):
             logger.error(f"Task list file not found: {file_path}")
             return []
         
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                task_ids = [line.strip() for line in f if line.strip()]
+                task_ids = [line.strip() for line in f if line.strip() and not line.startswith("#")]
             logger.info(f"Loaded {len(task_ids)} task IDs from {file_path}")
             return task_ids
         except Exception as e:
@@ -148,20 +195,22 @@ class TrackerSyncCommand:
         logger.info(f"History sync completed: {total_history_entries} entries created")
         return total_history_entries
     
-    def run(self, task_list_file: str, force_full_sync: bool = False):
+    def run(self, sync_mode: str = "recent", filters: Dict[str, Any] = None, 
+            days: int = 30, limit: int = 100, force_full_sync: bool = False):
         """Run the sync command."""
         try:
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started sync operation: {self.sync_log.id}")
+            logger.info(f"Sync mode: {sync_mode}")
             
-            # Load task list
-            task_ids = self.load_task_list(task_list_file)
+            # Get tasks to sync
+            task_ids = self.get_tasks_to_sync(sync_mode, filters, days, limit)
             if not task_ids:
                 self.update_sync_log(
                     status="failed",
                     sync_completed_at=datetime.utcnow(),
-                    error_details="No task IDs loaded"
+                    error_details="No tasks found to sync"
                 )
                 return False
             
@@ -211,8 +260,38 @@ def main():
     
     parser = argparse.ArgumentParser(description="Sync data from Yandex Tracker")
     parser.add_argument(
-        "task_list_file",
-        help="Path to file containing task IDs (one per line)"
+        "--sync-mode",
+        choices=["recent", "active", "filter", "file"],
+        default="recent",
+        help="Strategy for getting tasks to sync (default: recent)"
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=30,
+        help="Number of days to look back for recent tasks (default: 30)"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number of tasks to sync (default: 100)"
+    )
+    parser.add_argument(
+        "--status",
+        help="Filter by status (e.g., 'Open', 'In Progress')"
+    )
+    parser.add_argument(
+        "--assignee",
+        help="Filter by assignee"
+    )
+    parser.add_argument(
+        "--team",
+        help="Filter by team"
+    )
+    parser.add_argument(
+        "--file-path",
+        help="Path to task list file (for file mode)"
     )
     parser.add_argument(
         "--force-full-sync",
@@ -239,9 +318,26 @@ def main():
         logger.error("TRACKER_ORG_ID environment variable is required")
         sys.exit(1)
     
+    # Build filters
+    filters = {}
+    if args.status:
+        filters["status"] = args.status
+    if args.assignee:
+        filters["assignee"] = args.assignee
+    if args.team:
+        filters["team"] = args.team
+    if args.file_path:
+        filters["file_path"] = args.file_path
+    
     # Run sync
     with TrackerSyncCommand() as sync_cmd:
-        success = sync_cmd.run(args.task_list_file, args.force_full_sync)
+        success = sync_cmd.run(
+            sync_mode=args.sync_mode,
+            filters=filters,
+            days=args.days,
+            limit=args.limit,
+            force_full_sync=args.force_full_sync
+        )
         sys.exit(0 if success else 1)
 
 

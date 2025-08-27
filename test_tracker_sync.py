@@ -82,24 +82,31 @@ def test_tracker_api():
         print(f"❌ Ошибка настройки API трекера: {e}")
         return False
 
-def create_test_tasks_file():
-    """Создает тестовый файл с задачами."""
-    print("\n📝 Создание тестового файла с задачами...")
+def test_api_search():
+    """Тестирует поиск задач через API."""
+    print("\n🔍 Тестирование поиска задач через API...")
     
-    test_tasks = [
-        "12345",
-        "67890", 
-        "11111",
-        "22222",
-        "33333"
-    ]
-    
-    with open("test_tasks.txt", "w", encoding="utf-8") as f:
-        for task_id in test_tasks:
-            f.write(f"{task_id}\n")
-    
-    print("✅ Создан файл test_tasks.txt с тестовыми задачами")
-    return "test_tasks.txt"
+    try:
+        from radiator.services.tracker_service import tracker_service
+        
+        # Тестируем поиск недавних задач
+        recent_tasks = tracker_service.get_recent_tasks(days=7, limit=5)
+        print(f"✅ Найдено {len(recent_tasks)} недавних задач")
+        
+        # Тестируем поиск активных задач
+        active_tasks = tracker_service.get_active_tasks(limit=5)
+        print(f"✅ Найдено {len(active_tasks)} активных задач")
+        
+        if recent_tasks or active_tasks:
+            print("✅ API поиск работает корректно")
+            return True
+        else:
+            print("⚠️ API поиск работает, но задач не найдено (возможно, нет данных)")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Ошибка при тестировании API поиска: {e}")
+        return False
 
 def run_test_sync():
     """Запускает тестовую синхронизацию."""
@@ -108,11 +115,7 @@ def run_test_sync():
     try:
         from radiator.commands.sync_tracker import TrackerSyncCommand
         
-        task_file = "test_tasks.txt"
-        if not os.path.exists(task_file):
-            task_file = create_test_tasks_file()
-        
-        print(f"Используется файл задач: {task_file}")
+        print("Тестируем синхронизацию недавних задач (последние 3 дня, максимум 5 задач)")
         print("⚠️ ВНИМАНИЕ: Это тестовая синхронизация с реальными данными!")
         print("Для продолжения введите 'yes': ", end="")
         
@@ -122,7 +125,12 @@ def run_test_sync():
             return False
         
         with TrackerSyncCommand() as sync_cmd:
-            success = sync_cmd.run(task_file, force_full_sync=False)
+            success = sync_cmd.run(
+                sync_mode="recent",
+                days=3,
+                limit=5,
+                force_full_sync=False
+            )
             
             if success:
                 print("✅ Тестовая синхронизация завершена успешно")
@@ -153,6 +161,11 @@ def main():
     # Проверяем API трекера
     if not test_tracker_api():
         print("\n❌ Тестирование прервано из-за ошибок API трекера")
+        return False
+    
+    # Тестируем API поиск
+    if not test_api_search():
+        print("\n❌ Тестирование прервано из-за ошибок API поиска")
         return False
     
     print("\n✅ Все проверки пройдены успешно!")

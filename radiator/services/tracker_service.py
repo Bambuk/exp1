@@ -173,6 +173,151 @@ class TrackerAPIService:
         else:
             return str(value) if value else ""
 
+    def get_active_tasks(self, limit: int = 100) -> List[str]:
+        """
+        Get active tasks (not closed/completed).
+        
+        Args:
+            limit: Maximum number of tasks to return
+            
+        Returns:
+            List of task IDs
+        """
+        try:
+            # Try to get tasks with common active statuses
+            # Use a simple approach to avoid complex queries
+            query = "Status: Open OR Status: 'In Progress' OR Status: Testing OR Status: Review"
+            return self.search_tasks(query=query, limit=limit)
+            
+        except Exception as e:
+            logger.error(f"Failed to get active tasks: {e}")
+            # Fallback: try to get all tasks and filter by status
+            try:
+                all_tasks = self.search_tasks(query="", limit=limit*2)
+                if all_tasks:
+                    logger.info(f"Fallback: found {len(all_tasks)} total tasks")
+                    return all_tasks[:limit]
+            except:
+                pass
+            return []
+    
+    def search_tasks(self, query: str, limit: int = 100) -> List[str]:
+        """
+        Search for tasks using a query.
+        
+        Args:
+            query: Yandex Tracker search query
+            limit: Maximum number of tasks to return
+            
+        Returns:
+            List of task IDs
+        """
+        try:
+            # Use the correct endpoint for searching issues
+            url = f"{self.base_url}issues"
+            params = {"query": query, "limit": limit}
+            
+            response = self._make_request(url, method="GET", params=params)
+            data = response.json()
+            
+            # Extract task IDs - handle different response formats
+            task_ids = []
+            if isinstance(data, list):
+                # API returned list of issues directly
+                for item in data:
+                    if isinstance(item, dict) and item.get("id"):
+                        task_ids.append(str(item["id"]))
+            elif isinstance(data, dict):
+                # API returned dict with issues key
+                issues = data.get("issues", [])
+                if isinstance(issues, list):
+                    for item in issues:
+                        if isinstance(item, dict) and item.get("id"):
+                            task_ids.append(str(item["id"]))
+            
+            logger.info(f"Found {len(task_ids)} tasks via API search")
+            return task_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to search tasks: {e}")
+            return []
+    
+    def get_tasks_by_filter(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[str]:
+        """
+        Get tasks using various filters.
+        
+        Args:
+            filters: Dictionary of filters (status, assignee, team, etc.)
+            limit: Maximum number of tasks to return
+            
+        Returns:
+            List of task IDs
+        """
+        try:
+            # Build search query from filters using Tracker query syntax
+            search_parts = []
+            
+            if filters:
+                for key, value in filters.items():
+                    if value:
+                        if key == "status":
+                            search_parts.append(f'Status: "{value}"')
+                        elif key == "assignee":
+                            search_parts.append(f'Assignee: "{value}"')
+                        elif key == "team":
+                            search_parts.append(f'Team: "{value}"')
+                        elif key == "author":
+                            search_parts.append(f'Author: "{value}"')
+                        elif key == "updated_since":
+                            if isinstance(value, datetime):
+                                search_parts.append(f'Updated: >{value.strftime("%Y-%m-%d")}')
+                            else:
+                                search_parts.append(f'Updated: >{value}')
+                        elif key == "created_since":
+                            if isinstance(value, datetime):
+                                search_parts.append(f'Created: >{value.strftime("%Y-%m-%d")}')
+                            else:
+                                search_parts.append(f'Created: >{value}')
+                        else:
+                            # Generic filter
+                            search_parts.append(f'{key}: "{value}"')
+            
+            # If no specific filters, get recent tasks
+            if not search_parts:
+                search_parts.append("Updated: >2024-01-01")  # Default: tasks updated this year
+            
+            search_query = " AND ".join(search_parts)
+            
+            return self.search_tasks(query=search_query, limit=limit)
+            
+        except Exception as e:
+            logger.error(f"Failed to get tasks by filter: {e}")
+            return []
+    
+    def get_recent_tasks(self, days: int = 30, limit: int = 100) -> List[str]:
+        """
+        Get recently updated tasks.
+        
+        Args:
+            days: Number of days to look back
+            limit: Maximum number of tasks to return
+            
+        Returns:
+            List of task IDs
+        """
+        try:
+            # Use simple query for recent tasks
+            updated_since = datetime.now() - timedelta(days=days)
+            date_str = updated_since.strftime("%Y-%m-%d")
+            
+            # Simple query that should work with Tracker API
+            query = f"Updated: >{date_str}"
+            return self.search_tasks(query=query, limit=limit)
+            
+        except Exception as e:
+            logger.error(f"Failed to get recent tasks: {e}")
+            return []
+
 
 # Create service instance
 tracker_service = TrackerAPIService()

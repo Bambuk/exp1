@@ -5,6 +5,14 @@ help:  ## Show this help message
 	@echo ''
 	@echo 'Targets:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ''
+	@echo 'Tracker Sync Commands:'
+	@echo '  sync-tracker*      - Sync recent tracker tasks'
+	@echo '  sync-tracker-*     - Various sync modes (active, recent, filter, file)'
+	@echo ''
+	@echo 'Tracker Test Commands:'
+	@echo '  test-tracker*      - Run tracker tests (all, unit, integration, crud, api)'
+	@echo '  test-tracker-coverage - Run tracker tests with coverage report'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -86,17 +94,62 @@ pre-commit-run:  ## Run pre-commit hooks on all files
 
 # Tracker sync commands
 sync-tracker:
-	@echo "Syncing tracker data..."
-	@python sync_tracker.py tasks.txt
+	@echo "Syncing recent tracker tasks..."
+	@python sync_tracker.py
+
+sync-tracker-active:
+	@echo "Syncing active tracker tasks..."
+	@python sync_tracker.py --sync-mode active
+
+sync-tracker-recent:
+	@echo "Syncing recent tracker tasks (last 7 days)..."
+	@python sync_tracker.py --days 7
+
+sync-tracker-filter:
+	@echo "Syncing tracker tasks with custom filters..."
+	@python sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
+
+sync-tracker-file:
+	@echo "Syncing tracker tasks from file (legacy mode)..."
+	@python sync_tracker.py --sync-mode file --file-path tasks.txt
 
 sync-tracker-debug:
 	@echo "Syncing tracker data with debug..."
-	@python sync_tracker.py tasks.txt --debug
+	@python sync_tracker.py --debug
 
 sync-tracker-force:
 	@echo "Force full sync of tracker data..."
-	@python sync_tracker.py tasks.txt --force-full-sync
+	@python sync_tracker.py --force-full-sync
 
 test-tracker-sync:
 	@echo "Testing tracker sync system..."
 	@python test_tracker_sync.py
+
+# Tracker test commands
+test-tracker:  ## Run all tracker-related tests
+	@echo "Running all tracker tests..."
+	pytest tests/test_tracker_sync.py tests/test_tracker_crud.py tests/test_tracker_api.py -v
+
+test-tracker-unit:  ## Run tracker unit tests only
+	@echo "Running tracker unit tests..."
+	pytest tests/test_tracker_crud.py tests/test_tracker_api.py -v
+
+test-tracker-integration:  ## Run tracker integration tests only
+	@echo "Running tracker integration tests..."
+	pytest tests/test_tracker_sync.py -v
+
+test-tracker-crud:  ## Run tracker CRUD tests only
+	@echo "Running tracker CRUD tests..."
+	pytest tests/test_tracker_crud.py -v
+
+test-tracker-api:  ## Run tracker API tests only
+	@echo "Running tracker API tests..."
+	pytest tests/test_tracker_api.py -v
+
+test-tracker-coverage:  ## Run tracker tests with coverage report
+	@echo "Running tracker tests with coverage..."
+	pytest tests/test_tracker_sync.py tests/test_tracker_crud.py tests/test_tracker_api.py -v --cov=radiator.crud.tracker --cov=radiator.services.tracker_service --cov=radiator.commands.sync_tracker --cov-report=html
+
+test-tracker-simple:  ## Run simple tracker tests (basic functionality)
+	@echo "Running simple tracker tests..."
+	pytest tests/test_tracker_simple.py -v
