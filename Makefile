@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -17,6 +17,12 @@ help:  ## Show this help message
 	@echo 'Tracker Test Commands:'
 	@echo '  test-tracker*      - Run tracker tests (all, unit, integration, crud, api)'
 	@echo '  test-tracker-coverage - Run tracker tests with coverage report'
+	@echo ''
+	@echo 'Status History Commands:'
+	@echo '  update-status-history* - Update status history for tasks'
+	@echo '  update-status-history-cpo - Update CPO queue status history (last 14 days)'
+	@echo '  update-status-history-dev - Update DEV queue status history (last 7 days)'
+	@echo '  update-status-history-qa - Update QA queue status history (last 30 days)'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -175,3 +181,30 @@ test-tracker-coverage:  ## Run tracker tests with coverage report
 test-tracker-simple:  ## Run simple tracker tests (basic functionality)
 	@echo "Running simple tracker tests..."
 	pytest tests/test_tracker_simple.py -v
+
+# Status history update commands
+update-status-history:  ## Update status history for tasks (default: CPO queue, last 14 days)
+	@echo "Updating status history for CPO queue (last 14 days)..."
+	@python radiator/commands/update_status_history.py --queue CPO --days 14
+
+update-status-history-cpo:  ## Update CPO queue status history (last 14 days)
+	@echo "Updating status history for CPO queue (last 14 days)..."
+	@python radiator/commands/update_status_history.py --queue CPO --days 14
+
+update-status-history-dev:  ## Update DEV queue status history (last 7 days)
+	@echo "Updating status history for DEV queue (last 7 days)..."
+	@python radiator/commands/update_status_history.py --queue DEV --days 7
+
+update-status-history-qa:  ## Update QA queue status history (last 30 days)
+	@echo "Updating status history for QA queue (last 30 days)..."
+	@python radiator/commands/update_status_history.py --queue QA --days 30
+
+update-status-history-custom:  ## Update status history with custom parameters
+	@echo "Usage: make update-status-history-custom QUEUE=<queue> DAYS=<days> LIMIT=<limit>"
+	@echo "Example: make update-status-history-custom QUEUE=SUPPORT DAYS=7 LIMIT=500"
+	@if [ -n "$(QUEUE)" ] && [ -n "$(DAYS)" ]; then \
+		python radiator/commands/update_status_history.py --queue $(QUEUE) --days $(DAYS) --limit $(LIMIT:-1000); \
+	else \
+		echo "Please specify QUEUE and DAYS parameters"; \
+		exit 1; \
+	fi
