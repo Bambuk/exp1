@@ -154,3 +154,8 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Reports and generated files
+reports/
+*.png
+*.csv

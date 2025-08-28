@@ -156,7 +156,11 @@ class GenerateStatusChangeReportCommand:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"status_change_report_{timestamp}.csv"
         
-        filepath = Path(filename)
+        # Ensure reports directory exists
+        reports_dir = Path("reports")
+        reports_dir.mkdir(exist_ok=True)
+        
+        filepath = reports_dir / filename
         
         try:
             # Format dates for column headers
@@ -196,7 +200,11 @@ class GenerateStatusChangeReportCommand:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"status_change_table_{timestamp}.png"
         
-        filepath = Path(filename)
+        # Ensure reports directory exists
+        reports_dir = Path("reports")
+        reports_dir.mkdir(exist_ok=True)
+        
+        filepath = reports_dir / filename
         
         try:
             # Prepare data for table
