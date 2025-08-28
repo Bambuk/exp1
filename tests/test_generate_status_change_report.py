@@ -271,12 +271,29 @@ class TestGenerateStatusChangeReportCommand:
             with open(tmp_filename, 'r', encoding='utf-8') as f:
                 content = f.read()
                 assert "Автор,14.08-21.08_изменения,14.08-21.08_задачи,21.08-28.08_изменения,21.08-28.08_задачи,Discovery,Delivery" in content
-                assert "user1,2,1,5,3,2,1" in content
-                assert "user2,0,0,3,2,1,0" in content
+                # Check that dynamics arrows are added to current week data
+                assert "user1,2,1,5 🟢↗️,3 🟢↗️,2,1" in content
+                assert "user2,0,0,3 🟢↗️,2 🟢↗️,1,0" in content
                 
         finally:
             if os.path.exists(tmp_filename):
                 os.unlink(tmp_filename)
+
+    def test_get_dynamics_arrow(self):
+        """Test dynamics arrow generation."""
+        cmd = GenerateStatusChangeReportCommand()
+        
+        # Test improvement (green up arrow)
+        assert cmd._get_dynamics_arrow(5, 2) == "🟢↗️"
+        assert cmd._get_dynamics_arrow(10, 0) == "🟢↗️"
+        
+        # Test decline (red down arrow)
+        assert cmd._get_dynamics_arrow(1, 5) == "🔴↘️"
+        assert cmd._get_dynamics_arrow(0, 3) == "🔴↘️"
+        
+        # Test no change (white right arrow)
+        assert cmd._get_dynamics_arrow(5, 5) == "⚪➡️"
+        assert cmd._get_dynamics_arrow(0, 0) == "⚪➡️"
 
     def test_save_csv_report_default_filename(self):
         """Test CSV report saving with default filename."""
