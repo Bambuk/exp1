@@ -168,13 +168,13 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Author', week2_header, week1_header]
+                fieldnames = ['Автор', week2_header, week1_header]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
                 for author, data in self.report_data.items():
                     writer.writerow({
-                        'Author': author,
+                        'Автор': author,
                         week2_header: data['week2'],  # Earlier week (left)
                         week1_header: data['week1']   # Later week (right)
                     })
@@ -216,11 +216,22 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Create figure and axis
-            fig, ax = plt.subplots(figsize=(10, max(6, len(authors) * 0.4 + 2)))
+            # Calculate dimensions with proper padding for table
+            cell_height = 0.08  # Height per row
+            header_height = 0.1  # Header row height
+            table_height = len(authors) * cell_height + header_height
             
-            # Hide axes
-            ax.axis('tight')
+            # Add minimal padding around table (top, bottom, left, right)
+            padding = 0.05
+            total_height = table_height + 2 * padding
+            
+            # Create figure with proper size including padding
+            fig_width = 12
+            fig_height = total_height
+            fig = plt.figure(figsize=(fig_width, fig_height))
+            
+            # Create axis with padding around table
+            ax = fig.add_axes([padding, padding, 1 - 2*padding, 1 - 2*padding])
             ax.axis('off')
             
             # Create table data
@@ -228,17 +239,19 @@ class GenerateStatusChangeReportCommand:
             for author, week2, week1 in zip(authors, week2_values, week1_values):
                 table_data.append([author, week2, week1])  # Earlier week first (left)
             
-            # Create table
+            # Create table positioned in the center of the axis
             table = ax.table(cellText=table_data,
-                           colLabels=['Author', week2_header, week1_header],
+                           colLabels=['Автор', week2_header, week1_header],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.5, 0.25, 0.25])
+                           colWidths=[0.4, 0.3, 0.3])  # Author column narrower (0.6 -> 0.4)
             
             # Style the table
             table.auto_set_font_size(False)
-            table.set_fontsize(12)
-            table.scale(1.2, 1.5)
+            table.set_fontsize(11)
+            
+            # Minimal scaling to fit properly
+            table.scale(1.0, 1.0)
             
             # Style header row
             for i in range(3):
@@ -254,15 +267,17 @@ class GenerateStatusChangeReportCommand:
                     else:
                         cell.set_facecolor('#FFFFFF')
                     
-                    # Center align text
-                    cell.set_text_props(ha='center', va='center')
+                    # Left align text for Author column, center for data columns
+                    if j == 0:  # Author column
+                        cell.set_text_props(ha='left', va='center')
+                    else:  # Data columns
+                        cell.set_text_props(ha='center', va='center')
             
-            # Add title
-            plt.title('Status Changes by Author (Last 2 Weeks)', fontsize=16, fontweight='bold', pad=20)
+            # No title - clean table only
             
-            # Adjust layout and save
-            plt.tight_layout()
-            plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white')
+            # Save with minimal margins - use tight layout to avoid cropping
+            plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', 
+                       pad_inches=0.1, edgecolor='none', transparent=False)
             plt.close()
             
             logger.info(f"Table saved to: {filepath}")

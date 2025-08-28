@@ -161,8 +161,8 @@ class GenerateStatusChangeReportDemoCommand:
             week2_header = f"{week2_start.strftime('%d.%m')}-{week2_end.strftime('%d.%m')}"
             week1_header = f"{week1_start.strftime('%d.%m')}-{week1_end.strftime('%d.%m')}"
             
-            # Create figure and axis
-            fig, ax = plt.subplots(figsize=(10, max(6, len(authors) * 0.4 + 2)))
+            # Create figure and axis with optimized size
+            fig, ax = plt.subplots(figsize=(10, max(6, len(authors) * 0.4 + 1)))
             
             # Hide axes
             ax.axis('tight')
@@ -202,12 +202,12 @@ class GenerateStatusChangeReportDemoCommand:
                     # Center align text
                     cell.set_text_props(ha='center', va='center')
             
-            # Add title
-            plt.title('Demo: Status Changes by Author (Last 2 Weeks)', fontsize=16, fontweight='bold', pad=20)
+            # Add title with reduced padding
+            plt.title('Demo: Status Changes by Author (Last 2 Weeks)', fontsize=16, fontweight='bold', pad=10)
             
-            # Adjust layout and save
-            plt.tight_layout()
-            plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white')
+            # Adjust layout and save with optimized parameters
+            plt.tight_layout(pad=0.5)
+            plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', pad_inches=0.1)
             plt.close()
             
             logger.info(f"Demo table saved to: {filepath}")
