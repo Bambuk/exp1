@@ -414,11 +414,17 @@ class TestIntegration:
                             mock_task_crud.bulk_create_or_update.return_value = {"created": 1, "updated": 0}
                             mock_history_crud.bulk_create.return_value = 0
                             
-                            # Run sync
-                            result = sync_cmd.run(sync_mode="recent", days=7, limit=5)
-                            
-                            assert result is True
-                            mock_service.get_recent_tasks.assert_called_once_with(days=7, limit=5)
+                            # Mock database session
+                            with patch.object(sync_cmd, 'db') as mock_db:
+                                mock_db.add.return_value = None
+                                mock_db.commit.return_value = None
+                                mock_db.refresh.return_value = None
+                                
+                                # Run sync
+                                result = sync_cmd.run(sync_mode="recent", days=7, limit=5)
+                                
+                                assert result is True
+                                mock_service.get_recent_tasks.assert_called_once_with(days=7, limit=5)
 
 
 # Mock open function for file mode testing
