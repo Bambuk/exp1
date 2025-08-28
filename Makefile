@@ -224,6 +224,22 @@ telegram-config: ## Show Telegram bot configuration
 
 telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "Resetting Telegram bot file monitoring state..."
+	@echo ""
+	@echo "⚠️  WHEN TO USE telegram-reset:"
+	@echo "   • When you want to re-send ALL existing files in reports/ folder"
+	@echo "   • After manually cleaning up old reports and want to re-sync"
+	@echo "   • For testing purposes to verify bot functionality"
+	@echo ""
+	@echo "❌ WHEN NOT TO USE telegram-reset:"
+	@echo "   • For normal operation - bot automatically detects new files"
+	@echo "   • After generating new reports - bot will find them automatically"
+	@echo "   • Just to restart the bot - use telegram-bot instead"
+	@echo ""
+	@echo "💡 NORMAL WORKFLOW:"
+	@echo "   1. make telegram-bot          # Start bot (it remembers sent files)"
+	@echo "   2. Generate new report       # Bot automatically finds and sends it"
+	@echo "   3. No need to reset anything!"
+	@echo ""
 	@python -m radiator.telegram_bot.main --reset
 
 telegram-cleanup: ## Clean up old files from Telegram bot state
