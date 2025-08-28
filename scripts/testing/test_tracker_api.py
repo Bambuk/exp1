@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """
-Тест Tracker API с загрузкой переменных из .env
+Простой тест доступа к Tracker API
 """
 
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Загружаем переменные окружения из .env
-load_dotenv()
 
 # Добавляем корень проекта в путь
-project_root = Path(__file__).parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.services.tracker_service import tracker_service

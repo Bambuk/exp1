@@ -186,7 +186,7 @@ class GenerateStatusChangeReportCommand:
             Dictionary mapping status names to block names (discovery/delivery)
         """
         try:
-            mapping_file = Path("misc/status_order.txt")
+            mapping_file = Path("data/config/status_order.txt")
             if not mapping_file.exists():
                 logger.warning(f"Status mapping file not found: {mapping_file}")
                 return {}

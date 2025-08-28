@@ -5,13 +5,15 @@ import time
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from config import API_TOKEN, ORG_ID
+# Конфигурация из переменных окружения
+API_TOKEN = os.getenv('TRACKER_API_TOKEN', '')
+ORG_ID = os.getenv('TRACKER_ORG_ID', '')
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # === КОНФИГ ===
-TASK_LIST_FILE = "20250805_team_assesment.txt"
-STATUS_ORDER_FILE = "status_order.txt"
-UNKNOWN_STATUS_FILE = "unknown_statuses.txt"
+TASK_LIST_FILE = "data/input/20250805_team_assesment.txt"
+STATUS_ORDER_FILE = "data/config/status_order.txt"
+UNKNOWN_STATUS_FILE = "data/output/unknown_statuses.txt"
 PREVIOUS_STAGE_FILE = ""
 FROM_DATE = datetime.strptime("2024-07-01", "%Y-%m-%d")
 DEBUG = False
@@ -19,9 +21,14 @@ DEBUG_LIMIT = 15
 REVERSE_STATUS_ORDER = True
 ONLY_LAST_PER_DAY = True
 
+# Проверяем существование входного файла
+if not os.path.exists(TASK_LIST_FILE):
+    print(f"Warning: Task list file not found: {TASK_LIST_FILE}")
+    print("Please create the file or update the path in the script")
+
 # === ВРЕМЕННАЯ МЕТКА ===
 TS = datetime.now().strftime("%Y%m%d_%H%M%S")
-DEBUG_DIR = "./debug"
+DEBUG_DIR = "data/output/debug"
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 # === КОНСТАНТЫ ДЛЯ ТРЕКЕРА ===
@@ -34,12 +41,26 @@ BASE_URL = "https://api.tracker.yandex.net/v2/"
 ISSUE_URL = f"{BASE_URL}issues"
 
 # === ВЫХОДНЫЕ ФАЙЛЫ ===
-CSV_STAGE_FILE = f"tracker_stage_dates_{TS}.csv"
-CSV_LONG_FILE = f"tracker_stage_long_expanded_{TS}.csv"
+CSV_STAGE_FILE = f"data/output/tracker_stage_dates_{TS}.csv"
+CSV_LONG_FILE = f"data/output/tracker_stage_long_expanded_{TS}.csv"
 
 # === ЗАГРУЗКА ПОРЯДКА СТАТУСОВ ===
-with open(STATUS_ORDER_FILE, "r", encoding="utf-8") as f:
-    RAW_STATUS_ORDER = [line.strip() for line in f if line.strip()]
+try:
+    with open(STATUS_ORDER_FILE, "r", encoding="utf-8") as f:
+        RAW_STATUS_ORDER = [line.strip() for line in f if line.strip()]
+except FileNotFoundError:
+    print(f"Warning: Status order file not found: {STATUS_ORDER_FILE}")
+    RAW_STATUS_ORDER = []
+
+# Проверяем существование файла с задачами
+try:
+    with open(TASK_LIST_FILE, "r", encoding="utf-8") as f:
+        TASK_IDS = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    print(f"Loaded {len(TASK_IDS)} task IDs from {TASK_LIST_FILE}")
+except FileNotFoundError:
+    print(f"Error: Task list file not found: {TASK_LIST_FILE}")
+    print("Please create the file or update the path in the script")
+    TASK_IDS = []
 
 n = len(RAW_STATUS_ORDER)
 if REVERSE_STATUS_ORDER:

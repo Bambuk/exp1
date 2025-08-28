@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 # Добавляем корень проекта в путь
-project_root = Path(__file__).parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.core.database import SessionLocal
@@ -33,7 +33,7 @@ def export_cpo_tasks():
             return False
         
         # Создаем файл со списком задач
-        output_file = "cpo_tasks_list.txt"
+        output_file = "data/output/cpo_tasks_list.txt"
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(f"# Список задач CPO для синхронизации\n")
             f.write(f"# Всего задач: {len(cpo_tasks)}\n")

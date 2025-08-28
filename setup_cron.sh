@@ -3,7 +3,7 @@
 
 # Получаем абсолютный путь к директории проекта
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SYNC_SCRIPT="$PROJECT_DIR/sync_tracker.py"
+SYNC_SCRIPT="$PROJECT_DIR/scripts/sync/sync_tracker.py"
 LOG_FILE="$PROJECT_DIR/logs/tracker_sync.log"
 
 # Создаем директорию для логов

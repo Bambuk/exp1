@@ -102,11 +102,11 @@ db-init:  ## Initialize main database
 # Test database management commands
 test-db-create:  ## Create test database
 	@echo "Creating test database 'radiator_test'..."
-	python create_test_db.py
+	python scripts/database/create_test_db.py
 
 test-db-drop:  ## Drop test database
 	@echo "Dropping test database 'radiator_test'..."
-	python create_test_db.py --drop
+	python scripts/database/create_test_db.py --drop
 
 test-db-reset: test-db-drop test-db-create  ## Reset test database (drop and recreate)
 	@echo "Test database reset complete."
@@ -123,31 +123,31 @@ pre-commit-run:  ## Run pre-commit hooks on all files
 # Tracker sync commands
 sync-tracker:
 	@echo "Syncing recent tracker tasks..."
-	@python sync_tracker.py
+	@python scripts/sync/sync_tracker.py
 
 sync-tracker-active:
 	@echo "Syncing active tracker tasks..."
-	@python sync_tracker.py --sync-mode active
+	@python scripts/sync/sync_tracker.py --sync-mode active
 
 sync-tracker-recent:
 	@echo "Syncing recent tracker tasks (last 7 days)..."
-	@python sync_tracker.py --days 7
+	@python scripts/sync/sync_tracker.py --days 7
 
 sync-tracker-filter:
 	@echo "Syncing tracker tasks with custom filters..."
-	@python sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
+	@python scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
 
 sync-tracker-file:
 	@echo "Syncing tracker tasks from file (legacy mode)..."
-	@python sync_tracker.py --sync-mode file --file-path tasks.txt
+	@python scripts/sync/sync_tracker.py --sync-mode file --file-path data/input/tasks.txt
 
 sync-tracker-debug:
 	@echo "Syncing tracker data with debug..."
-	@python sync_tracker.py --debug
+	@python scripts/sync/sync_tracker.py --debug
 
 sync-tracker-force:
 	@echo "Force full sync of tracker data..."
-	@python sync_tracker.py --force-full-sync
+	@python scripts/sync/sync_tracker.py --force-full-sync
 
 test-tracker-sync:
 	@echo "Testing tracker sync system..."

@@ -2,7 +2,7 @@
 
 # Получаем путь к директории проекта
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SyncScript = Join-Path $ProjectDir "sync_tracker.py"
+$SyncScript = Join-Path $ProjectDir "scripts\sync\sync_tracker.py"
 $LogFile = Join-Path $ProjectDir "logs\tracker_sync.log"
 
 # Создаем директорию для логов

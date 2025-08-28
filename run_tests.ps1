@@ -18,13 +18,13 @@ $env:ENVIRONMENT = "test"
 # Function to create test database
 function Create-TestDatabase {
     Write-Host "Creating test database 'radiator_test'..." -ForegroundColor Green
-    python create_test_db.py
+    python scripts/database/create_test_db.py
 }
 
 # Function to drop test database
 function Drop-TestDatabase {
     Write-Host "Dropping test database 'radiator_test'..." -ForegroundColor Yellow
-    python create_test_db.py --drop
+    python scripts/database/create_test_db.py --drop
 }
 
 # Function to check test environment
