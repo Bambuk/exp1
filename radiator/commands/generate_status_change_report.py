@@ -264,9 +264,27 @@ class GenerateStatusChangeReportCommand:
         logger.info(f"Generated report for {len(self.report_data)} authors")
         return self.report_data
     
+    def _get_dynamics_arrow(self, current: int, previous: int) -> str:
+        """
+        Get dynamics arrow based on comparison of current vs previous values.
+        
+        Args:
+            current: Current week value
+            previous: Previous week value
+            
+        Returns:
+            Arrow emoji with color indication
+        """
+        if current > previous:
+            return "🟢↗️"  # Green up arrow for improvement
+        elif current < previous:
+            return "🔴↘️"  # Red down arrow for decline
+        else:
+            return "⚪➡️"  # White right arrow for no change
+    
     def save_csv_report(self, filename: str = None) -> str:
         """
-        Save report data to CSV file.
+        Save report data to CSV file with dynamics indicators.
         
         Args:
             filename: Optional filename, will generate default if not provided
@@ -295,12 +313,16 @@ class GenerateStatusChangeReportCommand:
                 
                 writer.writeheader()
                 for author, data in self.report_data.items():
+                    # Get dynamics arrows
+                    changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
+                    tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
+                    
                     writer.writerow({
                         'Автор': author,
                         f'{week2_header}_изменения': data['week2_changes'],  # Earlier week changes
                         f'{week2_header}_задачи': data['week2_tasks'],       # Earlier week tasks
-                        f'{week1_header}_изменения': data['week1_changes'],  # Later week changes
-                        f'{week1_header}_задачи': data['week1_tasks'],       # Later week tasks
+                        f'{week1_header}_изменения': f"{data['week1_changes']} {changes_arrow}",  # Later week changes with arrow
+                        f'{week1_header}_задачи': f"{data['week1_tasks']} {tasks_arrow}",         # Later week tasks with arrow
                         'Discovery': data['discovery_tasks'],                 # Discovery tasks
                         'Delivery': data['delivery_tasks']                    # Delivery tasks
                     })
@@ -346,7 +368,7 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (5 columns: Author, Week2, Week1, Discovery, Delivery)
+            # Calculate dimensions with proper padding for table (6 columns: Author, Week2, Week1_changes, Week1_tasks, Discovery, Delivery)
             cell_height = 0.08  # Height per row
             header_height = 0.1  # Header row height (standard height for single line)
             table_height = len(authors) * cell_height + header_height
@@ -356,7 +378,7 @@ class GenerateStatusChangeReportCommand:
             total_height = table_height + 2 * padding
             
             # Create figure with proper size including padding
-            fig_width = 16  # Increased width for 5 columns
+            fig_width = 18  # Increased width for 6 columns
             fig_height = total_height
             fig = plt.figure(figsize=(fig_width, fig_height))
             
@@ -367,14 +389,17 @@ class GenerateStatusChangeReportCommand:
             # Create table data with changes, tasks, and tasks by blocks
             table_data = []
             for author, w2_ch, w2_t, w1_ch, w1_t, disc, deliv in zip(authors, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks):
-                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t})", disc, deliv])  # Format: "changes (tasks)" + discovery + delivery
+                # Add dynamics arrows to current week data
+                changes_arrow = self._get_dynamics_arrow(w1_ch, w2_ch)
+                tasks_arrow = self._get_dynamics_arrow(w1_t, w2_t)
+                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t}) {changes_arrow}", f"{w1_t} {tasks_arrow}", disc, deliv])
             
             # Create table positioned in the center of the axis
             table = ax.table(cellText=table_data,
-                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения (задачи)', 'Discovery', 'Delivery'],
+                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения', f'{week1_header} | задачи', 'Discovery', 'Delivery'],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.30, 0.22, 0.22, 0.13, 0.13])  # Author column narrower, block columns narrowest
+                           colWidths=[0.25, 0.20, 0.20, 0.20, 0.08, 0.08])  # Adjusted widths for 6 columns
             
             # Style the table
             table.auto_set_font_size(False)
@@ -384,13 +409,13 @@ class GenerateStatusChangeReportCommand:
             table.scale(1.0, 1.0)
             
             # Style header row
-            for i in range(5):
+            for i in range(6):
                 table[(0, i)].set_facecolor('#4CAF50')
                 table[(0, i)].set_text_props(weight='bold', color='white')
             
             # Style data rows
             for i in range(1, len(table_data) + 1):
-                for j in range(5):
+                for j in range(6):
                     cell = table[(i, j)]
                     if i % 2 == 0:  # Alternate row colors
                         cell.set_facecolor('#F5F5F5')
@@ -452,7 +477,12 @@ class GenerateStatusChangeReportCommand:
         
         for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
             week2_str = f"{data['week2_changes']} ({data['week2_tasks']})"
-            week1_str = f"{data['week1_changes']} ({data['week1_tasks']})"
+            
+            # Add dynamics arrows to current week
+            changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
+            tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
+            week1_str = f"{data['week1_changes']} ({data['week1_tasks']}) {changes_arrow}{tasks_arrow}"
+            
             discovery_str = str(data['discovery_tasks'])
             delivery_str = str(data['delivery_tasks'])
             print(f"{author:<25} {week2_str:<20} {week1_str:<20} {discovery_str:<10} {delivery_str:<10}")
