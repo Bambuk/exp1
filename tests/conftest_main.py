@@ -77,3 +77,13 @@ def mock_crud_operations():
             'authenticate': mock_authenticate,
             'create_mock_user': create_mock_user
         }
+
+
+@pytest.fixture(scope="session")
+def test_environment():
+    """Ensure test environment is properly configured."""
+    # Verify we're using test database
+    from radiator.core.config import settings
+    assert settings.is_test_environment
+    assert "radiator_test" in settings.DATABASE_URL
+    return True

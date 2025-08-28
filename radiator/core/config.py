@@ -92,6 +92,29 @@ class Settings(BaseSettings):
         "case_sensitive": True
     }
 
+    @property
+    def is_test_environment(self) -> bool:
+        """Check if running in test environment."""
+        return self.ENVIRONMENT.lower() == "test"
+
+
+def get_settings() -> Settings:
+    """Get settings instance with proper environment file loading."""
+    # Determine which environment file to load
+    env = os.getenv("ENVIRONMENT", "development")
+    
+    if env.lower() == "test":
+        # Load test environment file
+        env_file = "env.test.example"
+        if os.path.exists(env_file):
+            return Settings(_env_file=env_file)
+        else:
+            # Fallback to default .env if env.test.example doesn't exist
+            return Settings()
+    else:
+        # Load default environment file
+        return Settings()
+
 
 # Global settings instance
-settings = Settings()
+settings = get_settings()

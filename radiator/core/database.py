@@ -12,7 +12,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from radiator.core.config import settings
 
-# Create async engine
+# Create async engine - use settings from appropriate environment file
 async_engine = create_async_engine(
     settings.DATABASE_URL,
     pool_size=settings.DATABASE_POOL_SIZE,
@@ -21,7 +21,7 @@ async_engine = create_async_engine(
     future=True,
 )
 
-# Create sync engine for migrations
+# Create sync engine for migrations - use settings from appropriate environment file
 sync_engine = create_engine(
     settings.DATABASE_URL_SYNC,
     pool_size=settings.DATABASE_POOL_SIZE,
@@ -68,7 +68,7 @@ async def init_db() -> None:
     """Initialize database tables."""
     async with async_engine.begin() as conn:
         # Import all models here to ensure they are registered
-        from radiator.models import user, item, tracker  # noqa: F401
+        from radiator.models import user, tracker  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
 
 
@@ -76,3 +76,13 @@ async def close_db() -> None:
     """Close database connections."""
     await async_engine.dispose()
     sync_engine.dispose()
+
+
+def get_test_database_url() -> str:
+    """Get test database URL for testing purposes."""
+    return settings.DATABASE_URL
+
+
+def get_test_database_url_sync() -> str:
+    """Get test database sync URL for testing purposes."""
+    return settings.DATABASE_URL_SYNC

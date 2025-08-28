@@ -1,10 +1,14 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
 	@echo 'Targets:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ''
+	@echo 'Database Commands:'
+	@echo '  db-init*           - Initialize main database'
+	@echo '  test-db-*          - Manage test database (create, drop, reset)'
 	@echo ''
 	@echo 'Tracker Sync Commands:'
 	@echo '  sync-tracker*      - Sync recent tracker tasks'
@@ -86,8 +90,26 @@ migrate-downgrade:  ## Downgrade one migration
 migrate-reset:  ## Reset to base (remove all migrations)
 	alembic downgrade base
 
-db-init:  ## Initialize database
+db-init:  ## Initialize main database
 	python -c "import asyncio; from radiator.core.database import init_db; asyncio.run(init_db())"
+
+# Test database management commands
+test-db-create:  ## Create test database
+	@echo "Creating test database 'radiator_test'..."
+	python create_test_db.py
+
+test-db-drop:  ## Drop test database
+	@echo "Dropping test database 'radiator_test'..."
+	python create_test_db.py --drop
+
+test-db-reset: test-db-drop test-db-create  ## Reset test database (drop and recreate)
+	@echo "Test database reset complete."
+
+test-env:  ## Verify test environment configuration
+	@echo "Verifying test environment..."
+	@echo "ENVIRONMENT: $$(python -c "from radiator.core.config import settings; print(settings.ENVIRONMENT)")"
+	@echo "Test Database URL: $$(python -c "from radiator.core.config import settings; print(settings.test_database_url)")"
+	@echo "Is Test Environment: $$(python -c "from radiator.core.config import settings; print(settings.is_test_environment)")"
 
 pre-commit-run:  ## Run pre-commit hooks on all files
 	pre-commit run --all-files
