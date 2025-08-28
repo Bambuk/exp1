@@ -170,14 +170,21 @@ class TrackerSyncCommand:
                 logger.info("History sync disabled")
             
             # Get tasks to sync
+            logger.info(f"🚀 Начинаем синхронизацию...")
+            logger.info(f"   Фильтр: {filters}")
+            logger.info(f"   Лимит: {limit} задач")
+            
             task_ids = self.get_tasks_to_sync(filters, limit)
             if not task_ids:
+                logger.error(f"❌ Не найдено задач для синхронизации")
                 self.update_sync_log(
                     status="failed",
                     sync_completed_at=datetime.utcnow(),
                     error_details="No tasks found to sync"
                 )
                 return False
+            
+            logger.info(f"✅ Найдено {len(task_ids)} задач для синхронизации")
             
             self.update_sync_log(tasks_processed=len(task_ids))
             
@@ -197,8 +204,8 @@ class TrackerSyncCommand:
             )
             
             # Sync history (if not skipped)
+            history_entries = 0
             if skip_history:
-                history_entries = 0
                 logger.info("Skipping history sync as requested")
             else:
                 history_entries = self.sync_task_history(task_ids)

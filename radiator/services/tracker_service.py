@@ -30,8 +30,44 @@ class TrackerAPIService:
             response.raise_for_status()
             time.sleep(self.request_delay)  # Rate limiting
             return response
-        except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {url}, error: {e}")
+        except (requests.exceptions.RequestException, requests.exceptions.HTTPError) as e:
+            # Упрощенное логирование ошибок API
+            status_code = None
+            response_text = None
+            response_headers = None
+            
+            # Try to get response info from different exception types
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                response_text = e.response.text
+                response_headers = dict(e.response.headers)
+            elif isinstance(e, requests.exceptions.HTTPError):
+                # For HTTPError, the response is stored differently
+                status_code = e.response.status_code if hasattr(e, 'response') else None
+                response_text = e.response.text if hasattr(e, 'response') else None
+                response_headers = dict(e.response.headers) if hasattr(e, 'response') else None
+            
+            if status_code == 422:
+                logger.error(f"🚫 API Error 422: Неправильный синтаксис запроса")
+                logger.error(f"   URL: {url}")
+                logger.error(f"   Детали: {e}")
+            elif status_code == 403:
+                logger.error(f"🚫 API Error 403: Нет доступа (проверьте токен и права)")
+                logger.error(f"   URL: {url}")
+            elif status_code == 401:
+                logger.error(f"🚫 API Error 401: Неавторизован (проверьте токен)")
+                logger.error(f"   URL: {url}")
+            elif status_code == 400:
+                logger.error(f"🚫 API Error 400: Bad Request")
+                logger.error(f"   URL: {url}")
+                logger.error(f"   Full error: {e}")
+                if response_text:
+                    logger.error(f"   Response text: {response_text}")
+                if response_headers:
+                    logger.error(f"   Response headers: {response_headers}")
+            else:
+                logger.error(f"🚫 API Error {status_code or 'Unknown'}: {e}")
+                logger.error(f"   URL: {url}")
             raise
     
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
@@ -271,14 +307,19 @@ class TrackerAPIService:
             page = 1
             per_page = 50  # API default and maximum per page
             
+            logger.info(f"🔍 Поиск задач с фильтром: {query}")
+            logger.info(f"   Лимит: {limit} задач")
+            
             while len(all_task_ids) < limit:
-                params = {
+                # For POST request, we need to send data in request body
+                post_data = {
                     "query": query, 
                     "perPage": min(per_page, limit - len(all_task_ids)),  # Don't fetch more than needed
                     "page": page
                 }
                 
-                response = self._make_request(url, method="GET", params=params)
+                logger.debug(f"   Страница {page}: запрос {post_data['perPage']} задач")
+                response = self._make_request(url, method="GET", params=post_data)
                 data = response.json()
                 
                 # Extract task IDs - handle different response formats
@@ -325,6 +366,10 @@ class TrackerAPIService:
             
         except Exception as e:
             logger.error(f"Failed to search tasks: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            logger.error(f"Exception args: {e.args}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
     def get_tasks_by_filter(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[str]:
