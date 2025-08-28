@@ -22,7 +22,7 @@ from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 
 
 class GenerateStatusChangeReportCommand:
-    """Command for generating status change report for tasks by authors over last 2 weeks."""
+    """Command for generating status change report for CPO tasks by authors over last 2 weeks."""
     
     def __init__(self):
         self.db = SessionLocal()
@@ -39,7 +39,7 @@ class GenerateStatusChangeReportCommand:
     
     def get_status_changes_by_author(self, start_date: datetime, end_date: datetime) -> Dict[str, int]:
         """
-        Get count of status changes by author within date range.
+        Get count of status changes by author within date range for CPO tasks only.
         
         Args:
             start_date: Start of date range
@@ -60,10 +60,11 @@ class GenerateStatusChangeReportCommand:
             ).filter(
                 TrackerTaskHistory.start_date >= start_date,
                 TrackerTaskHistory.start_date < end_date,
-                TrackerTask.author.isnot(None)  # Exclude tasks without author
+                TrackerTask.author.isnot(None),  # Exclude tasks without author
+                TrackerTask.key.like('CPO-%')  # Only CPO tasks
             )
             
-            logger.info(f"Executing query for date range: {start_date.date()} to {end_date.date()}")
+            logger.info(f"Executing query for CPO tasks in date range: {start_date.date()} to {end_date.date()}")
             
             # Execute query and count by author
             results = query.all()
@@ -97,7 +98,7 @@ class GenerateStatusChangeReportCommand:
     
     def generate_report_data(self) -> Dict[str, Dict[str, int]]:
         """
-        Generate report data for last 2 weeks.
+        Generate report data for CPO tasks over last 2 weeks.
         
         Returns:
             Dictionary with week data
@@ -119,7 +120,7 @@ class GenerateStatusChangeReportCommand:
         self.week2_start = week2_start
         self.week2_end = week2_end
         
-        logger.info(f"Generating report for:")
+        logger.info(f"Generating CPO tasks report for:")
         logger.info(f"  Week 1: {week1_start.date()} to {week1_end.date()}")
         logger.info(f"  Week 2: {week2_start.date()} to {week2_end.date()}")
         
@@ -294,7 +295,7 @@ class GenerateStatusChangeReportCommand:
             return
         
         print("\n" + "="*80)
-        print("STATUS CHANGE REPORT - LAST 2 WEEKS")
+        print("CPO TASKS STATUS CHANGE REPORT - LAST 2 WEEKS")
         print("="*80)
         
         # Calculate totals
@@ -331,7 +332,7 @@ class GenerateStatusChangeReportCommand:
             True if successful, False otherwise
         """
         try:
-            logger.info("Starting status change report generation...")
+            logger.info("Starting CPO tasks status change report generation...")
             
             # Generate report data
             self.generate_report_data()
@@ -363,7 +364,7 @@ def main():
     """Main entry point for command line execution."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Generate status change report for last 2 weeks')
+    parser = argparse.ArgumentParser(description='Generate CPO tasks status change report for last 2 weeks')
     parser.add_argument('--csv', help='CSV output filename')
     parser.add_argument('--table', help='Table image output filename')
     

@@ -133,7 +133,7 @@ class TestGenerateStatusChangeReportCommand:
             # Verify CSV content
             with open(tmp_filename, 'r', encoding='utf-8') as f:
                 content = f.read()
-                assert "Author,14.08-21.08,21.08-28.08" in content
+                assert "Автор,14.08-21.08,21.08-28.08" in content
                 assert "user1,2,5" in content
                 assert "user2,0,3" in content
                 
@@ -149,6 +149,12 @@ class TestGenerateStatusChangeReportCommand:
         cmd.report_data = {
             "user1": {"week2": 2, "week1": 5}  # week2 is earlier (left), week1 is later (right)
         }
+        
+        # Mock date attributes for CSV generation
+        cmd.week2_start = datetime(2025, 8, 14)
+        cmd.week2_end = datetime(2025, 8, 21)
+        cmd.week1_start = datetime(2025, 8, 21)
+        cmd.week1_end = datetime(2025, 8, 28)
         
         with patch('builtins.open', create=True) as mock_open:
             mock_file = Mock()
@@ -215,6 +221,12 @@ class TestGenerateStatusChangeReportCommand:
             "user1": {"week1": 5, "week2": 2},
             "user2": {"week1": 3, "week2": 0}
         }
+        
+        # Mock date attributes for summary generation
+        cmd.week2_start = datetime(2025, 8, 14)
+        cmd.week2_end = datetime(2025, 8, 21)
+        cmd.week1_start = datetime(2025, 8, 21)
+        cmd.week1_end = datetime(2025, 8, 28)
         
         with patch('builtins.print') as mock_print:
             cmd.print_summary()
