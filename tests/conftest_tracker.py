@@ -3,26 +3,56 @@
 import pytest
 from unittest.mock import Mock, AsyncMock
 from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from datetime import datetime, timezone
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from radiator.core.database import Base
+from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
+
+
+@pytest.fixture(scope="session")
+def test_db_engine():
+    """Create test database engine."""
+    # Use sync database for tests
+    from radiator.core.config import settings
+    database_url = settings.DATABASE_URL_SYNC or settings.DATABASE_URL.replace("+asyncpg", "")
+    
+    engine = create_engine(database_url, echo=False)
+    
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    
+    yield engine
+    
+    # Cleanup - drop all tables
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
 
 
 @pytest.fixture
-def db_session() -> AsyncSession:
-    """Get mock async database session."""
-    return AsyncMock(spec=AsyncSession)
+def db_session(test_db_engine):
+    """Create database session for tests."""
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
+    session = SessionLocal()
+    
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
 
 
 @pytest.fixture
 def mock_db_session():
     """Create mock database session."""
-    return Mock(spec=AsyncSession)
+    return Mock(spec=Session)
 
 
 @pytest.fixture
 def sample_task_data():
     """Sample task data for testing."""
-    from datetime import datetime
     return {
         "tracker_id": "12345",
         "key": "TEST-123",
@@ -41,22 +71,20 @@ def sample_task_data():
 @pytest.fixture
 def sample_history_data():
     """Sample history data for testing."""
-    from datetime import datetime
     return {
         "tracker_id": "12345",
         "status": "Open",
         "status_display": "Open",
-        "start_date": datetime.utcnow(),
-        "end_date": datetime.utcnow()
+        "start_date": datetime.now(timezone.utc),
+        "end_date": datetime.now(timezone.utc)
     }
 
 
 @pytest.fixture
 def sample_sync_log_data():
     """Sample sync log data for testing."""
-    from datetime import datetime
     return {
-        "sync_started_at": datetime.utcnow(),
+        "sync_started_at": datetime.now(timezone.utc),
         "status": "in_progress",
         "tasks_processed": 0,
         "tasks_created": 0,
