@@ -60,66 +60,26 @@ class TrackerSyncCommand:
             # Default to 30 days ago if no previous sync
             return datetime.now(timezone.utc) - timedelta(days=30)
     
-    def get_tasks_to_sync(self, sync_mode: str = "recent", filters: Dict[str, Any] = None, 
-                          days: int = 30, limit: int = 100) -> List[str]:
+    def get_tasks_to_sync(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[str]:
         """
-        Get list of tasks to sync based on different strategies.
+        Get list of tasks to sync using filters.
         
         Args:
-            sync_mode: Strategy for getting tasks
-                - "recent": Get recently updated tasks
-                - "active": Get active (non-closed) tasks
-                - "filter": Use custom filters
-                - "file": Load from file (legacy mode)
-            filters: Custom filters for "filter" mode
-            days: Number of days to look back for "recent" mode
+            filters: Custom filters for getting tasks
             limit: Maximum number of tasks to sync
             
         Returns:
             List of task IDs to sync
         """
         try:
-            if sync_mode == "recent":
-                logger.info(f"Getting recent tasks updated in last {days} days")
-                task_ids = tracker_service.get_recent_tasks(days=days, limit=limit)
-                
-            elif sync_mode == "active":
-                logger.info("Getting active tasks")
-                task_ids = tracker_service.get_active_tasks(limit=limit)
-                
-            elif sync_mode == "filter":
-                logger.info(f"Getting tasks using custom filters: {filters}")
-                task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
-                
-            elif sync_mode == "file":
-                # Legacy mode - load from file
-                file_path = filters.get("file_path", "tasks.txt") if filters else "tasks.txt"
-                task_ids = self.load_task_list(file_path)
-                
-            else:
-                logger.warning(f"Unknown sync mode: {sync_mode}, falling back to recent tasks")
-                task_ids = tracker_service.get_recent_tasks(days=days, limit=limit)
+            logger.info(f"Getting tasks using filters: {filters}")
+            task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
             
             logger.info(f"Found {len(task_ids)} tasks to sync")
             return task_ids
             
         except Exception as e:
             logger.error(f"Failed to get tasks to sync: {e}")
-            return []
-    
-    def load_task_list(self, file_path: str) -> List[str]:
-        """Load list of task IDs from file (legacy method)."""
-        if not os.path.exists(file_path):
-            logger.error(f"Task list file not found: {file_path}")
-            return []
-        
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                task_ids = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-            logger.info(f"Loaded {len(task_ids)} task IDs from {file_path}")
-            return task_ids
-        except Exception as e:
-            logger.error(f"Failed to load task list: {e}")
             return []
     
     def sync_tasks(self, task_ids: List[str]) -> Dict[str, int]:
@@ -130,18 +90,20 @@ class TrackerSyncCommand:
         tasks_data = tracker_service.get_tasks_batch(task_ids)
         valid_tasks = []
         
-        for task_id, task_data in tasks_data:
+        for i, (task_id, task_data) in enumerate(tasks_data, 1):
             if task_data:
                 task_info = tracker_service.extract_task_data(task_data)
                 valid_tasks.append(task_info)
+                logger.debug(f"Processed task {i}/{len(task_ids)}: {task_id}")
             else:
-                logger.warning(f"Failed to get data for task {task_id}")
+                logger.warning(f"Failed to get data for task {task_id} ({i}/{len(task_ids)})")
         
         if not valid_tasks:
             logger.warning("No valid tasks data received")
             return {"created": 0, "updated": 0}
         
         # Save tasks to database
+        logger.info(f"Saving {len(valid_tasks)} tasks to database...")
         result = tracker_task.bulk_create_or_update(self.db, valid_tasks)
         logger.info(f"Tasks sync completed: {result}")
         
@@ -155,19 +117,21 @@ class TrackerSyncCommand:
         changelogs_data = tracker_service.get_changelogs_batch(task_ids)
         total_history_entries = 0
         
-        for task_id, changelog in changelogs_data:
+        for i, (task_id, changelog) in enumerate(changelogs_data, 1):
             if not changelog:
+                logger.debug(f"No changelog data for task {task_id} ({i}/{len(task_ids)})")
                 continue
             
             # Get task from database
             db_task = tracker_task.get_by_tracker_id(self.db, task_id)
             if not db_task:
-                logger.warning(f"Task {task_id} not found in database, skipping history")
+                logger.warning(f"Task {task_id} not found in database, skipping history ({i}/{len(task_ids)})")
                 continue
             
             # Extract status history
             status_history = tracker_service.extract_status_history(changelog)
             if not status_history:
+                logger.debug(f"No status history found for task {task_id} ({i}/{len(task_ids)})")
                 continue
             
             # Delete existing history for this task
@@ -190,22 +154,21 @@ class TrackerSyncCommand:
             if history_data:
                 created_count = tracker_task_history.bulk_create(self.db, history_data)
                 total_history_entries += created_count
-                logger.debug(f"Created {created_count} history entries for task {task_id}")
+                logger.debug(f"Created {created_count} history entries for task {task_id} ({i}/{len(task_ids)})")
         
-        logger.info(f"History sync completed: {total_history_entries} entries created")
+        logger.info(f"History sync completed: {total_history_entries} entries created for {len(task_ids)} tasks")
         return total_history_entries
     
-    def run(self, sync_mode: str = "recent", filters: Dict[str, Any] = None, 
-            days: int = 30, limit: int = 100, force_full_sync: bool = False):
+    def run(self, filters: Dict[str, Any] = None, limit: int = 100, force_full_sync: bool = False):
         """Run the sync command."""
         try:
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started sync operation: {self.sync_log.id}")
-            logger.info(f"Sync mode: {sync_mode}")
+            logger.info("Sync mode: filters and limit")
             
             # Get tasks to sync
-            task_ids = self.get_tasks_to_sync(sync_mode, filters, days, limit)
+            task_ids = self.get_tasks_to_sync(filters, limit)
             if not task_ids:
                 self.update_sync_log(
                     status="failed",
@@ -258,18 +221,12 @@ def main():
     """Main entry point for the sync command."""
     import argparse
     
-    parser = argparse.ArgumentParser(description="Sync data from Yandex Tracker")
-    parser.add_argument(
-        "--sync-mode",
-        choices=["recent", "active", "filter", "file"],
-        default="recent",
-        help="Strategy for getting tasks to sync (default: recent)"
-    )
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=30,
-        help="Number of days to look back for recent tasks (default: 30)"
+    parser = argparse.ArgumentParser(
+        description="Sync data from Yandex Tracker with pagination support",
+        epilog="""
+Note: Yandex Tracker API returns maximum 50 records per page. 
+The command automatically handles pagination to retrieve the requested number of tasks.
+        """
     )
     parser.add_argument(
         "--limit",
@@ -278,29 +235,11 @@ def main():
         help="Maximum number of tasks to sync (default: 100)"
     )
     parser.add_argument(
-        "--status",
-        help="Filter by status (e.g., 'Open', 'In Progress')"
+        "--filter",
+        type=str,
+        help="Filter string for task selection (passed directly to tracker)"
     )
-    parser.add_argument(
-        "--assignee",
-        help="Filter by assignee"
-    )
-    parser.add_argument(
-        "--team",
-        help="Filter by team"
-    )
-    parser.add_argument(
-        "--key",
-        help="Filter by task key (e.g., CPO-*)"
-    )
-    parser.add_argument(
-        "--updated-since",
-        help="Filter by last update date (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--file-path",
-        help="Path to task list file (for file mode)"
-    )
+
     parser.add_argument(
         "--force-full-sync",
         action="store_true",
@@ -328,25 +267,13 @@ def main():
     
     # Build filters
     filters = {}
-    if args.status:
-        filters["status"] = args.status
-    if args.assignee:
-        filters["assignee"] = args.assignee
-    if args.team:
-        filters["team"] = args.team
-    if args.key:
-        filters["key"] = args.key
-    if args.updated_since:
-        filters["updated_since"] = args.updated_since
-    if args.file_path:
-        filters["file_path"] = args.file_path
+    if args.filter:
+        filters["filter"] = args.filter
     
     # Run sync
     with TrackerSyncCommand() as sync_cmd:
         success = sync_cmd.run(
-            sync_mode=args.sync_mode,
             filters=filters,
-            days=args.days,
             limit=args.limit,
             force_full_sync=args.force_full_sync
         )

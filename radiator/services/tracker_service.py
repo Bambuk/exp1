@@ -45,27 +45,41 @@ class TrackerAPIService:
             return None
     
     def get_task_changelog(self, task_id: str) -> List[Dict[str, Any]]:
-        """Get task changelog with pagination."""
+        """Get task changelog with pagination support."""
         all_data = []
-        url = f"{self.base_url}issues/{task_id}/changelog"
+        page = 1
+        per_page = 50  # API default and maximum per page
         
-        while url:
+        while True:
             try:
-                response = self._make_request(url)
+                url = f"{self.base_url}issues/{task_id}/changelog"
+                params = {
+                    "perPage": per_page,
+                    "page": page
+                }
+                
+                response = self._make_request(url, params=params)
                 page_data = response.json()
+                
+                if not page_data:
+                    break
+                
                 all_data.extend(page_data)
                 
-                # Check for next page
-                next_url = None
-                link_header = response.headers.get("Link", "")
-                for part in link_header.split(","):
-                    if 'rel="next"' in part:
-                        next_url = part.split(";")[0].strip("<> ")
-                        break
-                url = next_url
+                # Check if we've reached the last page
+                total_pages = response.headers.get("X-Total-Pages")
+                if total_pages and page >= int(total_pages):
+                    break
+                
+                page += 1
+                
+                # Safety check to prevent infinite loops
+                if page > 100:  # Maximum 100 pages
+                    logger.warning(f"Reached maximum page limit for changelog of task {task_id}")
+                    break
                 
             except Exception as e:
-                logger.error(f"Failed to get changelog for task {task_id}: {e}")
+                logger.error(f"Failed to get changelog page {page} for task {task_id}: {e}")
                 break
         
         return all_data
@@ -202,9 +216,46 @@ class TrackerAPIService:
                 pass
             return []
     
+    def get_total_tasks_count(self, query: str = "") -> int:
+        """
+        Get total count of tasks matching the query.
+        
+        Args:
+            query: Yandex Tracker search query
+            
+        Returns:
+            Total count of tasks
+        """
+        try:
+            url = f"{self.base_url}issues"
+            params = {
+                "query": query,
+                "perPage": 1,  # We only need headers, not data
+                "page": 1
+            }
+            
+            response = self._make_request(url, method="GET", params=params)
+            total_count = response.headers.get("X-Total-Count")
+            
+            if total_count:
+                return int(total_count)
+            else:
+                # Fallback: try to get from response data
+                data = response.json()
+                if isinstance(data, list):
+                    return len(data)
+                elif isinstance(data, dict):
+                    issues = data.get("issues", [])
+                    return len(issues) if isinstance(issues, list) else 0
+                return 0
+                
+        except Exception as e:
+            logger.error(f"Failed to get total tasks count: {e}")
+            return 0
+
     def search_tasks(self, query: str, limit: int = 100) -> List[str]:
         """
-        Search for tasks using a query.
+        Search for tasks using a query with pagination support.
         
         Args:
             query: Yandex Tracker search query
@@ -216,28 +267,57 @@ class TrackerAPIService:
         try:
             # Use the correct endpoint for searching issues
             url = f"{self.base_url}issues"
-            params = {"query": query, "limit": limit}
+            all_task_ids = []
+            page = 1
+            per_page = 50  # API default and maximum per page
             
-            response = self._make_request(url, method="GET", params=params)
-            data = response.json()
-            
-            # Extract task IDs - handle different response formats
-            task_ids = []
-            if isinstance(data, list):
-                # API returned list of issues directly
-                for item in data:
-                    if isinstance(item, dict) and item.get("id"):
-                        task_ids.append(str(item["id"]))
-            elif isinstance(data, dict):
-                # API returned dict with issues key
-                issues = data.get("issues", [])
-                if isinstance(issues, list):
-                    for item in issues:
+            while len(all_task_ids) < limit:
+                params = {
+                    "query": query, 
+                    "perPage": per_page,
+                    "page": page
+                }
+                
+                response = self._make_request(url, method="GET", params=params)
+                data = response.json()
+                
+                # Extract task IDs - handle different response formats
+                page_task_ids = []
+                if isinstance(data, list):
+                    # API returned list of issues directly
+                    for item in data:
                         if isinstance(item, dict) and item.get("id"):
-                            task_ids.append(str(item["id"]))
+                            page_task_ids.append(str(item["id"]))
+                elif isinstance(data, dict):
+                    # API returned dict with issues key
+                    issues = data.get("issues", [])
+                    if isinstance(issues, list):
+                        for item in issues:
+                            if isinstance(item, dict) and item.get("id"):
+                                page_task_ids.append(str(item["id"]))
+                
+                # If no more tasks, break
+                if not page_task_ids:
+                    break
+                
+                all_task_ids.extend(page_task_ids)
+                
+                # Check if we've reached the last page
+                total_pages = response.headers.get("X-Total-Pages")
+                if total_pages and page >= int(total_pages):
+                    break
+                
+                page += 1
+                
+                # Safety check to prevent infinite loops
+                if page > 100:  # Maximum 100 pages
+                    logger.warning("Reached maximum page limit, stopping pagination")
+                    break
             
-            logger.info(f"Found {len(task_ids)} tasks via API search")
-            return task_ids
+            # Limit to requested number
+            result = all_task_ids[:limit]
+            logger.info(f"Found {len(result)} tasks via API search (from {len(all_task_ids)} total)")
+            return result
             
         except Exception as e:
             logger.error(f"Failed to search tasks: {e}")

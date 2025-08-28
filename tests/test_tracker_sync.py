@@ -44,13 +44,50 @@ class TestTrackerAPIService:
         mock.status_code = 200
         return mock
 
-    def test_search_tasks_success(self, mock_service, mock_response):
-        """Test successful task search."""
+    def test_search_tasks_success(self, mock_service):
+        """Test successful task search with pagination."""
+        # Mock response with pagination headers
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123", "summary": "Test Task 1"},
+            {"id": "67890", "key": "TEST-456", "summary": "Test Task 2"}
+        ]
+        
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
             result = mock_service.search_tasks("Updated: >2024-01-01")
             assert len(result) == 2
             assert "12345" in result
             assert "67890" in result
+
+    def test_search_tasks_with_pagination(self, mock_service):
+        """Test task search with pagination support."""
+        # Mock first page response
+        first_page = Mock()
+        first_page.headers = {"X-Total-Pages": "3"}
+        first_page.json.return_value = [
+            {"id": "1"}, {"id": "2"}, {"id": "3"}
+        ]
+        
+        # Mock second page response
+        second_page = Mock()
+        second_page.headers = {"X-Total-Pages": "3"}
+        second_page.json.return_value = [
+            {"id": "4"}, {"id": "5"}
+        ]
+        
+        # Mock third page response (empty)
+        third_page = Mock()
+        third_page.headers = {"X-Total-Pages": "3"}
+        third_page.json.return_value = []
+        
+        with patch('radiator.services.tracker_service.requests.request') as mock_request:
+            mock_request.side_effect = [first_page, second_page, third_page]
+            
+            result = mock_service.search_tasks("Updated: >2024-01-01", limit=10)
+            assert len(result) == 5
+            assert "1" in result
+            assert "5" in result
 
     def test_search_tasks_api_error(self, mock_service):
         """Test API error handling in task search."""
@@ -58,24 +95,70 @@ class TestTrackerAPIService:
             result = mock_service.search_tasks("test query")
             assert result == []
 
-    def test_get_recent_tasks(self, mock_service, mock_response):
+    def test_get_recent_tasks(self, mock_service):
         """Test getting recent tasks."""
+        # Mock response with pagination headers
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123", "summary": "Test Task 1"},
+            {"id": "67890", "key": "TEST-456", "summary": "Test Task 2"}
+        ]
+        
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
             result = mock_service.get_recent_tasks(days=7, limit=10)
             assert len(result) == 2
 
-    def test_get_active_tasks(self, mock_service, mock_response):
+    def test_get_active_tasks(self, mock_service):
         """Test getting active tasks."""
+        # Mock response with pagination headers
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123", "summary": "Test Task 1"},
+            {"id": "67890", "key": "TEST-456", "summary": "Test Task 2"}
+        ]
+        
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
             result = mock_service.get_active_tasks(limit=10)
             assert len(result) == 2
 
-    def test_get_tasks_by_filter(self, mock_service, mock_response):
+    def test_get_tasks_by_filter(self, mock_service):
         """Test getting tasks by filter."""
+        # Mock response with pagination headers
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123", "summary": "Test Task 1"},
+            {"id": "67890", "key": "TEST-456", "summary": "Test Task 2"}
+        ]
+        
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
             filters = {"status": "Open", "assignee": "test_user"}
             result = mock_service.get_tasks_by_filter(filters, limit=10)
             assert len(result) == 2
+
+    def test_get_total_tasks_count(self, mock_service):
+        """Test getting total tasks count from API headers."""
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Count": "150"}
+        mock_response.json.return_value = []
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = mock_service.get_total_tasks_count("Updated: >2024-01-01")
+            assert result == 150
+
+    def test_get_total_tasks_count_fallback(self, mock_service):
+        """Test getting total tasks count with fallback to response data."""
+        mock_response = Mock()
+        mock_response.headers = {}  # No X-Total-Count header
+        mock_response.json.return_value = [
+            {"id": "1"}, {"id": "2"}, {"id": "3"}
+        ]
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = mock_service.get_total_tasks_count("Updated: >2024-01-01")
+            assert result == 3
 
     def test_extract_task_data(self, mock_service):
         """Test task data extraction."""
@@ -217,54 +300,25 @@ class TestTrackerSyncCommand:
     def mock_tracker_service(self):
         """Create mock TrackerAPIService."""
         service = Mock(spec=TrackerAPIService)
-        service.get_recent_tasks.return_value = ["12345", "67890"]
-        service.get_active_tasks.return_value = ["11111", "22222"]
-        service.search_tasks.return_value = ["33333"]
         service.get_tasks_by_filter.return_value = ["33333"]
         return service
 
-    def test_get_tasks_to_sync_recent_mode(self, mock_sync_command, mock_tracker_service):
-        """Test getting tasks in recent mode."""
-        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
-            result = mock_sync_command.get_tasks_to_sync(
-                sync_mode="recent", days=7, limit=10
-            )
-            assert result == ["12345", "67890"]
-            mock_tracker_service.get_recent_tasks.assert_called_once_with(days=7, limit=10)
-
-    def test_get_tasks_to_sync_active_mode(self, mock_sync_command, mock_tracker_service):
-        """Test getting tasks in active mode."""
-        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
-            result = mock_sync_command.get_tasks_to_sync(
-                sync_mode="active", limit=10
-            )
-            assert result == ["11111", "22222"]
-            mock_tracker_service.get_active_tasks.assert_called_once_with(limit=10)
-
-    def test_get_tasks_to_sync_filter_mode(self, mock_sync_command, mock_tracker_service):
-        """Test getting tasks in filter mode."""
+    def test_get_tasks_to_sync_with_filters(self, mock_sync_command, mock_tracker_service):
+        """Test getting tasks with filters."""
         with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
             filters = {"status": "Open"}
             result = mock_sync_command.get_tasks_to_sync(
-                sync_mode="filter", filters=filters, limit=10
+                filters=filters, limit=10
             )
             assert result == ["33333"]
             mock_tracker_service.get_tasks_by_filter.assert_called_once_with(filters, limit=10)
 
-    def test_get_tasks_to_sync_file_mode(self, mock_sync_command):
-        """Test getting tasks in file mode."""
-        # Create a proper file-like mock
-        mock_file = Mock()
-        mock_file.__iter__ = Mock(return_value=iter(["12345\n", "67890\n"]))
-        mock_file.__enter__ = Mock(return_value=mock_file)
-        mock_file.__exit__ = Mock(return_value=None)
-        
-        with patch('os.path.exists', return_value=True):
-            with patch('builtins.open', return_value=mock_file):
-                result = mock_sync_command.get_tasks_to_sync(
-                    sync_mode="file", filters={"file_path": "test.txt"}
-                )
-                assert result == ["12345", "67890"]
+    def test_get_tasks_to_sync_without_filters(self, mock_sync_command, mock_tracker_service):
+        """Test getting tasks without filters."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            result = mock_sync_command.get_tasks_to_sync(limit=10)
+            assert result == ["33333"]
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with(None, limit=10)
 
     def test_create_sync_log(self, mock_sync_command):
         """Test creating sync log."""
@@ -390,7 +444,7 @@ class TestIntegration:
         
         # Mock tracker service
         with patch('radiator.commands.sync_tracker.tracker_service') as mock_service:
-            mock_service.get_recent_tasks.return_value = ["TEST-1", "TEST-2"]
+            mock_service.get_tasks_by_filter.return_value = ["TEST-1", "TEST-2"]
             mock_service.get_tasks_batch.return_value = [("TEST-1", {"tracker_id": "TEST-1", "key": "TEST-1", "summary": "Test Task", "status": "open"})]
             mock_service.extract_task_data.return_value = {"tracker_id": "TEST-1", "key": "TEST-1", "summary": "Test Task", "status": "open"}
             mock_service.get_changelogs_batch.return_value = [("TEST-1", [])]
@@ -421,10 +475,10 @@ class TestIntegration:
                                 mock_db.refresh.return_value = None
                                 
                                 # Run sync
-                                result = sync_cmd.run(sync_mode="recent", days=7, limit=5)
+                                result = sync_cmd.run(filters={}, limit=5)
                                 
                                 assert result is True
-                                mock_service.get_recent_tasks.assert_called_once_with(days=7, limit=5)
+                                mock_service.get_tasks_by_filter.assert_called_once_with({}, limit=5)
 
 
 # Mock open function for file mode testing
