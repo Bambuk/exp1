@@ -46,7 +46,7 @@ class GenerateStatusChangeReportCommand:
             end_date: End of date range
             
         Returns:
-            Dictionary mapping author to dict with 'changes' and 'tasks' counts
+            Dictionary mapping author to dict with 'changes', 'tasks', and 'open_tasks' counts
         """
         try:
             # Query status changes within date range
@@ -108,6 +108,59 @@ class GenerateStatusChangeReportCommand:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {}
     
+    def get_open_tasks_by_author(self) -> Dict[str, int]:
+        """
+        Get count of open (non-closed) tasks by author for CPO tasks only.
+        
+        Returns:
+            Dictionary mapping author to count of open tasks
+        """
+        try:
+            # Query open tasks (not in closed statuses)
+            closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
+            
+            query = self.db.query(
+                TrackerTask.author,
+                TrackerTask.id
+            ).filter(
+                TrackerTask.author.isnot(None),  # Exclude tasks without author
+                TrackerTask.key.like('CPO-%'),  # Only CPO tasks
+                ~TrackerTask.status.in_(closed_statuses)  # Not in closed statuses
+            )
+            
+            logger.info("Executing query for open CPO tasks")
+            
+            # Execute query and count by author
+            results = query.all()
+            logger.info(f"Query returned {len(results)} open tasks")
+            
+            author_counts = defaultdict(int)
+            
+            for author, _ in results:
+                if author:  # Double check author is not None
+                    try:
+                        # Handle potential encoding issues
+                        if isinstance(author, bytes):
+                            author = author.decode('utf-8', errors='replace')
+                        elif isinstance(author, str):
+                            # Ensure it's valid UTF-8
+                            author.encode('utf-8').decode('utf-8')
+                        
+                        author_counts[author] += 1
+                    except (UnicodeDecodeError, UnicodeEncodeError) as e:
+                        logger.warning(f"Skipping author with encoding issue: {e}, author value: {repr(author)}")
+                        continue
+            
+            total_open_tasks = sum(author_counts.values())
+            logger.info(f"Found {total_open_tasks} open tasks for {len(author_counts)} authors")
+            return dict(author_counts)
+            
+        except Exception as e:
+            logger.error(f"Failed to get open tasks by author: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {}
+    
     def generate_report_data(self) -> Dict[str, Dict[str, int]]:
         """
         Generate report data for CPO tasks over last 2 weeks.
@@ -140,21 +193,26 @@ class GenerateStatusChangeReportCommand:
         self.week1_data = self.get_status_changes_by_author(week1_start, week1_end)
         self.week2_data = self.get_status_changes_by_author(week2_start, week2_end)
         
-        # Combine all unique authors
-        all_authors = set(self.week1_data.keys()) | set(self.week2_data.keys())
+        # Get current open tasks data
+        self.open_tasks_data = self.get_open_tasks_by_author()
         
-        # Build report data with both changes and tasks counts
+        # Combine all unique authors
+        all_authors = set(self.week1_data.keys()) | set(self.week2_data.keys()) | set(self.open_tasks_data.keys())
+        
+        # Build report data with changes, tasks counts, and open tasks
         # Note: week2 is earlier (left), week1 is later (right)
         self.report_data = {}
         for author in sorted(all_authors):
             week2_data = self.week2_data.get(author, {'changes': 0, 'tasks': 0})
             week1_data = self.week1_data.get(author, {'changes': 0, 'tasks': 0})
+            open_tasks = self.open_tasks_data.get(author, 0)
             
             self.report_data[author] = {
                 'week2_changes': week2_data['changes'],
                 'week2_tasks': week2_data['tasks'],
                 'week1_changes': week1_data['changes'],
-                'week1_tasks': week1_data['tasks']
+                'week1_tasks': week1_data['tasks'],
+                'open_tasks': open_tasks
             }
         
         logger.info(f"Generated report for {len(self.report_data)} authors")
@@ -186,7 +244,7 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Автор', f'{week2_header}_изменения', f'{week2_header}_задачи', f'{week1_header}_изменения', f'{week1_header}_задачи']
+                fieldnames = ['Автор', f'{week2_header}_изменения', f'{week2_header}_задачи', f'{week1_header}_изменения', f'{week1_header}_задачи', 'Незакрытые_задачи']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
@@ -196,7 +254,8 @@ class GenerateStatusChangeReportCommand:
                         f'{week2_header}_изменения': data['week2_changes'],  # Earlier week changes
                         f'{week2_header}_задачи': data['week2_tasks'],       # Earlier week tasks
                         f'{week1_header}_изменения': data['week1_changes'],  # Later week changes
-                        f'{week1_header}_задачи': data['week1_tasks']        # Later week tasks
+                        f'{week1_header}_задачи': data['week1_tasks'],       # Later week tasks
+                        'Незакрытые_задачи': data['open_tasks']              # Current open tasks
                     })
             
             logger.info(f"CSV report saved to: {filepath}")
@@ -233,12 +292,13 @@ class GenerateStatusChangeReportCommand:
             week2_tasks = [self.report_data[author]['week2_tasks'] for author in authors]      # Earlier week tasks
             week1_changes = [self.report_data[author]['week1_changes'] for author in authors]  # Later week changes
             week1_tasks = [self.report_data[author]['week1_tasks'] for author in authors]      # Later week tasks
+            open_tasks = [self.report_data[author]['open_tasks'] for author in authors]         # Current open tasks
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (3 columns: Author, Week2, Week1)
+            # Calculate dimensions with proper padding for table (4 columns: Author, Week2, Week1, Open Tasks)
             cell_height = 0.08  # Height per row
             header_height = 0.1  # Header row height (standard height for single line)
             table_height = len(authors) * cell_height + header_height
@@ -256,17 +316,17 @@ class GenerateStatusChangeReportCommand:
             ax = fig.add_axes([padding, padding, 1 - 2*padding, 1 - 2*padding])
             ax.axis('off')
             
-            # Create table data with both changes and tasks
+            # Create table data with changes, tasks, and open tasks
             table_data = []
-            for author, w2_ch, w2_t, w1_ch, w1_t in zip(authors, week2_changes, week2_tasks, week1_changes, week1_tasks):
-                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t})"])  # Format: "changes (tasks)"
+            for author, w2_ch, w2_t, w1_ch, w1_t, open_t in zip(authors, week2_changes, week2_tasks, week1_changes, week1_tasks, open_tasks):
+                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t})", open_t])  # Format: "changes (tasks)" + open tasks
             
             # Create table positioned in the center of the axis
             table = ax.table(cellText=table_data,
-                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения (задачи)'],
+                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения (задачи)', 'Незакрытые задачи'],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.4, 0.3, 0.3])  # Author column narrower
+                           colWidths=[0.35, 0.25, 0.25, 0.15])  # Author column narrower, open tasks column narrowest
             
             # Style the table
             table.auto_set_font_size(False)
@@ -276,13 +336,13 @@ class GenerateStatusChangeReportCommand:
             table.scale(1.0, 1.0)
             
             # Style header row
-            for i in range(3):
+            for i in range(4):
                 table[(0, i)].set_facecolor('#4CAF50')
                 table[(0, i)].set_text_props(weight='bold', color='white')
             
             # Style data rows
             for i in range(1, len(table_data) + 1):
-                for j in range(3):
+                for j in range(4):
                     cell = table[(i, j)]
                     if i % 2 == 0:  # Alternate row colors
                         cell.set_facecolor('#F5F5F5')
@@ -324,6 +384,7 @@ class GenerateStatusChangeReportCommand:
         total_week1_tasks = sum(data['week1_tasks'] for data in self.report_data.values())
         total_week2_changes = sum(data['week2_changes'] for data in self.report_data.values())
         total_week2_tasks = sum(data['week2_tasks'] for data in self.report_data.values())
+        total_open_tasks = sum(data['open_tasks'] for data in self.report_data.values())
         
         # Format dates for display
         week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
@@ -331,17 +392,19 @@ class GenerateStatusChangeReportCommand:
         
         print(f"Total Status Changes - {week1_header}: {total_week1_changes} across {total_week1_tasks} tasks")
         print(f"Total Status Changes - {week2_header}: {total_week2_changes} across {total_week2_tasks} tasks")
+        print(f"Total Open Tasks: {total_open_tasks}")
         print(f"Number of Authors: {len(self.report_data)}")
         print("-"*80)
         
-        # Print by author with both changes and tasks
-        print(f"{'Author':<25} {week2_header:<20} {week1_header:<20}")
+        # Print by author with changes, tasks, and open tasks
+        print(f"{'Author':<25} {week2_header:<20} {week1_header:<20} {'Открытые':<10}")
         print("-"*80)
         
         for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
             week2_str = f"{data['week2_changes']} ({data['week2_tasks']})"
             week1_str = f"{data['week1_changes']} ({data['week1_tasks']})"
-            print(f"{author:<25} {week2_str:<20} {week1_str:<20}")
+            open_str = str(data['open_tasks'])
+            print(f"{author:<25} {week2_str:<20} {week1_str:<20} {open_str:<10}")
         
         print("="*80)
     
