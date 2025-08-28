@@ -160,3 +160,7 @@ reports/
 data/output/
 *.png
 *.csv
+
+# Telegram bot state
+.telegram_bot_state.json
+.env.backup

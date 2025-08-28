@@ -29,3 +29,6 @@ ipdb>=0.13.0
 
 # Visualization dependencies
 matplotlib>=3.10.0
+
+python-telegram-bot>=20.0
+watchdog>=3.0.0

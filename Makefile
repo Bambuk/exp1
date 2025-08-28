@@ -208,3 +208,32 @@ update-status-history-custom:  ## Update status history with custom parameters
 		echo "Please specify QUEUE and DAYS parameters"; \
 		exit 1; \
 	fi
+
+# Telegram Bot commands
+telegram-bot: ## Start Telegram bot for reports monitoring
+	@echo "Starting Telegram bot..."
+	@python -m radiator.telegram_bot.main
+
+telegram-test: ## Test Telegram bot connection
+	@echo "Testing Telegram bot connection..."
+	@python -m radiator.telegram_bot.main --test
+
+telegram-config: ## Show Telegram bot configuration
+	@echo "Telegram bot configuration:"
+	@python -m radiator.telegram_bot.main --config
+
+telegram-reset: ## Reset Telegram bot file monitoring state
+	@echo "Resetting Telegram bot file monitoring state..."
+	@python -m radiator.telegram_bot.main --reset
+
+telegram-cleanup: ## Clean up old files from Telegram bot state
+	@echo "Cleaning up old files from Telegram bot state..."
+	@python -m radiator.telegram_bot.main --cleanup
+
+telegram-get-chat-id: ## Get Chat ID from Telegram bot
+	@echo "Getting Chat ID from Telegram bot..."
+	@python scripts/get_chat_id.py
+
+telegram-simple-chat-id: ## Get Chat ID using simple method
+	@echo "Getting Chat ID using simple method..."
+	@python scripts/simple_chat_id.py
