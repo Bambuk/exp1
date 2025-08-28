@@ -280,8 +280,8 @@ The command automatically handles pagination to retrieve the requested number of
     parser.add_argument(
         "--limit",
         type=int,
-        default=100,
-        help="Maximum number of tasks to sync (default: 100)"
+        default=10000,
+        help="Maximum number of tasks to sync (default: 10000, use 0 for unlimited)"
     )
     parser.add_argument(
         "--filter",

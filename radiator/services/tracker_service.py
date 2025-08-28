@@ -263,27 +263,41 @@ class TrackerAPIService:
             Total count of tasks
         """
         try:
-            url = f"{self.base_url}issues"
+            # Use the same endpoint as search_tasks for consistency
+            url = f"{self.base_url}issues/_search"
+            
+            # For POST request to _search endpoint
+            post_data = {
+                "query": query
+            }
+            
             params = {
-                "query": query,
                 "perPage": 1,  # We only need headers, not data
                 "page": 1
             }
             
-            response = self._make_request(url, method="GET", params=params)
-            total_count = response.headers.get("X-Total-Count")
+            response = self._make_request(url, method="POST", json=post_data, params=params)
             
+            # Try to get total count from headers first
+            total_count = response.headers.get("X-Total-Count")
             if total_count:
                 return int(total_count)
-            else:
-                # Fallback: try to get from response data
-                data = response.json()
-                if isinstance(data, list):
-                    return len(data)
-                elif isinstance(data, dict):
-                    issues = data.get("issues", [])
-                    return len(issues) if isinstance(issues, list) else 0
-                return 0
+            
+            # Try X-Total-Pages header
+            total_pages = response.headers.get("X-Total-Pages")
+            if total_pages:
+                # If we know total pages, we can estimate total count
+                # But for now, let's use a fallback approach
+                pass
+            
+            # Fallback: try to get from response data
+            data = response.json()
+            if isinstance(data, list):
+                return len(data)
+            elif isinstance(data, dict):
+                issues = data.get("issues", [])
+                return len(issues) if isinstance(issues, list) else 0
+            return 0
                 
         except Exception as e:
             logger.error(f"Failed to get total tasks count: {e}")
@@ -310,6 +324,26 @@ class TrackerAPIService:
             logger.info(f"🔍 Поиск задач с фильтром: {query}")
             logger.info(f"   Лимит: {limit} задач")
             
+            # First, get total count to know how many pages we need
+            total_count = self.get_total_tasks_count(query)
+            if total_count > 0:
+                logger.info(f"   Всего найдено задач: {total_count}")
+                # Calculate how many pages we need
+                total_pages_needed = (total_count + per_page - 1) // per_page
+                logger.info(f"   Всего страниц: {total_pages_needed}")
+                
+                # If limit is 0 (unlimited), set it to total count
+                if limit == 0:
+                    limit = total_count
+                    logger.info(f"   Лимит снят, будет загружено все {total_count} задач")
+            else:
+                total_pages_needed = None
+                logger.warning("   Не удалось определить общее количество задач")
+                # If we can't get total count and limit is 0, set a reasonable limit
+                if limit == 0:
+                    limit = 1000
+                    logger.warning(f"   Установлен лимит {limit} задач (не удалось определить общее количество)")
+            
             while len(all_task_ids) < limit:
                 # For POST request to _search endpoint, we need to send data in request body
                 post_data = {
@@ -318,7 +352,7 @@ class TrackerAPIService:
                 
                 # perPage and page should be in query string, not in POST body
                 params = {
-                    "perPage": min(per_page, limit - len(all_task_ids)),  # Don't fetch more than needed
+                    "perPage": per_page,  # Always use full page size for efficiency
                     "page": page
                 }
                 
@@ -343,20 +377,37 @@ class TrackerAPIService:
                 
                 # If no more tasks, break
                 if not page_task_ids:
+                    logger.debug(f"   Страница {page}: задач не найдено")
                     break
                 
                 all_task_ids.extend(page_task_ids)
+                logger.debug(f"   Страница {page}: получено {len(page_task_ids)} задач, всего: {len(all_task_ids)}")
                 
                 # If we have enough tasks, break early
                 if len(all_task_ids) >= limit:
+                    logger.info(f"   Достигнут лимит {limit} задач")
                     break
                 
                 # Check if we've reached the last page
                 total_pages = response.headers.get("X-Total-Pages")
                 if total_pages and page >= int(total_pages):
+                    logger.info(f"   Достигнута последняя страница {total_pages}")
                     break
                 
-                page += 1
+                # Also check if we know total pages from initial count
+                # But only if we have enough tasks to fill the page
+                if total_pages_needed and page >= total_pages_needed and len(page_task_ids) < per_page:
+                    logger.info(f"   Достигнута последняя страница {total_pages_needed} (из начального подсчета)")
+                    break
+                
+                # Continue to next page if we have more tasks to fetch
+                if len(all_task_ids) < limit:
+                    page += 1
+                else:
+                    break
+                
+                # Debug logging
+                logger.debug(f"   Страница {page}: total_pages_needed={total_pages_needed}, page={page}, page_task_ids={len(page_task_ids)}, per_page={per_page}")
                 
                 # Safety check to prevent infinite loops
                 if page > 100:  # Maximum 100 pages
