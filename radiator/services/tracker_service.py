@@ -86,9 +86,6 @@ class TrackerAPIService:
         page = 1
         per_page = 50  # API default and maximum per page
         
-        # Log start of changelog loading for this task
-        logger.info(f"🔄 Начинаем загрузку истории для задачи {task_id}")
-        
         while True:
             try:
                 url = f"{self.base_url}issues/{task_id}/changelog"
@@ -109,9 +106,6 @@ class TrackerAPIService:
                 
                 all_data.extend(page_data)
                 
-                # Log each page completion
-                logger.info(f"📄 {task_id}, история, страница {page} получена ({len(page_data)} записей)")
-                
                 # Check if there's a next page using Link header
                 link_header = response.headers.get("Link", "")
                 if 'rel="next"' in link_header:
@@ -120,30 +114,20 @@ class TrackerAPIService:
                     match = re.search(r'id=([^&]+)', link_header)
                     if match:
                         self.next_page_id = match.group(1)
-                        logger.debug(f"🔗 Следующая страница для {task_id}: id={self.next_page_id}")
                         page += 1
                     else:
-                        logger.warning(f"⚠️ Не удалось извлечь id для следующей страницы из заголовка Link: {link_header}")
                         break
                 else:
                     # No next page, we're done
-                    logger.debug(f"✅ {task_id}: достигнут конец истории (нет заголовка Link с rel='next')")
                     break
                 
                 # Safety check to prevent infinite loops
                 if page > 100:  # Maximum 100 pages
-                    logger.warning(f"⚠️ Достигнут лимит страниц для истории задачи {task_id}")
                     break
                 
             except Exception as e:
-                logger.error(f"❌ Ошибка получения страницы {page} истории для задачи {task_id}: {e}")
+                logger.error(f"❌ Ошибка получения истории для задачи {task_id}: {e}")
                 break
-        
-        # Log completion of changelog loading for this task
-        if page > 1:
-            logger.debug(f"✅ Задача {task_id}: загружено {page-1} страниц, {len(all_data)} записей истории")
-        else:
-            logger.debug(f"✅ Задача {task_id}: загружено {len(all_data)} записей истории")
         
         return all_data
     
@@ -182,28 +166,23 @@ class TrackerAPIService:
         def task_done_callback(future):
             nonlocal completed
             completed += 1
-            # Show progress for every task completion
-            logger.info(f"📥 Загружено истории: {completed}/{total_tasks} задач ({completed/total_tasks*100:.1f}%)")
+            # Show progress every 10 tasks or for the last task
+            if completed % 10 == 0 or completed == total_tasks:
+                logger.info(f"📥 Загружено истории: {completed}/{total_tasks} задач ({completed/total_tasks*100:.1f}%)")
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Submit all tasks and store futures
             futures = []
             for i, task_id in enumerate(task_ids):
-                logger.info(f"🚀 Отправляем задачу {task_id} в очередь ({i+1}/{total_tasks})")
                 future = executor.submit(self.get_task_changelog, task_id)
                 future.add_done_callback(task_done_callback)
                 futures.append((i, future, task_id))
             
-            logger.info(f"⏳ Ожидаем завершения {len(futures)} задач...")
-            
             # Collect results as they complete
             for i, future, task_id in futures:
-                logger.info(f"⏳ Ожидаем результат для задачи {task_id} ({i+1}/{total_tasks})")
                 try:
                     changelog_data = future.result()
                     results[i] = (task_id, changelog_data)
-                    # Debug: log what we got for each task
-                    logger.info(f"🔍 Задача {task_id}: получено {len(changelog_data)} записей истории")
                 except Exception as e:
                     logger.error(f"Failed to get changelog for task {task_id}: {e}")
                     results[i] = (task_id, [])
@@ -231,12 +210,7 @@ class TrackerAPIService:
         """Extract status history from changelog."""
         status_changes = []
         
-        if task_key:
-            print(f"🔍 Задача {task_key}: обрабатываем changelog из {len(changelog)} записей")
-        else:
-            print(f"🔍 Обрабатываем changelog из {len(changelog)} записей")
-        
-        for i, entry in enumerate(changelog):
+        for entry in changelog:
             updated_at = entry.get("updatedAt", "")
             if not updated_at:
                 continue
@@ -254,18 +228,7 @@ class TrackerAPIService:
                     "status_display": status_name,
                     "start_date": datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
                 }
-                
-                # Выводим каждое изменение статуса в терминал
-                if task_key:
-                    print(f"📝 {task_key} - Запись {i}: статус '{status_name}' на {updated_at}")
-                else:
-                    print(f"📝 Запись {i}: статус '{status_name}' на {updated_at}")
                 status_changes.append(status_change)
-        
-        if task_key:
-            print(f"📊 {task_key}: найдено {len(status_changes)} изменений статуса")
-        else:
-            print(f"📊 Найдено {len(status_changes)} изменений статуса")
         
         # Sort by date and add end dates
         status_changes.sort(key=lambda x: x["start_date"])
@@ -283,10 +246,11 @@ class TrackerAPIService:
                 seen.add(key)
                 unique_changes.append(change)
         
+        # Выводим только итоговую информацию по задаче
         if task_key:
-            print(f"🔍 {task_key}: после дедупликации {len(unique_changes)} уникальных изменений из {len(status_changes)}")
+            print(f"📊 {task_key}: {len(unique_changes)} изменений статуса (из {len(changelog)} записей)")
         else:
-            print(f"🔍 После дедупликации: {len(unique_changes)} уникальных изменений из {len(status_changes)}")
+            print(f"📊 Найдено {len(unique_changes)} изменений статуса (из {len(changelog)} записей)")
         
         return unique_changes
     

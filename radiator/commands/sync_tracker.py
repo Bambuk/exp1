@@ -147,13 +147,10 @@ class TrackerSyncCommand:
         
         total_history_entries = 0
         
-        # Process history with detailed logging
+        # Process history with minimal logging
         logger.info("💾 Обрабатываем и сохраняем историю в базу данных...")
         for i, (task_id, changelog) in enumerate(changelogs_data, 1):
-            logger.info(f"📚 Обрабатываем историю для задачи {task_id} ({i}/{len(task_ids)})")
-            
             if not changelog:
-                logger.info(f"⚠️ Нет данных истории для задачи {task_id}")
                 continue
             
             # Get task from database
@@ -166,13 +163,10 @@ class TrackerSyncCommand:
             task_key = db_task.key if hasattr(db_task, 'key') and db_task.key else task_id
             status_history = tracker_service.extract_status_history(changelog, task_key)
             if not status_history:
-                logger.info(f"⚠️ Не найдена история статусов для задачи {task_id}")
                 continue
             
             # Delete existing history for this task to ensure clean slate
             deleted_count = tracker_task_history.delete_by_task_id(self.db, db_task.id)
-            if deleted_count > 0:
-                logger.info(f"🗑️ Удалено {deleted_count} существующих записей истории для задачи {task_id}")
             
             # Prepare history data with duplicate prevention
             history_data = []
@@ -188,16 +182,11 @@ class TrackerSyncCommand:
                         "end_date": entry.get("end_date")
                     }
                     history_data.append(history_entry)
-                else:
-                    logger.warning(f"⚠️ Пропускаем некорректную запись истории для задачи {task_id}: отсутствует start_date или status")
             
             # Save history
             if history_data:
                 created_count = tracker_task_history.bulk_create(self.db, history_data)
                 total_history_entries += created_count
-                logger.info(f"✅ Создано {created_count} записей истории для задачи {task_id}")
-            else:
-                logger.info(f"ℹ️ Нет новых записей истории для задачи {task_id}")
         
         logger.info(f"✅ История синхронизирована: {total_history_entries} записей создано для {len(task_ids)} задач")
         return total_history_entries
