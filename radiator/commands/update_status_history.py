@@ -16,6 +16,7 @@ from radiator.core.logging import logger
 from radiator.crud.tracker import tracker_task, tracker_task_history, tracker_sync_log
 from radiator.services.tracker_service import tracker_service
 from radiator.models.tracker import TrackerSyncLog
+from radiator.models.tracker import TrackerTask
 
 
 class UpdateStatusHistoryCommand:
@@ -76,12 +77,13 @@ class UpdateStatusHistoryCommand:
             logger.error(f"Failed to get tasks with recent status changes: {e}")
             return []
     
-    def update_status_history_for_tasks(self, task_ids: List[str]) -> Dict[str, int]:
+    def update_status_history_for_tasks(self, task_ids: List[str], auto_sync_missing: bool = False) -> Dict[str, int]:
         """
         Update status history for specific tasks.
         
         Args:
             task_ids: List of task IDs to update history for
+            auto_sync_missing: If True, automatically sync missing tasks before updating history
             
         Returns:
             Dictionary with counts of created and updated history entries
@@ -90,7 +92,25 @@ class UpdateStatusHistoryCommand:
         
         total_created = 0
         total_updated = 0
+        missing_tasks = []
         
+        # First pass: identify missing tasks
+        for task_id in task_ids:
+            db_task = tracker_task.get_by_tracker_id(self.db, task_id)
+            if not db_task:
+                missing_tasks.append(task_id)
+        
+        # Auto-sync missing tasks if requested
+        if missing_tasks and auto_sync_missing:
+            logger.info(f"Found {len(missing_tasks)} missing tasks, attempting to sync them first...")
+            try:
+                self._sync_missing_tasks(missing_tasks)
+                logger.info(f"Successfully synced {len(missing_tasks)} missing tasks")
+            except Exception as e:
+                logger.error(f"Failed to sync missing tasks: {e}")
+                logger.warning("Continuing with existing tasks only")
+        
+        # Second pass: process all tasks (including newly synced ones)
         for task_id in task_ids:
             try:
                 # Get task from database
@@ -145,7 +165,43 @@ class UpdateStatusHistoryCommand:
         logger.info(f"Status history update completed: {total_created} entries created")
         return {"created": total_created, "updated": total_updated}
     
-    def run(self, queue: str = "CPO", days: int = 14, limit: int = 1000) -> bool:
+    def _sync_missing_tasks(self, task_ids: List[str]) -> None:
+        """
+        Sync missing tasks from Yandex Tracker.
+        
+        Args:
+            task_ids: List of task IDs to sync
+        """
+        logger.info(f"Syncing {len(task_ids)} missing tasks...")
+        
+        # Get tasks data in batch
+        tasks_data = tracker_service.get_tasks_batch(task_ids)
+        
+        for task_id, task_data in tasks_data:
+            if not task_data:
+                logger.warning(f"Failed to get data for task {task_id}")
+                continue
+            
+            try:
+                # Extract task data
+                task_info = tracker_service.extract_task_data(task_data)
+                
+                # Create new task in database
+                new_task = TrackerTask(**task_info)
+                self.db.add(new_task)
+                self.db.commit()
+                self.db.refresh(new_task)
+                
+                logger.debug(f"Successfully synced task {task_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to sync task {task_id}: {e}")
+                continue
+        
+        self.db.commit()
+        logger.info(f"Task sync completed")
+    
+    def run(self, queue: str = "CPO", days: int = 14, limit: int = 1000, auto_sync_missing: bool = False) -> bool:
         """
         Run the status history update command.
         
@@ -161,7 +217,7 @@ class UpdateStatusHistoryCommand:
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started status history update: {self.sync_log.id}")
-            logger.info(f"Queue: {queue}, Days: {days}, Limit: {limit}")
+            logger.info(f"Queue: {queue}, Days: {days}, Limit: {limit}, Auto-sync: {auto_sync_missing}")
             
             # Get tasks with recent status changes
             task_ids = self.get_tasks_with_recent_status_changes(queue, days)
@@ -182,7 +238,7 @@ class UpdateStatusHistoryCommand:
             self.update_sync_log(tasks_processed=len(task_ids))
             
             # Update status history
-            history_result = self.update_status_history_for_tasks(task_ids)
+            history_result = self.update_status_history_for_tasks(task_ids, auto_sync_missing)
             
             # Mark sync as completed
             self.update_sync_log(
@@ -229,6 +285,11 @@ def main():
         help="Maximum number of tasks to process (default: 1000)"
     )
     parser.add_argument(
+        "--auto-sync",
+        action="store_true",
+        help="Automatically sync missing tasks before updating history"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging"
@@ -243,7 +304,8 @@ def main():
         success = cmd.run(
             queue=args.queue,
             days=args.days,
-            limit=args.limit
+            limit=args.limit,
+            auto_sync_missing=args.auto_sync
         )
         
         if success:

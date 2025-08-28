@@ -36,7 +36,8 @@ param(
     [string]$Queue = "CPO",
     [int]$Days = 14,
     [int]$Limit = 1000,
-    [switch]$Verbose
+    [switch]$Verbose,
+    [switch]$AutoSync
 )
 
 # Set error action preference
@@ -115,6 +116,7 @@ Write-Host "Queue: $Queue" -ForegroundColor White
 Write-Host "Days: $Days" -ForegroundColor White
 Write-Host "Limit: $Limit" -ForegroundColor White
 Write-Host "Verbose: $Verbose" -ForegroundColor White
+Write-Host "Auto-sync: $AutoSync" -ForegroundColor White
 Write-Host ""
 
 # Check prerequisites
@@ -151,6 +153,10 @@ $pythonArgs = @(
 
 if ($Verbose) {
     $pythonArgs += "--verbose"
+}
+
+if ($AutoSync) {
+    $pythonArgs += "--auto-sync"
 }
 
 # Run the command

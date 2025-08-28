@@ -203,7 +203,7 @@ class TestUpdateStatusHistoryCommand:
             assert result is True
             mock_create_log.assert_called_once()
             mock_get_tasks.assert_called_once_with("CPO", 14)
-            mock_update_history.assert_called_once_with(["TEST-1", "TEST-2"])
+            mock_update_history.assert_called_once_with(["TEST-1", "TEST-2"], False)
             mock_update_log.assert_called()
 
     def test_run_no_tasks_found(self):
@@ -251,7 +251,7 @@ class TestUpdateStatusHistoryCommand:
             
             assert result is True
             # Should call update_history with limited task list
-            mock_update_history.assert_called_once_with([f"TEST-{i}" for i in range(50)])
+            mock_update_history.assert_called_once_with([f"TEST-{i}" for i in range(50)], False)
 
     def test_run_failure(self):
         """Test command execution failure."""
