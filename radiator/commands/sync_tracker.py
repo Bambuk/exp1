@@ -159,13 +159,15 @@ class TrackerSyncCommand:
         logger.info(f"History sync completed: {total_history_entries} entries created for {len(task_ids)} tasks")
         return total_history_entries
     
-    def run(self, filters: Dict[str, Any] = None, limit: int = 100, force_full_sync: bool = False):
+    def run(self, filters: Dict[str, Any] = None, limit: int = 100, force_full_sync: bool = False, skip_history: bool = False):
         """Run the sync command."""
         try:
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started sync operation: {self.sync_log.id}")
             logger.info("Sync mode: filters and limit")
+            if skip_history:
+                logger.info("History sync disabled")
             
             # Get tasks to sync
             task_ids = self.get_tasks_to_sync(filters, limit)
@@ -194,8 +196,12 @@ class TrackerSyncCommand:
                 tasks_updated=tasks_result["updated"]
             )
             
-            # Sync history
-            history_entries = self.sync_task_history(task_ids)
+            # Sync history (if not skipped)
+            if skip_history:
+                history_entries = 0
+                logger.info("Skipping history sync as requested")
+            else:
+                history_entries = self.sync_task_history(task_ids)
             
             # Mark sync as completed
             self.update_sync_log(
@@ -246,6 +252,11 @@ The command automatically handles pagination to retrieve the requested number of
         help="Force full sync ignoring last sync time"
     )
     parser.add_argument(
+        "--skip-history",
+        action="store_true",
+        help="Skip syncing task history (faster sync for testing)"
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging"
@@ -268,14 +279,16 @@ The command automatically handles pagination to retrieve the requested number of
     # Build filters
     filters = {}
     if args.filter:
-        filters["filter"] = args.filter
+        # Pass the filter string directly as a query
+        filters["query"] = args.filter
     
     # Run sync
     with TrackerSyncCommand() as sync_cmd:
         success = sync_cmd.run(
             filters=filters,
             limit=args.limit,
-            force_full_sync=args.force_full_sync
+            force_full_sync=args.force_full_sync,
+            skip_history=args.skip_history
         )
         sys.exit(0 if success else 1)
 

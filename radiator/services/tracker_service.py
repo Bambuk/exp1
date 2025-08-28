@@ -274,7 +274,7 @@ class TrackerAPIService:
             while len(all_task_ids) < limit:
                 params = {
                     "query": query, 
-                    "perPage": per_page,
+                    "perPage": min(per_page, limit - len(all_task_ids)),  # Don't fetch more than needed
                     "page": page
                 }
                 
@@ -302,6 +302,10 @@ class TrackerAPIService:
                 
                 all_task_ids.extend(page_task_ids)
                 
+                # If we have enough tasks, break early
+                if len(all_task_ids) >= limit:
+                    break
+                
                 # Check if we've reached the last page
                 total_pages = response.headers.get("X-Total-Pages")
                 if total_pages and page >= int(total_pages):
@@ -314,9 +318,9 @@ class TrackerAPIService:
                     logger.warning("Reached maximum page limit, stopping pagination")
                     break
             
-            # Limit to requested number
+            # Limit to requested number (should already be limited, but just in case)
             result = all_task_ids[:limit]
-            logger.info(f"Found {len(result)} tasks via API search (from {len(all_task_ids)} total)")
+            logger.info(f"Found {len(result)} tasks via API search (requested: {limit})")
             return result
             
         except Exception as e:
@@ -335,6 +339,13 @@ class TrackerAPIService:
             List of task IDs
         """
         try:
+            # Check if we have a direct query string
+            if filters and "query" in filters:
+                # Use the query string directly as provided
+                search_query = filters["query"]
+                logger.info(f"Using direct query: {search_query}")
+                return self.search_tasks(query=search_query, limit=limit)
+            
             # Build search query from filters using Tracker query syntax
             search_parts = []
             
