@@ -22,14 +22,14 @@ def test_sync_connection():
         conn = psycopg2.connect(database_url)
         print("✅ Synchronous connection successful!")
         conn.close()
-        return True
+        assert True, "Connection successful"
         
     except ImportError:
         print("❌ psycopg2 not installed")
-        return False
+        assert False, "psycopg2 not installed"
     except Exception as e:
         print(f"❌ Synchronous connection failed: {e}")
-        return False
+        assert False, f"Connection failed: {e}"
 
 def test_async_connection():
     """Test asynchronous database connection."""
@@ -45,19 +45,20 @@ def test_async_connection():
         async def test_async():
             engine = create_async_engine(database_url)
             async with engine.begin() as conn:
-                result = await conn.execute("SELECT 1")
+                from sqlalchemy import text
+                result = await conn.execute(text("SELECT 1"))
                 print("✅ Asynchronous connection successful!")
             await engine.dispose()
         
         asyncio.run(test_async())
-        return True
+        assert True, "Async connection successful"
         
     except ImportError:
         print("❌ SQLAlchemy async not available")
-        return False
+        assert False, "SQLAlchemy async not available"
     except Exception as e:
         print(f"❌ Asynchronous connection failed: {e}")
-        return False
+        assert False, f"Async connection failed: {e}"
 
 def test_config():
     """Test configuration loading."""
@@ -68,11 +69,11 @@ def test_config():
         print(f"  DATABASE_URL: {settings.DATABASE_URL}")
         print(f"  DATABASE_URL_SYNC: {settings.DATABASE_URL_SYNC}")
         
-        return True
+        assert True, "Configuration loaded successfully"
         
     except Exception as e:
         print(f"❌ Configuration loading failed: {e}")
-        return False
+        assert False, f"Configuration loading failed: {e}"
 
 if __name__ == "__main__":
     print("🔍 Testing database connections...\n")

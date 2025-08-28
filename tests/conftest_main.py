@@ -4,7 +4,7 @@ import os
 import pytest
 from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, Mock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,8 +60,8 @@ def mock_crud_operations():
             mock_user.avatar_url = None
             mock_user.is_active = True
             mock_user.is_superuser = False
-            mock_user.created_at = datetime.utcnow()
-            mock_user.updated_at = datetime.utcnow()
+            mock_user.created_at = datetime.now(timezone.utc)
+            mock_user.updated_at = datetime.now(timezone.utc)
             return mock_user
         
         # Default mock behavior

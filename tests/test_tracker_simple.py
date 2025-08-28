@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
 
@@ -35,7 +35,7 @@ class TestTrackerModels:
             tracker_id="TEST-1",
             status="open",
             status_display="Open",
-            start_date=datetime.utcnow()
+            start_date=datetime.now(timezone.utc)
         )
         
         assert history.tracker_id == "TEST-1"
@@ -45,7 +45,7 @@ class TestTrackerModels:
     def test_tracker_sync_log_model(self):
         """Test TrackerSyncLog model creation."""
         sync_log = TrackerSyncLog(
-            sync_started_at=datetime.utcnow(),
+            sync_started_at=datetime.now(timezone.utc),
             status="running",
             tasks_processed=0
         )

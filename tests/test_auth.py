@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from radiator.core.security import create_access_token
 
 
-@pytest.mark.unit
 class TestAuth:
     """Test authentication endpoints."""
 

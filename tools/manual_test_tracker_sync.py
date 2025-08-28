@@ -41,10 +41,10 @@ def test_environment():
     if missing_vars:
         print(f"❌ Отсутствуют переменные окружения: {', '.join(missing_vars)}")
         print("Создайте файл .env на основе env.example")
-        return False
+        assert False, f"Missing environment variables: {', '.join(missing_vars)}"
     
     print("✅ Все необходимые переменные окружения настроены")
-    return True
+    assert True, "Environment variables configured"
 
 def test_database_connection():
     """Проверяет подключение к базе данных."""
@@ -60,11 +60,11 @@ def test_database_connection():
         db.close()
         
         print("✅ Подключение к базе данных успешно")
-        return True
+        assert True, "Database connection successful"
         
     except Exception as e:
         print(f"❌ Ошибка подключения к базе данных: {e}")
-        return False
+        assert False, f"Database connection failed: {e}"
 
 def test_tracker_api():
     """Проверяет доступность API трекера."""
@@ -76,11 +76,11 @@ def test_tracker_api():
         # Пробуем получить информацию об организации
         headers = tracker_service.headers
         print(f"✅ Заголовки API настроены: Authorization и X-Org-ID присутствуют")
-        return True
+        assert True, "Tracker API configured"
         
     except Exception as e:
         print(f"❌ Ошибка настройки API трекера: {e}")
-        return False
+        assert False, f"Tracker API configuration failed: {e}"
 
 def test_api_search():
     """Тестирует поиск задач через API."""
@@ -99,14 +99,14 @@ def test_api_search():
         
         if recent_tasks or active_tasks:
             print("✅ API поиск работает корректно")
-            return True
+            assert True, "API search working correctly"
         else:
             print("⚠️ API поиск работает, но задач не найдено (возможно, нет данных)")
-            return True
+            assert True, "API search working but no tasks found"
             
     except Exception as e:
         print(f"❌ Ошибка при тестировании API поиска: {e}")
-        return False
+        assert False, f"API search test failed: {e}"
 
 def run_test_sync():
     """Запускает тестовую синхронизацию."""
@@ -122,7 +122,7 @@ def run_test_sync():
         confirmation = input().strip().lower()
         if confirmation != "yes":
             print("❌ Синхронизация отменена пользователем")
-            return False
+            assert False, "Sync cancelled by user"
         
         with TrackerSyncCommand() as sync_cmd:
             success = sync_cmd.run(
@@ -134,14 +134,14 @@ def run_test_sync():
             
             if success:
                 print("✅ Тестовая синхронизация завершена успешно")
-                return True
+                assert True, "Test sync completed successfully"
             else:
                 print("❌ Тестовая синхронизация завершилась с ошибкой")
-                return False
+                assert False, "Test sync failed"
                 
     except Exception as e:
         print(f"❌ Ошибка при запуске синхронизации: {e}")
-        return False
+        assert False, f"Test sync error: {e}"
 
 def main():
     """Основная функция тестирования."""
@@ -149,35 +149,24 @@ def main():
     print("=" * 50)
     
     # Проверяем окружение
-    if not test_environment():
-        print("\n❌ Тестирование прервано из-за ошибок в настройках")
-        return False
+    test_environment()
     
     # Проверяем базу данных
-    if not test_database_connection():
-        print("\n❌ Тестирование прервано из-за ошибок подключения к БД")
-        return False
+    test_database_connection()
     
     # Проверяем API трекера
-    if not test_tracker_api():
-        print("\n❌ Тестирование прервано из-за ошибок API трекера")
-        return False
+    test_tracker_api()
     
     # Тестируем API поиск
-    if not test_api_search():
-        print("\n❌ Тестирование прервано из-за ошибок API поиска")
-        return False
+    test_api_search()
     
     print("\n✅ Все проверки пройдены успешно!")
     
     # Запускаем тестовую синхронизацию
-    if run_test_sync():
-        print("\n🎉 Тестирование завершено успешно!")
-        return True
-    else:
-        print("\n💥 Тестирование завершилось с ошибками")
-        return False
+    run_test_sync()
+    print("\n🎉 Тестирование завершено успешно!")
+    assert True, "All tests completed successfully"
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    main()
+    sys.exit(0)

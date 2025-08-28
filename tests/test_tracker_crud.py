@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
@@ -138,10 +138,10 @@ class TestCRUDTrackerTask:
         """Test getting tasks updated since a specific date."""
         # Test that we can create TrackerTask objects with different update times
         from datetime import datetime, timedelta
-        updated_since = datetime.utcnow() - timedelta(days=7)
+        updated_since = datetime.now(timezone.utc) - timedelta(days=7)
         mock_tasks = [
-            TrackerTask(tracker_id="TEST-1", key="TEST-123", updated_at=datetime.utcnow()),
-            TrackerTask(tracker_id="TEST-2", key="TEST-456", updated_at=datetime.utcnow() - timedelta(days=3))
+            TrackerTask(tracker_id="TEST-1", key="TEST-123", updated_at=datetime.now(timezone.utc)),
+            TrackerTask(tracker_id="TEST-2", key="TEST-456", updated_at=datetime.now(timezone.utc) - timedelta(days=3))
         ]
         
         assert len(mock_tasks) == 2
@@ -174,8 +174,8 @@ class TestCRUDTrackerTaskHistory:
             "tracker_id": "TEST-1",
             "old_status": "Open",
             "new_status": "In Progress",
-            "start_date": datetime.utcnow(),
-            "end_date": datetime.utcnow() + timedelta(hours=2),
+            "start_date": datetime.now(timezone.utc),
+            "end_date": datetime.now(timezone.utc) + timedelta(hours=2),
             "duration_minutes": 120,
             "changed_by": "user1",
             "change_reason": "Work started"
@@ -190,7 +190,7 @@ class TestCRUDTrackerTaskHistory:
             "tracker_id": "TEST-1",
             "status": "Open",
             "status_display": "Open",
-            "start_date": datetime.utcnow()
+            "start_date": datetime.now(timezone.utc)
         }
         mock_history = TrackerTaskHistory(**valid_data)
         assert mock_history.tracker_id == "TEST-1"
@@ -200,8 +200,8 @@ class TestCRUDTrackerTaskHistory:
         """Test getting history for a specific task."""
         # Test that we can create TrackerTaskHistory objects
         mock_history = [
-            TrackerTaskHistory(tracker_id="TEST-1", status="Open", status_display="Open", start_date=datetime.utcnow()),
-            TrackerTaskHistory(tracker_id="TEST-1", status="In Progress", status_display="In Progress", start_date=datetime.utcnow())
+            TrackerTaskHistory(tracker_id="TEST-1", status="Open", status_display="Open", start_date=datetime.now(timezone.utc)),
+            TrackerTaskHistory(tracker_id="TEST-1", status="In Progress", status_display="In Progress", start_date=datetime.now(timezone.utc))
         ]
         
         assert len(mock_history) == 2
@@ -213,8 +213,8 @@ class TestCRUDTrackerTaskHistory:
         """Test getting status changes for a task."""
         # Test that we can create TrackerTaskHistory objects for status changes
         mock_changes = [
-            TrackerTaskHistory(tracker_id="TEST-1", status="Open", status_display="Open", start_date=datetime.utcnow()),
-            TrackerTaskHistory(tracker_id="TEST-1", status="In Progress", status_display="In Progress", start_date=datetime.utcnow())
+            TrackerTaskHistory(tracker_id="TEST-1", status="Open", status_display="Open", start_date=datetime.now(timezone.utc)),
+            TrackerTaskHistory(tracker_id="TEST-1", status="In Progress", status_display="In Progress", start_date=datetime.now(timezone.utc))
         ]
         
         assert len(mock_changes) == 2
@@ -225,8 +225,8 @@ class TestCRUDTrackerTaskHistory:
         """Test bulk creation of history entries."""
         # Test that we can create multiple TrackerTaskHistory objects
         history_data = [
-            {"tracker_id": "TEST-1", "status": "Open", "status_display": "Open", "start_date": datetime.utcnow()},
-            {"tracker_id": "TEST-1", "status": "In Progress", "status_display": "In Progress", "start_date": datetime.utcnow()}
+            {"tracker_id": "TEST-1", "status": "Open", "status_display": "Open", "start_date": datetime.now(timezone.utc)},
+            {"tracker_id": "TEST-1", "status": "In Progress", "status_display": "In Progress", "start_date": datetime.now(timezone.utc)}
         ]
         
         created_history = [TrackerTaskHistory(**data) for data in history_data]
@@ -253,7 +253,7 @@ class TestCRUDTrackerSyncLog:
     def sample_sync_log_data(self):
         """Sample sync log data for testing."""
         return {
-            "sync_started_at": datetime.utcnow(),
+            "sync_started_at": datetime.now(timezone.utc),
             "status": "in_progress",
             "tasks_processed": 0,
             "tasks_created": 0,
@@ -269,7 +269,7 @@ class TestCRUDTrackerSyncLog:
         # Note: sample_sync_log_data contains fields that don't exist in the model
         # We'll test with valid fields only
         valid_data = {
-            "sync_started_at": datetime.utcnow(),
+            "sync_started_at": datetime.now(timezone.utc),
             "status": "running"
         }
         mock_log = TrackerSyncLog(**valid_data)
@@ -279,7 +279,7 @@ class TestCRUDTrackerSyncLog:
     def test_get_latest_sync_log(self, crud, mock_session):
         """Test getting the latest sync log."""
         # Test that we can create a TrackerSyncLog
-        mock_log = TrackerSyncLog(sync_started_at=datetime.utcnow(), status="completed")
+        mock_log = TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), status="completed")
         assert mock_log.status == "completed"
         assert mock_log.sync_started_at is not None
 
@@ -287,9 +287,9 @@ class TestCRUDTrackerSyncLog:
         """Test getting sync logs by status."""
         # Test that we can create TrackerSyncLog objects with different statuses
         mock_logs = [
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), status="completed"),
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), status="completed"),
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), status="failed")
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), status="completed"),
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), status="completed"),
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), status="failed")
         ]
         
         assert len(mock_logs) == 3
@@ -300,9 +300,9 @@ class TestCRUDTrackerSyncLog:
         """Test getting sync statistics."""
         # Test that we can create TrackerSyncLog objects with different statistics
         mock_logs = [
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), tasks_processed=10, tasks_created=5, tasks_updated=3),
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), tasks_processed=15, tasks_created=8, tasks_updated=4),
-            TrackerSyncLog(sync_started_at=datetime.utcnow(), tasks_processed=8, tasks_created=2, tasks_updated=1)
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), tasks_processed=10, tasks_created=5, tasks_updated=3),
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), tasks_processed=15, tasks_created=8, tasks_updated=4),
+            TrackerSyncLog(sync_started_at=datetime.now(timezone.utc), tasks_processed=8, tasks_created=2, tasks_updated=1)
         ]
         
         assert len(mock_logs) == 3

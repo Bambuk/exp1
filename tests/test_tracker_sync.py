@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock, mock_open
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
@@ -132,8 +132,8 @@ class TestTrackerCRUD:
             "summary": "Test Task",
             "status": "open",
             "assignee": "Test User",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
 
     @pytest.fixture
@@ -144,8 +144,8 @@ class TestTrackerCRUD:
             "tracker_id": "12345",
             "status": "In Progress",
             "status_display": "In Progress",
-            "start_date": datetime.utcnow(),
-            "end_date": datetime.utcnow()
+            "start_date": datetime.now(timezone.utc),
+            "end_date": datetime.now(timezone.utc)
         }
 
     def test_create_task(self, mock_db_session, sample_task_data):
@@ -286,7 +286,7 @@ class TestTrackerSyncCommand:
         mock_sync_command.update_sync_log(
             status="completed",
             tasks_processed=5,
-            sync_completed_at=datetime.utcnow()
+            sync_completed_at=datetime.now(timezone.utc)
         )
         
         # The method directly updates the sync_log object and commits to db
@@ -337,8 +337,8 @@ class TestTrackerModels:
             summary="Test Task",
             status="open",
             assignee="Test User",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         assert task.tracker_id == "TEST-1"
@@ -352,8 +352,8 @@ class TestTrackerModels:
             tracker_id="TEST-1",
             status="In Progress",
             status_display="In Progress",
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow()
+            start_date=datetime.now(timezone.utc),
+            end_date=datetime.now(timezone.utc)
         )
         
         assert history.tracker_id == "TEST-1"
@@ -363,7 +363,7 @@ class TestTrackerModels:
     def test_tracker_sync_log_model(self):
         """Test TrackerSyncLog model creation."""
         sync_log = TrackerSyncLog(
-            sync_started_at=datetime.utcnow(),
+            sync_started_at=datetime.now(timezone.utc),
             status="in_progress",
             tasks_processed=0
         )

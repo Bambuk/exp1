@@ -2,7 +2,7 @@
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -35,7 +35,7 @@ class TrackerSyncCommand:
     def create_sync_log(self) -> TrackerSyncLog:
         """Create new sync log entry."""
         sync_log = TrackerSyncLog(
-            sync_started_at=datetime.utcnow(),
+            sync_started_at=datetime.now(timezone.utc),
             status="running"
         )
         self.db.add(sync_log)
@@ -58,7 +58,7 @@ class TrackerSyncCommand:
             return last_sync.sync_completed_at
         else:
             # Default to 30 days ago if no previous sync
-            return datetime.utcnow() - timedelta(days=30)
+            return datetime.now(timezone.utc) - timedelta(days=30)
     
     def get_tasks_to_sync(self, sync_mode: str = "recent", filters: Dict[str, Any] = None, 
                           days: int = 30, limit: int = 100) -> List[str]:
@@ -237,7 +237,7 @@ class TrackerSyncCommand:
             # Mark sync as completed
             self.update_sync_log(
                 status="completed",
-                sync_completed_at=datetime.utcnow()
+                sync_completed_at=datetime.now(timezone.utc)
             )
             
             logger.info(f"Sync completed successfully: {tasks_result['created']} created, {tasks_result['updated']} updated, {history_entries} history entries")
@@ -248,7 +248,7 @@ class TrackerSyncCommand:
             if self.sync_log:
                 self.update_sync_log(
                     status="failed",
-                    sync_completed_at=datetime.utcnow(),
+                    sync_completed_at=datetime.now(timezone.utc),
                     error_details=str(e)
                 )
             return False

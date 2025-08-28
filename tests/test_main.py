@@ -4,7 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.unit
 class TestMainApp:
     """Test main application endpoints."""
 
