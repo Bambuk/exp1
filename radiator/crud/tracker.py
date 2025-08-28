@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, text
 
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
 from radiator.crud.base import CRUDBase
@@ -87,16 +87,53 @@ class CRUDTrackerTaskHistory(CRUDBase[TrackerTaskHistory, TrackerTaskHistory, Tr
         return result
     
     def bulk_create(self, db: Session, history_data: List[Dict[str, Any]]) -> int:
-        """Bulk create history entries."""
+        """Bulk create history entries with duplicate prevention."""
         history_entries = []
-        for entry_data in history_data:
-            entry_data["created_at"] = datetime.utcnow()
-            history_entry = TrackerTaskHistory(**entry_data)
-            history_entries.append(history_entry)
+        created_count = 0
         
-        db.add_all(history_entries)
-        db.commit()
-        return len(history_entries)
+        for entry_data in history_data:
+            # Check if this exact entry already exists
+            existing = db.query(TrackerTaskHistory).filter(
+                TrackerTaskHistory.task_id == entry_data["task_id"],
+                TrackerTaskHistory.start_date == entry_data["start_date"],
+                TrackerTaskHistory.status == entry_data["status"]
+            ).first()
+            
+            if not existing:
+                # Only create if it doesn't exist
+                entry_data["created_at"] = datetime.utcnow()
+                history_entry = TrackerTaskHistory(**entry_data)
+                history_entries.append(history_entry)
+                created_count += 1
+            else:
+                logger.debug(f"Skipping duplicate history entry: task_id={entry_data['task_id']}, start_date={entry_data['start_date']}, status={entry_data['status']}")
+        
+        if history_entries:
+            db.add_all(history_entries)
+            db.commit()
+        
+        return created_count
+    
+    def cleanup_duplicates(self, db: Session) -> int:
+        """Clean up duplicate history entries, keeping only the first occurrence."""
+        try:
+            # Use raw SQL to efficiently remove duplicates
+            # Keep the first occurrence (lowest ID) for each unique combination
+            result = db.execute(text("""
+                DELETE FROM tracker_task_history 
+                WHERE id NOT IN (
+                    SELECT DISTINCT ON (task_id, start_date, status) id 
+                    FROM tracker_task_history 
+                    ORDER BY task_id, start_date, status, id
+                )
+            """))
+            deleted_count = result.rowcount
+            db.commit()
+            return deleted_count
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to cleanup duplicates: {e}")
+            return 0
 
 
 class CRUDTrackerSyncLog(CRUDBase[TrackerSyncLog, TrackerSyncLog, TrackerSyncLog]):

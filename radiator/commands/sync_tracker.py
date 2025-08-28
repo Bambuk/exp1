@@ -163,21 +163,27 @@ class TrackerSyncCommand:
                     pbar.update(1)
                     continue
                 
-                # Delete existing history for this task
-                tracker_task_history.delete_by_task_id(self.db, db_task.id)
+                # Delete existing history for this task to ensure clean slate
+                deleted_count = tracker_task_history.delete_by_task_id(self.db, db_task.id)
+                if deleted_count > 0:
+                    logger.debug(f"Deleted {deleted_count} existing history entries for task {task_id}")
                 
-                # Prepare history data
+                # Prepare history data with duplicate prevention
                 history_data = []
                 for entry in status_history:
-                    history_entry = {
-                        "task_id": db_task.id,
-                        "tracker_id": task_id,
-                        "status": entry["status"],
-                        "status_display": entry["status_display"],
-                        "start_date": entry["start_date"],
-                        "end_date": entry.get("end_date")
-                    }
-                    history_data.append(history_entry)
+                    # Additional validation to prevent duplicates
+                    if entry.get("start_date") and entry.get("status"):
+                        history_entry = {
+                            "task_id": db_task.id,
+                            "tracker_id": task_id,
+                            "status": entry["status"],
+                            "status_display": entry["status_display"],
+                            "start_date": entry["start_date"],
+                            "end_date": entry.get("end_date")
+                        }
+                        history_data.append(history_entry)
+                    else:
+                        logger.warning(f"Skipping invalid history entry for task {task_id}: missing start_date or status")
                 
                 # Save history
                 if history_data:
@@ -242,6 +248,15 @@ class TrackerSyncCommand:
                 logger.info("⏭️ Пропускаем синхронизацию истории по запросу")
             else:
                 history_entries = self.sync_task_history(task_ids)
+                
+                # Clean up any duplicates that might have been created
+                if history_entries > 0:
+                    logger.info("🧹 Очищаем возможные дубликаты в истории...")
+                    cleaned_count = tracker_task_history.cleanup_duplicates(self.db)
+                    if cleaned_count > 0:
+                        logger.info(f"🧹 Очищено {cleaned_count} дублирующихся записей")
+                    else:
+                        logger.info("✅ Дубликатов не найдено")
             
             # Mark sync as completed
             self.update_sync_log(
