@@ -43,9 +43,9 @@ class TrackerAPIService:
                 response_headers = dict(e.response.headers)
             elif isinstance(e, requests.exceptions.HTTPError):
                 # For HTTPError, the response is stored differently
-                status_code = e.response.status_code if hasattr(e, 'response') else None
-                response_text = e.response.text if hasattr(e, 'response') else None
-                response_headers = dict(e.response.headers) if hasattr(e, 'response') else None
+                status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
+                response_text = e.response.text if hasattr(e, 'response') and e.response else None
+                response_headers = dict(e.response.headers) if hasattr(e, 'response') and e.response else None
             
             if status_code == 422:
                 logger.error(f"🚫 API Error 422: Неправильный синтаксис запроса")
@@ -302,7 +302,7 @@ class TrackerAPIService:
         """
         try:
             # Use the correct endpoint for searching issues
-            url = f"{self.base_url}issues"
+            url = f"{self.base_url}issues/_search"
             all_task_ids = []
             page = 1
             per_page = 50  # API default and maximum per page
@@ -311,7 +311,7 @@ class TrackerAPIService:
             logger.info(f"   Лимит: {limit} задач")
             
             while len(all_task_ids) < limit:
-                # For POST request, we need to send data in request body
+                # For POST request to _search endpoint, we need to send data in request body
                 post_data = {
                     "query": query, 
                     "perPage": min(per_page, limit - len(all_task_ids)),  # Don't fetch more than needed
@@ -319,7 +319,7 @@ class TrackerAPIService:
                 }
                 
                 logger.debug(f"   Страница {page}: запрос {post_data['perPage']} задач")
-                response = self._make_request(url, method="GET", params=post_data)
+                response = self._make_request(url, method="POST", json=post_data)
                 data = response.json()
                 
                 # Extract task IDs - handle different response formats
