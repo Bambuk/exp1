@@ -108,35 +108,39 @@ class GenerateStatusChangeReportCommand:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {}
     
-    def get_open_tasks_by_author(self) -> Dict[str, int]:
+    def get_open_tasks_by_author(self) -> Dict[str, Dict[str, int]]:
         """
-        Get count of open (non-closed) tasks by author for CPO tasks only.
+        Get count of open tasks by author grouped by discovery/delivery blocks for CPO tasks only.
         
         Returns:
-            Dictionary mapping author to count of open tasks
+            Dictionary mapping author to dict with 'discovery' and 'delivery' counts
         """
         try:
+            # Load status mapping from file
+            status_mapping = self._load_status_mapping()
+            
             # Query open tasks (not in closed statuses)
             closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
             
             query = self.db.query(
                 TrackerTask.author,
-                TrackerTask.id
+                TrackerTask.id,
+                TrackerTask.status
             ).filter(
                 TrackerTask.author.isnot(None),  # Exclude tasks without author
                 TrackerTask.key.like('CPO-%'),  # Only CPO tasks
                 ~TrackerTask.status.in_(closed_statuses)  # Not in closed statuses
             )
             
-            logger.info("Executing query for open CPO tasks")
+            logger.info("Executing query for open CPO tasks with status mapping")
             
-            # Execute query and count by author
+            # Execute query and count by author and block
             results = query.all()
             logger.info(f"Query returned {len(results)} open tasks")
             
-            author_counts = defaultdict(int)
+            author_blocks = defaultdict(lambda: {'discovery': 0, 'delivery': 0})
             
-            for author, _ in results:
+            for author, _, status in results:
                 if author:  # Double check author is not None
                     try:
                         # Handle potential encoding issues
@@ -146,19 +150,60 @@ class GenerateStatusChangeReportCommand:
                             # Ensure it's valid UTF-8
                             author.encode('utf-8').decode('utf-8')
                         
-                        author_counts[author] += 1
+                        # Map status to block
+                        block = status_mapping.get(status, 'discovery')  # Default to discovery if status not found
+                        if block in ['discovery', 'delivery']:
+                            author_blocks[author][block] += 1
+                        
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
                         logger.warning(f"Skipping author with encoding issue: {e}, author value: {repr(author)}")
                         continue
             
-            total_open_tasks = sum(author_counts.values())
-            logger.info(f"Found {total_open_tasks} open tasks for {len(author_counts)} authors")
-            return dict(author_counts)
+            # Convert to final format
+            result = {}
+            for author, blocks in author_blocks.items():
+                result[author] = {
+                    'discovery': blocks['discovery'],
+                    'delivery': blocks['delivery']
+                }
+            
+            total_discovery = sum(data['discovery'] for data in result.values())
+            total_delivery = sum(data['delivery'] for data in result.values())
+            logger.info(f"Found {total_discovery} discovery tasks and {total_delivery} delivery tasks for {len(result)} authors")
+            return result
             
         except Exception as e:
             logger.error(f"Failed to get open tasks by author: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            return {}
+    
+    def _load_status_mapping(self) -> Dict[str, str]:
+        """
+        Load status to block mapping from file.
+        
+        Returns:
+            Dictionary mapping status names to block names (discovery/delivery)
+        """
+        try:
+            mapping_file = Path("misc/status_order.txt")
+            if not mapping_file.exists():
+                logger.warning(f"Status mapping file not found: {mapping_file}")
+                return {}
+            
+            status_mapping = {}
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and ';' in line:
+                        status, block = line.split(';', 1)
+                        status_mapping[status.strip()] = block.strip()
+            
+            logger.info(f"Loaded {len(status_mapping)} status mappings")
+            return status_mapping
+            
+        except Exception as e:
+            logger.error(f"Failed to load status mapping: {e}")
             return {}
     
     def generate_report_data(self) -> Dict[str, Dict[str, int]]:
@@ -199,20 +244,21 @@ class GenerateStatusChangeReportCommand:
         # Combine all unique authors
         all_authors = set(self.week1_data.keys()) | set(self.week2_data.keys()) | set(self.open_tasks_data.keys())
         
-        # Build report data with changes, tasks counts, and open tasks
+        # Build report data with changes, tasks counts, and open tasks by blocks
         # Note: week2 is earlier (left), week1 is later (right)
         self.report_data = {}
         for author in sorted(all_authors):
             week2_data = self.week2_data.get(author, {'changes': 0, 'tasks': 0})
             week1_data = self.week1_data.get(author, {'changes': 0, 'tasks': 0})
-            open_tasks = self.open_tasks_data.get(author, 0)
+            open_tasks_data = self.open_tasks_data.get(author, {'discovery': 0, 'delivery': 0})
             
             self.report_data[author] = {
                 'week2_changes': week2_data['changes'],
                 'week2_tasks': week2_data['tasks'],
                 'week1_changes': week1_data['changes'],
                 'week1_tasks': week1_data['tasks'],
-                'open_tasks': open_tasks
+                'discovery_tasks': open_tasks_data['discovery'],
+                'delivery_tasks': open_tasks_data['delivery']
             }
         
         logger.info(f"Generated report for {len(self.report_data)} authors")
@@ -244,7 +290,7 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Автор', f'{week2_header}_изменения', f'{week2_header}_задачи', f'{week1_header}_изменения', f'{week1_header}_задачи', 'Незакрытые_задачи']
+                fieldnames = ['Автор', f'{week2_header}_изменения', f'{week2_header}_задачи', f'{week1_header}_изменения', f'{week1_header}_задачи', 'Discovery', 'Delivery']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
@@ -255,7 +301,8 @@ class GenerateStatusChangeReportCommand:
                         f'{week2_header}_задачи': data['week2_tasks'],       # Earlier week tasks
                         f'{week1_header}_изменения': data['week1_changes'],  # Later week changes
                         f'{week1_header}_задачи': data['week1_tasks'],       # Later week tasks
-                        'Незакрытые_задачи': data['open_tasks']              # Current open tasks
+                        'Discovery': data['discovery_tasks'],                 # Discovery tasks
+                        'Delivery': data['delivery_tasks']                    # Delivery tasks
                     })
             
             logger.info(f"CSV report saved to: {filepath}")
@@ -292,13 +339,14 @@ class GenerateStatusChangeReportCommand:
             week2_tasks = [self.report_data[author]['week2_tasks'] for author in authors]      # Earlier week tasks
             week1_changes = [self.report_data[author]['week1_changes'] for author in authors]  # Later week changes
             week1_tasks = [self.report_data[author]['week1_tasks'] for author in authors]      # Later week tasks
-            open_tasks = [self.report_data[author]['open_tasks'] for author in authors]         # Current open tasks
+            discovery_tasks = [self.report_data[author]['discovery_tasks'] for author in authors]  # Discovery tasks
+            delivery_tasks = [self.report_data[author]['delivery_tasks'] for author in authors]    # Delivery tasks
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (4 columns: Author, Week2, Week1, Open Tasks)
+            # Calculate dimensions with proper padding for table (5 columns: Author, Week2, Week1, Discovery, Delivery)
             cell_height = 0.08  # Height per row
             header_height = 0.1  # Header row height (standard height for single line)
             table_height = len(authors) * cell_height + header_height
@@ -316,17 +364,17 @@ class GenerateStatusChangeReportCommand:
             ax = fig.add_axes([padding, padding, 1 - 2*padding, 1 - 2*padding])
             ax.axis('off')
             
-            # Create table data with changes, tasks, and open tasks
+            # Create table data with changes, tasks, and tasks by blocks
             table_data = []
-            for author, w2_ch, w2_t, w1_ch, w1_t, open_t in zip(authors, week2_changes, week2_tasks, week1_changes, week1_tasks, open_tasks):
-                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t})", open_t])  # Format: "changes (tasks)" + open tasks
+            for author, w2_ch, w2_t, w1_ch, w1_t, disc, deliv in zip(authors, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks):
+                table_data.append([author, f"{w2_ch} ({w2_t})", f"{w1_ch} ({w1_t})", disc, deliv])  # Format: "changes (tasks)" + discovery + delivery
             
             # Create table positioned in the center of the axis
             table = ax.table(cellText=table_data,
-                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения (задачи)', 'Незакрытые задачи'],
+                           colLabels=['Автор', f'{week2_header} | изменения (задачи)', f'{week1_header} | изменения (задачи)', 'Discovery', 'Delivery'],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.35, 0.25, 0.25, 0.15])  # Author column narrower, open tasks column narrowest
+                           colWidths=[0.30, 0.22, 0.22, 0.13, 0.13])  # Author column narrower, block columns narrowest
             
             # Style the table
             table.auto_set_font_size(False)
@@ -336,13 +384,13 @@ class GenerateStatusChangeReportCommand:
             table.scale(1.0, 1.0)
             
             # Style header row
-            for i in range(4):
+            for i in range(5):
                 table[(0, i)].set_facecolor('#4CAF50')
                 table[(0, i)].set_text_props(weight='bold', color='white')
             
             # Style data rows
             for i in range(1, len(table_data) + 1):
-                for j in range(4):
+                for j in range(5):
                     cell = table[(i, j)]
                     if i % 2 == 0:  # Alternate row colors
                         cell.set_facecolor('#F5F5F5')
@@ -384,7 +432,8 @@ class GenerateStatusChangeReportCommand:
         total_week1_tasks = sum(data['week1_tasks'] for data in self.report_data.values())
         total_week2_changes = sum(data['week2_changes'] for data in self.report_data.values())
         total_week2_tasks = sum(data['week2_tasks'] for data in self.report_data.values())
-        total_open_tasks = sum(data['open_tasks'] for data in self.report_data.values())
+        total_discovery_tasks = sum(data['discovery_tasks'] for data in self.report_data.values())
+        total_delivery_tasks = sum(data['delivery_tasks'] for data in self.report_data.values())
         
         # Format dates for display
         week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
@@ -392,19 +441,21 @@ class GenerateStatusChangeReportCommand:
         
         print(f"Total Status Changes - {week1_header}: {total_week1_changes} across {total_week1_tasks} tasks")
         print(f"Total Status Changes - {week2_header}: {total_week2_changes} across {total_week2_tasks} tasks")
-        print(f"Total Open Tasks: {total_open_tasks}")
+        print(f"Total Discovery Tasks: {total_discovery_tasks}")
+        print(f"Total Delivery Tasks: {total_delivery_tasks}")
         print(f"Number of Authors: {len(self.report_data)}")
         print("-"*80)
         
-        # Print by author with changes, tasks, and open tasks
-        print(f"{'Author':<25} {week2_header:<20} {week1_header:<20} {'Открытые':<10}")
+        # Print by author with changes, tasks, and tasks by blocks
+        print(f"{'Author':<25} {week2_header:<20} {week1_header:<20} {'Discovery':<10} {'Delivery':<10}")
         print("-"*80)
         
         for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
             week2_str = f"{data['week2_changes']} ({data['week2_tasks']})"
             week1_str = f"{data['week1_changes']} ({data['week1_tasks']})"
-            open_str = str(data['open_tasks'])
-            print(f"{author:<25} {week2_str:<20} {week1_str:<20} {open_str:<10}")
+            discovery_str = str(data['discovery_tasks'])
+            delivery_str = str(data['delivery_tasks'])
+            print(f"{author:<25} {week2_str:<20} {week1_str:<20} {discovery_str:<10} {delivery_str:<10}")
         
         print("="*80)
     

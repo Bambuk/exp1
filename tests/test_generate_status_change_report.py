@@ -1,7 +1,7 @@
 """Tests for GenerateStatusChangeReportCommand."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, mock_open
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import tempfile
@@ -85,51 +85,123 @@ class TestGenerateStatusChangeReportCommand:
             assert result == {}
 
     def test_get_open_tasks_by_author_success(self):
-        """Test successful retrieval of open tasks by author."""
+        """Test successful retrieval of open tasks by author grouped by blocks."""
         cmd = GenerateStatusChangeReportCommand()
         
-        # Mock database query results
+        # Mock database query results (now includes status)
         mock_results = [
-            ("user1", 101),
-            ("user1", 102),
-            ("user2", 201),
-            ("user3", 301)
+            ("user1", 101, "В работе"),
+            ("user1", 102, "МП / В работе"),
+            ("user2", 201, "Аналитика / В работе"),
+            ("user3", 301, "Готово к релизу")
         ]
         
-        with patch.object(cmd.db, 'query') as mock_query:
-            # Mock the query chain
-            mock_query.return_value.filter.return_value.all.return_value = mock_results
-            
-            result = cmd.get_open_tasks_by_author()
-            
-            expected = {
-                "user1": 2,  # 2 open tasks
-                "user2": 1,  # 1 open task
-                "user3": 1   # 1 open task
+        # Mock the status mapping file
+        with patch.object(cmd, '_load_status_mapping') as mock_load_mapping:
+            mock_load_mapping.return_value = {
+                "В работе": "discovery",
+                "МП / В работе": "delivery",
+                "Аналитика / В работе": "discovery",
+                "Готово к релизу": "delivery"
             }
-            assert result == expected
+            
+            with patch.object(cmd.db, 'query') as mock_query:
+                # Mock the query chain
+                mock_query.return_value.filter.return_value.all.return_value = mock_results
+                
+                result = cmd.get_open_tasks_by_author()
+                
+                expected = {
+                    "user1": {"discovery": 1, "delivery": 1},  # 1 discovery + 1 delivery
+                    "user2": {"discovery": 1, "delivery": 0},  # 1 discovery
+                    "user3": {"discovery": 0, "delivery": 1}   # 1 delivery
+                }
+                assert result == expected
 
     def test_get_open_tasks_by_author_no_data(self):
         """Test retrieval when no open tasks exist."""
         cmd = GenerateStatusChangeReportCommand()
         
-        with patch.object(cmd.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.all.return_value = []
+        with patch.object(cmd, '_load_status_mapping') as mock_load_mapping:
+            mock_load_mapping.return_value = {}
             
-            result = cmd.get_open_tasks_by_author()
-            
-            assert result == {}
+            with patch.object(cmd.db, 'query') as mock_query:
+                mock_query.return_value.filter.return_value.all.return_value = []
+                
+                result = cmd.get_open_tasks_by_author()
+                
+                assert result == {}
 
     def test_get_open_tasks_by_author_exception(self):
         """Test handling of database exceptions."""
         cmd = GenerateStatusChangeReportCommand()
         
-        with patch.object(cmd.db, 'query') as mock_query:
-            mock_query.side_effect = Exception("Database error")
+        with patch.object(cmd, '_load_status_mapping') as mock_load_mapping:
+            mock_load_mapping.return_value = {}
             
-            result = cmd.get_open_tasks_by_author()
+            with patch.object(cmd.db, 'query') as mock_query:
+                mock_query.side_effect = Exception("Database error")
+                
+                result = cmd.get_open_tasks_by_author()
+                
+                assert result == {}
+
+    def test_load_status_mapping_success(self):
+        """Test successful loading of status mapping from file."""
+        cmd = GenerateStatusChangeReportCommand()
+        
+        # Mock the file content
+        mock_content = [
+            "Открыт;backlog",
+            "В работе;discovery",
+            "МП / В работе;delivery",
+            "Готово к релизу;delivery",
+            "Выполнено с ИТ;done"
+        ]
+        
+        with patch('builtins.open', mock_open(read_data='\n'.join(mock_content))):
+            result = cmd._load_status_mapping()
+            
+            expected = {
+                "Открыт": "backlog",
+                "В работе": "discovery",
+                "МП / В работе": "delivery",
+                "Готово к релизу": "delivery",
+                "Выполнено с ИТ": "done"
+            }
+            assert result == expected
+
+    def test_load_status_mapping_file_not_found(self):
+        """Test handling when status mapping file is not found."""
+        cmd = GenerateStatusChangeReportCommand()
+        
+        with patch('pathlib.Path.exists', return_value=False):
+            result = cmd._load_status_mapping()
             
             assert result == {}
+
+    def test_load_status_mapping_parsing_error(self):
+        """Test handling of malformed lines in status mapping file."""
+        cmd = GenerateStatusChangeReportCommand()
+        
+        # Mock the file content with malformed lines
+        mock_content = [
+            "Открыт;backlog",
+            "В работе",  # Missing semicolon
+            "МП / В работе;delivery",
+            "",  # Empty line
+            "Готово к релизу;delivery"
+        ]
+        
+        with patch('builtins.open', mock_open(read_data='\n'.join(mock_content))):
+            result = cmd._load_status_mapping()
+            
+            expected = {
+                "Открыт": "backlog",
+                "МП / В работе": "delivery",
+                "Готово к релизу": "delivery"
+            }
+            assert result == expected
 
     def test_generate_report_data(self):
         """Test report data generation."""
@@ -144,7 +216,11 @@ class TestGenerateStatusChangeReportCommand:
                 {"user1": {"changes": 5, "tasks": 3}, "user2": {"changes": 3, "tasks": 2}},  # week1 data
                 {"user1": {"changes": 2, "tasks": 1}, "user3": {"changes": 4, "tasks": 2}}   # week2 data
             ]
-            mock_get_open_tasks.return_value = {"user1": 2, "user2": 1, "user3": 3}  # open tasks data
+            mock_get_open_tasks.return_value = {
+                "user1": {"discovery": 2, "delivery": 1}, 
+                "user2": {"discovery": 1, "delivery": 0}, 
+                "user3": {"discovery": 3, "delivery": 0}
+            }  # open tasks data by blocks
             
             # Call the method
             result = cmd.generate_report_data()
@@ -152,13 +228,17 @@ class TestGenerateStatusChangeReportCommand:
             # Check that week data was populated
             assert cmd.week1_data == {"user1": {"changes": 5, "tasks": 3}, "user2": {"changes": 3, "tasks": 2}}
             assert cmd.week2_data == {"user1": {"changes": 2, "tasks": 1}, "user3": {"changes": 4, "tasks": 2}}
-            assert cmd.open_tasks_data == {"user1": 2, "user2": 1, "user3": 3}
+            assert cmd.open_tasks_data == {
+                "user1": {"discovery": 2, "delivery": 1}, 
+                "user2": {"discovery": 1, "delivery": 0}, 
+                "user3": {"discovery": 3, "delivery": 0}
+            }
             
             # Check combined report data
             expected = {
-                "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2},  # week2 is earlier (left), week1 is later (right)
-                "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "open_tasks": 1},
-                "user3": {"week2_changes": 4, "week2_tasks": 2, "week1_changes": 0, "week1_tasks": 0, "open_tasks": 3}
+                "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier (left), week1 is later (right)
+                "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0},
+                "user3": {"week2_changes": 4, "week2_tasks": 2, "week1_changes": 0, "week1_tasks": 0, "discovery_tasks": 3, "delivery_tasks": 0}
             }
             assert result == expected
 
@@ -168,8 +248,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2},  # week2 is earlier (left), week1 is later (right)
-            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "open_tasks": 1}
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier (left), week1 is later (right)
+            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0}
         }
         
         # Mock date attributes for CSV generation
@@ -190,9 +270,9 @@ class TestGenerateStatusChangeReportCommand:
             # Verify CSV content
             with open(tmp_filename, 'r', encoding='utf-8') as f:
                 content = f.read()
-                assert "Автор,14.08-21.08_изменения,14.08-21.08_задачи,21.08-28.08_изменения,21.08-28.08_задачи,Незакрытые_задачи" in content
-                assert "user1,2,1,5,3,2" in content
-                assert "user2,0,0,3,2,1" in content
+                assert "Автор,14.08-21.08_изменения,14.08-21.08_задачи,21.08-28.08_изменения,21.08-28.08_задачи,Discovery,Delivery" in content
+                assert "user1,2,1,5,3,2,1" in content
+                assert "user2,0,0,3,2,1,0" in content
                 
         finally:
             if os.path.exists(tmp_filename):
@@ -204,7 +284,7 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2}  # week2 is earlier (left), week1 is later (right)
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}  # week2 is earlier (left), week1 is later (right)
         }
         
         # Mock date attributes for CSV generation
@@ -230,8 +310,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "open_tasks": 2},
-            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "open_tasks": 1}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1},
+            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0}
         }
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
@@ -257,7 +337,7 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "open_tasks": 2}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1}
         }
         
         # Mock the entire generate_table method to avoid matplotlib complexity
@@ -275,8 +355,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "open_tasks": 2},
-            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "open_tasks": 1}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1},
+            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0}
         }
         
         # Mock date attributes for summary generation
@@ -310,7 +390,7 @@ class TestGenerateStatusChangeReportCommand:
              patch.object(cmd, 'generate_table') as mock_table:
             
             # Mock successful data generation
-            cmd.report_data = {"user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "open_tasks": 2}}
+            cmd.report_data = {"user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1}}
             mock_generate.return_value = cmd.report_data
             
             # Mock file saving
@@ -417,7 +497,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}}
         
         with patch('builtins.open', create=True) as mock_open:
             mock_file = Mock()
@@ -438,7 +518,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}}
         
         # Mock the entire generate_table method to avoid matplotlib complexity
         with patch.object(cmd, 'generate_table') as mock_generate:
@@ -459,8 +539,8 @@ class TestDateFormattingAndColumnOrdering:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2},  # week2 is earlier, week1 is later
-            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "open_tasks": 1}
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier, week1 is later
+            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0}
         }
         
         # Mock date attributes
@@ -488,7 +568,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "open_tasks": 2}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}}
         
         with patch('builtins.print') as mock_print:
             cmd.print_summary()
