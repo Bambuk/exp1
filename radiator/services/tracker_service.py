@@ -313,13 +313,17 @@ class TrackerAPIService:
             while len(all_task_ids) < limit:
                 # For POST request to _search endpoint, we need to send data in request body
                 post_data = {
-                    "query": query, 
+                    "query": query
+                }
+                
+                # perPage and page should be in query string, not in POST body
+                params = {
                     "perPage": min(per_page, limit - len(all_task_ids)),  # Don't fetch more than needed
                     "page": page
                 }
                 
-                logger.debug(f"   Страница {page}: запрос {post_data['perPage']} задач")
-                response = self._make_request(url, method="POST", json=post_data)
+                logger.debug(f"   Страница {page}: запрос {params['perPage']} задач")
+                response = self._make_request(url, method="POST", json=post_data, params=params)
                 data = response.json()
                 
                 # Extract task IDs - handle different response formats
