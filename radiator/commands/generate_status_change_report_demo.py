@@ -62,11 +62,12 @@ class GenerateStatusChangeReportDemoCommand:
             self.week2_data[author] = week2_count
         
         # Build report data (without total)
+        # Note: week2 is earlier (left), week1 is later (right)
         self.report_data = {}
         for author in sorted(demo_authors):
             self.report_data[author] = {
-                'week1': self.week1_data[author],
-                'week2': self.week2_data[author]
+                'week2': self.week2_data[author],  # Earlier week (left)
+                'week1': self.week1_data[author]   # Later week (right)
             }
         
         logger.info(f"Generated demo report for {len(self.report_data)} authors")
@@ -89,16 +90,27 @@ class GenerateStatusChangeReportDemoCommand:
         filepath = Path(filename)
         
         try:
+            # Generate demo date ranges
+            now = datetime.now()
+            week1_end = now
+            week1_start = week1_end - timedelta(days=7)
+            week2_end = week1_start
+            week2_start = week2_end - timedelta(days=7)
+            
+            # Format dates for column headers
+            week2_header = f"{week2_start.strftime('%d.%m')}-{week2_end.strftime('%d.%m')}"
+            week1_header = f"{week1_start.strftime('%d.%m')}-{week1_end.strftime('%d.%m')}"
+            
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Author', 'Last Week', 'Week Before Last']
+                fieldnames = ['Author', week2_header, week1_header]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
                 for author, data in self.report_data.items():
                     writer.writerow({
                         'Author': author,
-                        'Last Week': data['week1'],
-                        'Week Before Last': data['week2']
+                        week2_header: data['week2'],  # Earlier week (left)
+                        week1_header: data['week1']   # Later week (right)
                     })
             
             logger.info(f"Demo CSV report saved to: {filepath}")
@@ -127,8 +139,19 @@ class GenerateStatusChangeReportDemoCommand:
         try:
             # Prepare data for table
             authors = list(self.report_data.keys())
-            week1_values = [self.report_data[author]['week1'] for author in authors]
-            week2_values = [self.report_data[author]['week2'] for author in authors]
+            week2_values = [self.report_data[author]['week2'] for author in authors]  # Earlier week (left)
+            week1_values = [self.report_data[author]['week1'] for author in authors]  # Later week (right)
+            
+            # Generate demo date ranges
+            now = datetime.now()
+            week1_end = now
+            week1_start = week1_end - timedelta(days=7)
+            week2_end = week1_start
+            week2_start = week2_end - timedelta(days=7)
+            
+            # Format dates for column headers
+            week2_header = f"{week2_start.strftime('%d.%m')}-{week2_end.strftime('%d.%m')}"
+            week1_header = f"{week1_start.strftime('%d.%m')}-{week1_end.strftime('%d.%m')}"
             
             # Create figure and axis
             fig, ax = plt.subplots(figsize=(10, max(6, len(authors) * 0.4 + 2)))
@@ -139,12 +162,12 @@ class GenerateStatusChangeReportDemoCommand:
             
             # Create table data
             table_data = []
-            for author, week1, week2 in zip(authors, week1_values, week2_values):
-                table_data.append([author, week1, week2])
+            for author, week2, week1 in zip(authors, week2_values, week1_values):
+                table_data.append([author, week2, week1])  # Earlier week first (left)
             
             # Create table
             table = ax.table(cellText=table_data,
-                           colLabels=['Author', 'Last Week', 'Week Before Last'],
+                           colLabels=['Author', week2_header, week1_header],
                            cellLoc='center',
                            loc='center',
                            colWidths=[0.5, 0.25, 0.25])
@@ -200,17 +223,28 @@ class GenerateStatusChangeReportDemoCommand:
         total_week1 = sum(data['week1'] for data in self.report_data.values())
         total_week2 = sum(data['week2'] for data in self.report_data.values())
         
-        print(f"Total Status Changes - Last Week: {total_week1}")
-        print(f"Total Status Changes - Week Before Last: {total_week2}")
+        # Generate demo date ranges
+        now = datetime.now()
+        week1_end = now
+        week1_start = week1_end - timedelta(days=7)
+        week2_end = week1_start
+        week2_start = week2_end - timedelta(days=7)
+        
+        # Format dates for display
+        week2_header = f"{week2_start.strftime('%d.%m')}-{week2_end.strftime('%d.%m')}"
+        week1_header = f"{week1_start.strftime('%d.%m')}-{week1_end.strftime('%d.%m')}"
+        
+        print(f"Total Status Changes - {week1_header}: {total_week1}")
+        print(f"Total Status Changes - {week2_header}: {total_week2}")
         print(f"Number of Authors: {len(self.report_data)}")
         print("-"*80)
         
         # Print by author
-        print(f"{'Author':<35} {'Last Week':<12} {'Prev Week':<12}")
+        print(f"{'Author':<35} {week2_header:<12} {week1_header:<12}")
         print("-"*80)
         
         for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1'] + x[1]['week2'], reverse=True):
-            print(f"{author:<35} {data['week1']:<12} {data['week2']:<12}")
+            print(f"{author:<35} {data['week2']:<12} {data['week1']:<12}")
         
         print("="*80)
         print("NOTE: This is a DEMO report with generated test data.")
