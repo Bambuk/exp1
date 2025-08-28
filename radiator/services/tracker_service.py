@@ -86,13 +86,20 @@ class TrackerAPIService:
         page = 1
         per_page = 50  # API default and maximum per page
         
+        # Log start of changelog loading for this task
+        logger.info(f"🔄 Начинаем загрузку истории для задачи {task_id}")
+        
         while True:
             try:
                 url = f"{self.base_url}issues/{task_id}/changelog"
                 params = {
                     "perPage": per_page,
-                    "page": page
+                    "type": "IssueWorkflow"  # Только изменения статусов
                 }
+                
+                # Если это не первая страница, добавляем параметр id для следующей страницы
+                if page > 1 and hasattr(self, 'next_page_id'):
+                    params["id"] = self.next_page_id
                 
                 response = self._make_request(url, params=params)
                 page_data = response.json()
@@ -102,21 +109,41 @@ class TrackerAPIService:
                 
                 all_data.extend(page_data)
                 
-                # Check if we've reached the last page
-                total_pages = response.headers.get("X-Total-Pages")
-                if total_pages and page >= int(total_pages):
-                    break
+                # Log each page completion
+                logger.info(f"📄 {task_id}, история, страница {page} получена ({len(page_data)} записей)")
                 
-                page += 1
+                # Check if there's a next page using Link header
+                link_header = response.headers.get("Link", "")
+                if 'rel="next"' in link_header:
+                    # Extract the id parameter from the next page URL
+                    import re
+                    match = re.search(r'id=([^&]+)', link_header)
+                    if match:
+                        self.next_page_id = match.group(1)
+                        logger.debug(f"🔗 Следующая страница для {task_id}: id={self.next_page_id}")
+                        page += 1
+                    else:
+                        logger.warning(f"⚠️ Не удалось извлечь id для следующей страницы из заголовка Link: {link_header}")
+                        break
+                else:
+                    # No next page, we're done
+                    logger.debug(f"✅ {task_id}: достигнут конец истории (нет заголовка Link с rel='next')")
+                    break
                 
                 # Safety check to prevent infinite loops
                 if page > 100:  # Maximum 100 pages
-                    logger.warning(f"Reached maximum page limit for changelog of task {task_id}")
+                    logger.warning(f"⚠️ Достигнут лимит страниц для истории задачи {task_id}")
                     break
                 
             except Exception as e:
-                logger.error(f"Failed to get changelog page {page} for task {task_id}: {e}")
+                logger.error(f"❌ Ошибка получения страницы {page} истории для задачи {task_id}: {e}")
                 break
+        
+        # Log completion of changelog loading for this task
+        if page > 1:
+            logger.debug(f"✅ Задача {task_id}: загружено {page-1} страниц, {len(all_data)} записей истории")
+        else:
+            logger.debug(f"✅ Задача {task_id}: загружено {len(all_data)} записей истории")
         
         return all_data
     
@@ -142,24 +169,46 @@ class TrackerAPIService:
         return results
     
     def get_changelogs_batch(self, task_ids: List[str]) -> List[Tuple[str, List[Dict[str, Any]]]]:
-        """Get changelogs for multiple tasks in parallel."""
+        """Get changelogs for multiple tasks in parallel with progress indication."""
         results = []
+        total_tasks = len(task_ids)
+        
+        logger.info(f"🔄 Загружаем историю для {total_tasks} задач (параллельно, {self.max_workers} потоков)")
+        
+        # Use a callback-based approach to show real-time progress
+        completed = 0
+        results = [None] * len(task_ids)  # Pre-allocate results list
+        
+        def task_done_callback(future):
+            nonlocal completed
+            completed += 1
+            # Show progress for every task completion
+            logger.info(f"📥 Загружено истории: {completed}/{total_tasks} задач ({completed/total_tasks*100:.1f}%)")
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_to_id = {
-                executor.submit(self.get_task_changelog, task_id): task_id 
-                for task_id in task_ids
-            }
+            # Submit all tasks and store futures
+            futures = []
+            for i, task_id in enumerate(task_ids):
+                logger.info(f"🚀 Отправляем задачу {task_id} в очередь ({i+1}/{total_tasks})")
+                future = executor.submit(self.get_task_changelog, task_id)
+                future.add_done_callback(task_done_callback)
+                futures.append((i, future, task_id))
             
-            for future in as_completed(future_to_id):
-                task_id = future_to_id[future]
+            logger.info(f"⏳ Ожидаем завершения {len(futures)} задач...")
+            
+            # Collect results as they complete
+            for i, future, task_id in futures:
+                logger.info(f"⏳ Ожидаем результат для задачи {task_id} ({i+1}/{total_tasks})")
                 try:
                     changelog_data = future.result()
-                    results.append((task_id, changelog_data))
+                    results[i] = (task_id, changelog_data)
+                    # Debug: log what we got for each task
+                    logger.info(f"🔍 Задача {task_id}: получено {len(changelog_data)} записей истории")
                 except Exception as e:
                     logger.error(f"Failed to get changelog for task {task_id}: {e}")
-                    results.append((task_id, []))
+                    results[i] = (task_id, [])
         
+        logger.info(f"✅ История загружена для {len(results)} задач")
         return results
     
     def extract_task_data(self, task: Dict[str, Any]) -> Dict[str, Any]:
@@ -178,11 +227,16 @@ class TrackerAPIService:
             "profit_forecast": str(task.get("63515d47fe387b7ce7b9fc55--profitForecast", ""))
         }
     
-    def extract_status_history(self, changelog: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def extract_status_history(self, changelog: List[Dict[str, Any]], task_key: str = None) -> List[Dict[str, Any]]:
         """Extract status history from changelog."""
         status_changes = []
         
-        for entry in changelog:
+        if task_key:
+            print(f"🔍 Задача {task_key}: обрабатываем changelog из {len(changelog)} записей")
+        else:
+            print(f"🔍 Обрабатываем changelog из {len(changelog)} записей")
+        
+        for i, entry in enumerate(changelog):
             updated_at = entry.get("updatedAt", "")
             if not updated_at:
                 continue
@@ -195,11 +249,23 @@ class TrackerAPIService:
                 if not status_name:
                     continue
                 
-                status_changes.append({
+                status_change = {
                     "status": status_name,
                     "status_display": status_name,
                     "start_date": datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                })
+                }
+                
+                # Выводим каждое изменение статуса в терминал
+                if task_key:
+                    print(f"📝 {task_key} - Запись {i}: статус '{status_name}' на {updated_at}")
+                else:
+                    print(f"📝 Запись {i}: статус '{status_name}' на {updated_at}")
+                status_changes.append(status_change)
+        
+        if task_key:
+            print(f"📊 {task_key}: найдено {len(status_changes)} изменений статуса")
+        else:
+            print(f"📊 Найдено {len(status_changes)} изменений статуса")
         
         # Sort by date and add end dates
         status_changes.sort(key=lambda x: x["start_date"])
@@ -207,7 +273,22 @@ class TrackerAPIService:
             if i + 1 < len(status_changes):
                 change["end_date"] = status_changes[i + 1]["start_date"]
         
-        return status_changes
+        # Remove duplicates based on status and start_date
+        unique_changes = []
+        seen = set()
+        for change in status_changes:
+            # Create a unique key for each status change
+            key = (change["status"], change["start_date"])
+            if key not in seen:
+                seen.add(key)
+                unique_changes.append(change)
+        
+        if task_key:
+            print(f"🔍 {task_key}: после дедупликации {len(unique_changes)} уникальных изменений из {len(status_changes)}")
+        else:
+            print(f"🔍 После дедупликации: {len(unique_changes)} уникальных изменений из {len(status_changes)}")
+        
+        return unique_changes
     
     def _format_user_list(self, value: Any) -> str:
         """Format user list from tracker response."""

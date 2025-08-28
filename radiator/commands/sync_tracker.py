@@ -135,64 +135,69 @@ class TrackerSyncCommand:
     def sync_task_history(self, task_ids: List[str]) -> int:
         """Sync task history data."""
         logger.info(f"📚 Начинаем синхронизацию истории для {len(task_ids)} задач")
+        logger.info(f"🔍 ID задач для истории: {task_ids}")
         
-        # Get changelogs
+        # Get changelogs with progress indication
         logger.info("📥 Получаем данные истории из Tracker...")
+        start_time = datetime.now()
         changelogs_data = tracker_service.get_changelogs_batch(task_ids)
+        load_time = datetime.now() - start_time
+        logger.info(f"⏱️ Загрузка истории завершена за {load_time.total_seconds():.1f} секунд")
+        logger.info(f"🔍 Получено данных истории: {len(changelogs_data)} задач")
+        
         total_history_entries = 0
         
-        # Process history with progress bar
-        with tqdm(total=len(task_ids), desc="🔄 Обработка истории", unit="задача") as pbar:
-            for i, (task_id, changelog) in enumerate(changelogs_data, 1):
-                if not changelog:
-                    logger.debug(f"No changelog data for task {task_id} ({i}/{len(task_ids)})")
-                    pbar.update(1)
-                    continue
-                
-                # Get task from database
-                db_task = tracker_task.get_by_tracker_id(self.db, task_id)
-                if not db_task:
-                    logger.warning(f"Task {task_id} not found in database, skipping history ({i}/{len(task_ids)})")
-                    pbar.update(1)
-                    continue
-                
-                # Extract status history
-                status_history = tracker_service.extract_status_history(changelog)
-                if not status_history:
-                    logger.debug(f"No status history found for task {task_id} ({i}/{len(task_ids)})")
-                    pbar.update(1)
-                    continue
-                
-                # Delete existing history for this task to ensure clean slate
-                deleted_count = tracker_task_history.delete_by_task_id(self.db, db_task.id)
-                if deleted_count > 0:
-                    logger.debug(f"Deleted {deleted_count} existing history entries for task {task_id}")
-                
-                # Prepare history data with duplicate prevention
-                history_data = []
-                for entry in status_history:
-                    # Additional validation to prevent duplicates
-                    if entry.get("start_date") and entry.get("status"):
-                        history_entry = {
-                            "task_id": db_task.id,
-                            "tracker_id": task_id,
-                            "status": entry["status"],
-                            "status_display": entry["status_display"],
-                            "start_date": entry["start_date"],
-                            "end_date": entry.get("end_date")
-                        }
-                        history_data.append(history_entry)
-                    else:
-                        logger.warning(f"Skipping invalid history entry for task {task_id}: missing start_date or status")
-                
-                # Save history
-                if history_data:
-                    created_count = tracker_task_history.bulk_create(self.db, history_data)
-                    total_history_entries += created_count
-                    pbar.set_postfix({"entries": created_count, "task": task_id[:8] + "..."})
-                    logger.debug(f"Created {created_count} history entries for task {task_id} ({i}/{len(task_ids)})")
-                
-                pbar.update(1)
+        # Process history with detailed logging
+        logger.info("💾 Обрабатываем и сохраняем историю в базу данных...")
+        for i, (task_id, changelog) in enumerate(changelogs_data, 1):
+            logger.info(f"📚 Обрабатываем историю для задачи {task_id} ({i}/{len(task_ids)})")
+            
+            if not changelog:
+                logger.info(f"⚠️ Нет данных истории для задачи {task_id}")
+                continue
+            
+            # Get task from database
+            db_task = tracker_task.get_by_tracker_id(self.db, task_id)
+            if not db_task:
+                logger.warning(f"⚠️ Задача {task_id} не найдена в базе данных, пропускаем историю")
+                continue
+            
+            # Extract status history
+            task_key = db_task.key if hasattr(db_task, 'key') and db_task.key else task_id
+            status_history = tracker_service.extract_status_history(changelog, task_key)
+            if not status_history:
+                logger.info(f"⚠️ Не найдена история статусов для задачи {task_id}")
+                continue
+            
+            # Delete existing history for this task to ensure clean slate
+            deleted_count = tracker_task_history.delete_by_task_id(self.db, db_task.id)
+            if deleted_count > 0:
+                logger.info(f"🗑️ Удалено {deleted_count} существующих записей истории для задачи {task_id}")
+            
+            # Prepare history data with duplicate prevention
+            history_data = []
+            for entry in status_history:
+                # Additional validation to prevent duplicates
+                if entry.get("start_date") and entry.get("status"):
+                    history_entry = {
+                        "task_id": db_task.id,
+                        "tracker_id": task_id,
+                        "status": entry["status"],
+                        "status_display": entry["status_display"],
+                        "start_date": entry["start_date"],
+                        "end_date": entry.get("end_date")
+                    }
+                    history_data.append(history_entry)
+                else:
+                    logger.warning(f"⚠️ Пропускаем некорректную запись истории для задачи {task_id}: отсутствует start_date или status")
+            
+            # Save history
+            if history_data:
+                created_count = tracker_task_history.bulk_create(self.db, history_data)
+                total_history_entries += created_count
+                logger.info(f"✅ Создано {created_count} записей истории для задачи {task_id}")
+            else:
+                logger.info(f"ℹ️ Нет новых записей истории для задачи {task_id}")
         
         logger.info(f"✅ История синхронизирована: {total_history_entries} записей создано для {len(task_ids)} задач")
         return total_history_entries
@@ -200,6 +205,13 @@ class TrackerSyncCommand:
     def run(self, filters: Dict[str, Any] = None, limit: int = 100, force_full_sync: bool = False, skip_history: bool = False):
         """Run the sync command."""
         try:
+            # Debug: log all parameters
+            logger.debug(f"🔍 DEBUG: run() вызван с параметрами:")
+            logger.debug(f"   filters: {filters}")
+            logger.debug(f"   limit: {limit}")
+            logger.debug(f"   force_full_sync: {force_full_sync}")
+            logger.debug(f"   skip_history: {skip_history}")
+            
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started sync operation: {self.sync_log.id}")
@@ -237,6 +249,7 @@ class TrackerSyncCommand:
             # Sync tasks
             logger.info("🔄 Начинаем синхронизацию задач...")
             tasks_result = self.sync_tasks(task_ids)
+            logger.debug(f"✅ Синхронизация задач завершена: {tasks_result}")
             self.update_sync_log(
                 tasks_created=tasks_result["created"],
                 tasks_updated=tasks_result["updated"]
@@ -247,16 +260,24 @@ class TrackerSyncCommand:
             if skip_history:
                 logger.info("⏭️ Пропускаем синхронизацию истории по запросу")
             else:
-                history_entries = self.sync_task_history(task_ids)
-                
-                # Clean up any duplicates that might have been created
-                if history_entries > 0:
-                    logger.info("🧹 Очищаем возможные дубликаты в истории...")
-                    cleaned_count = tracker_task_history.cleanup_duplicates(self.db)
-                    if cleaned_count > 0:
-                        logger.info(f"🧹 Очищено {cleaned_count} дублирующихся записей")
-                    else:
-                        logger.info("✅ Дубликатов не найдено")
+                logger.info("📚 Синхронизация истории включена, начинаем...")
+                try:
+                    history_entries = self.sync_task_history(task_ids)
+                    logger.info(f"📚 Синхронизация истории завершена: {history_entries} записей")
+                    
+                    # Clean up any duplicates that might have been created
+                    if history_entries > 0:
+                        logger.info("🧹 Очищаем возможные дубликаты в истории...")
+                        cleaned_count = tracker_task_history.cleanup_duplicates(self.db)
+                        if cleaned_count > 0:
+                            logger.info(f"🧹 Очищено {cleaned_count} дублирующихся записей")
+                        else:
+                            logger.info("✅ Дубликатов не найдено")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при синхронизации истории: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    history_entries = 0
             
             # Mark sync as completed
             self.update_sync_log(
@@ -341,13 +362,18 @@ The command automatically handles pagination to retrieve the requested number of
         filters["query"] = args.filter
     
     # Run sync
+    logger.info("🚀 Запускаем синхронизацию...")
+    logger.debug(f"🔍 Параметры: filters={filters}, limit={args.limit}, force_full_sync={args.force_full_sync}, skip_history={args.skip_history}")
+    
     with TrackerSyncCommand() as sync_cmd:
+        logger.debug(f"✅ TrackerSyncCommand создан успешно")
         success = sync_cmd.run(
             filters=filters,
             limit=args.limit,
             force_full_sync=args.force_full_sync,
             skip_history=args.skip_history
         )
+        logger.debug(f"🔍 Результат run(): {success}")
         sys.exit(0 if success else 1)
 
 
