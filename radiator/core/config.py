@@ -105,11 +105,11 @@ def get_settings() -> Settings:
     
     if env.lower() == "test":
         # Load test environment file
-        env_file = "env.test.example"
+        env_file = ".env.test"
         if os.path.exists(env_file):
             return Settings(_env_file=env_file)
         else:
-            # Fallback to default .env if env.test.example doesn't exist
+            # Fallback to default .env if .env.test doesn't exist
             return Settings()
     else:
         # Load default environment file
