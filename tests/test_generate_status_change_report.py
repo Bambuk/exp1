@@ -32,12 +32,12 @@ class TestGenerateStatusChangeReportCommand:
         """Test successful retrieval of status changes by author."""
         cmd = GenerateStatusChangeReportCommand()
         
-        # Mock database query results
+        # Mock database query results (now includes task_id)
         mock_results = [
-            ("user1", 1),
-            ("user1", 2),
-            ("user2", 3),
-            ("user3", 4)
+            ("user1", 1, 101),
+            ("user1", 2, 102),
+            ("user2", 3, 201),
+            ("user3", 4, 301)
         ]
         
         with patch.object(cmd.db, 'query') as mock_query:
@@ -49,7 +49,11 @@ class TestGenerateStatusChangeReportCommand:
             
             result = cmd.get_status_changes_by_author(start_date, end_date)
             
-            expected = {"user1": 2, "user2": 1, "user3": 1}
+            expected = {
+                "user1": {"changes": 2, "tasks": 2},  # 2 changes across 2 unique tasks
+                "user2": {"changes": 1, "tasks": 1},  # 1 change across 1 unique task
+                "user3": {"changes": 1, "tasks": 1}   # 1 change across 1 unique task
+            }
             assert result == expected
 
     def test_get_status_changes_by_author_no_data(self):
@@ -87,21 +91,21 @@ class TestGenerateStatusChangeReportCommand:
         # Mock the get_status_changes_by_author method
         with patch.object(cmd, 'get_status_changes_by_author') as mock_get_changes:
             mock_get_changes.side_effect = [
-                {"user1": 5, "user2": 3},  # week1 data
-                {"user1": 2, "user3": 4}   # week2 data
+                {"user1": {"changes": 5, "tasks": 3}, "user2": {"changes": 3, "tasks": 2}},  # week1 data
+                {"user1": {"changes": 2, "tasks": 1}, "user3": {"changes": 4, "tasks": 2}}   # week2 data
             ]
             
             result = cmd.generate_report_data()
             
             # Check that week data was populated
-            assert cmd.week1_data == {"user1": 5, "user2": 3}
-            assert cmd.week2_data == {"user1": 2, "user3": 4}
+            assert cmd.week1_data == {"user1": {"changes": 5, "tasks": 3}, "user2": {"changes": 3, "tasks": 2}}
+            assert cmd.week2_data == {"user1": {"changes": 2, "tasks": 1}, "user3": {"changes": 4, "tasks": 2}}
             
             # Check combined report data
             expected = {
-                "user1": {"week2": 2, "week1": 5},  # week2 is earlier (left), week1 is later (right)
-                "user2": {"week2": 0, "week1": 3},
-                "user3": {"week2": 4, "week1": 0}
+                "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3},  # week2 is earlier (left), week1 is later (right)
+                "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2},
+                "user3": {"week2_changes": 4, "week2_tasks": 2, "week1_changes": 0, "week1_tasks": 0}
             }
             assert result == expected
 
@@ -111,8 +115,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2": 2, "week1": 5},  # week2 is earlier (left), week1 is later (right)
-            "user2": {"week2": 0, "week1": 3}
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3},  # week2 is earlier (left), week1 is later (right)
+            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2}
         }
         
         # Mock date attributes for CSV generation
@@ -133,9 +137,9 @@ class TestGenerateStatusChangeReportCommand:
             # Verify CSV content
             with open(tmp_filename, 'r', encoding='utf-8') as f:
                 content = f.read()
-                assert "Автор,14.08-21.08,21.08-28.08" in content
-                assert "user1,2,5" in content
-                assert "user2,0,3" in content
+                assert "Автор,14.08-21.08_изменения,14.08-21.08_задачи,21.08-28.08_изменения,21.08-28.08_задачи" in content
+                assert "user1,2,1,5,3" in content
+                assert "user2,0,0,3,2" in content
                 
         finally:
             if os.path.exists(tmp_filename):
@@ -147,7 +151,7 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2": 2, "week1": 5}  # week2 is earlier (left), week1 is later (right)
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3}  # week2 is earlier (left), week1 is later (right)
         }
         
         # Mock date attributes for CSV generation
@@ -173,8 +177,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1": 5, "week2": 2},
-            "user2": {"week1": 3, "week2": 0}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1},
+            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0}
         }
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
@@ -200,7 +204,7 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1": 5, "week2": 2}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1}
         }
         
         # Mock the entire generate_table method to avoid matplotlib complexity
@@ -218,8 +222,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week1": 5, "week2": 2},
-            "user2": {"week1": 3, "week2": 0}
+            "user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1},
+            "user2": {"week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0}
         }
         
         # Mock date attributes for summary generation
@@ -253,7 +257,7 @@ class TestGenerateStatusChangeReportCommand:
              patch.object(cmd, 'generate_table') as mock_table:
             
             # Mock successful data generation
-            cmd.report_data = {"user1": {"week1": 5, "week2": 2}}
+            cmd.report_data = {"user1": {"week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1}}
             mock_generate.return_value = cmd.report_data
             
             # Mock file saving
@@ -313,11 +317,11 @@ class TestGenerateStatusChangeReportIntegration:
             
             # Mock database session and query
             with patch.object(cmd, 'db') as mock_db:
-                # Mock query results
+                # Mock query results (now includes task_id)
                 mock_results = [
-                    ("user1", 1),
-                    ("user1", 2),
-                    ("user2", 3)
+                    ("user1", 1, 101),
+                    ("user1", 2, 102),
+                    ("user2", 3, 201)
                 ]
                 
                 # Mock the complex query chain
@@ -354,7 +358,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2": 2, "week1": 5}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3}}
         
         with patch('builtins.open', create=True) as mock_open:
             mock_file = Mock()
@@ -375,7 +379,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2": 2, "week1": 5}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3}}
         
         # Mock the entire generate_table method to avoid matplotlib complexity
         with patch.object(cmd, 'generate_table') as mock_generate:
@@ -396,8 +400,8 @@ class TestDateFormattingAndColumnOrdering:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week2": 2, "week1": 5},  # week2 is earlier, week1 is later
-            "user2": {"week2": 0, "week1": 3}
+            "user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3},  # week2 is earlier, week1 is later
+            "user2": {"week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2}
         }
         
         # Mock date attributes
@@ -425,7 +429,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week2": 2, "week1": 5}}
+        cmd.report_data = {"user1": {"week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3}}
         
         with patch('builtins.print') as mock_print:
             cmd.print_summary()
