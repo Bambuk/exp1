@@ -290,6 +290,14 @@ def main():
         help="Filter by team"
     )
     parser.add_argument(
+        "--key",
+        help="Filter by task key (e.g., CPO-*)"
+    )
+    parser.add_argument(
+        "--updated-since",
+        help="Filter by last update date (YYYY-MM-DD)"
+    )
+    parser.add_argument(
         "--file-path",
         help="Path to task list file (for file mode)"
     )
@@ -326,6 +334,10 @@ def main():
         filters["assignee"] = args.assignee
     if args.team:
         filters["team"] = args.team
+    if args.key:
+        filters["key"] = args.key
+    if args.updated_since:
+        filters["updated_since"] = args.updated_since
     if args.file_path:
         filters["file_path"] = args.file_path
     

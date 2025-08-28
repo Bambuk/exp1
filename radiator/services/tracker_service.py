@@ -279,6 +279,9 @@ class TrackerAPIService:
                                 search_parts.append(f'Created: >{value.strftime("%Y-%m-%d")}')
                             else:
                                 search_parts.append(f'Created: >{value}')
+                        elif key == "key":
+                            # Filter by task key (e.g., CPO-*)
+                            search_parts.append(f'Key: "{value}"')
                         else:
                             # Generic filter
                             search_parts.append(f'{key}: "{value}"')
