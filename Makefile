@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report generate-status-report-teams generate-status-report-all
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -256,6 +256,20 @@ telegram-simple-chat-id: ## Get Chat ID using simple method
 	@python scripts/simple_chat_id.py
 
 # Status change report commands
-generate-status-report:  ## Generate CPO tasks status change report (last 2 weeks)
-	@echo "Generating CPO tasks status change report for last 2 weeks..."
-	@python3 -m radiator.commands.generate_status_change_report
+generate-status-report:  ## Generate CPO tasks status change report by authors (last 2 weeks)
+	@echo "Generating CPO tasks status change report by authors for last 2 weeks..."
+	@python3 -m radiator.commands.generate_status_change_report --group-by author
+
+generate-status-report-teams:  ## Generate CPO tasks status change report by teams (last 2 weeks)
+	@echo "Generating CPO tasks status change report by teams for last 2 weeks..."
+	@python3 -m radiator.commands.generate_status_change_report --group-by team
+
+generate-status-report-all:  ## Generate both author and team reports (last 2 weeks)
+	@echo "Generating CPO tasks status change reports for last 2 weeks..."
+	@echo "Generating report by authors..."
+	@python3 -m radiator.commands.generate_status_change_report --group-by author
+	@echo ""
+	@echo "Generating report by teams..."
+	@python3 -m radiator.commands.generate_status_change_report --group-by team
+	@echo ""
+	@echo "✅ Both reports generated successfully!"
