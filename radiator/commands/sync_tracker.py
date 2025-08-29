@@ -1,23 +1,34 @@
 """Command for syncing data from Yandex Tracker."""
 
+# Completely disable SQLAlchemy logging BEFORE any imports
 import os
 import sys
-import logging.config
 
-# Disable SQLAlchemy logging BEFORE any imports
-logging.config.dictConfig({
-    "version": 1,
-    "disable_existing_loggers": True,   # ключ: гасим уже созданные логгеры
-    "handlers": {
-        "null": {"class": "logging.NullHandler"}
-    },
-    "loggers": {
-        "sqlalchemy":         {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-        "sqlalchemy.engine":  {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-        "sqlalchemy.pool":    {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-    },
-    "root": {"handlers": ["null"], "level": "WARNING"},
-})
+# Set environment variables to disable SQLAlchemy logging
+os.environ["SQLALCHEMY_WARN_20"] = "false"
+os.environ["SQLALCHEMY_SILENCE_UBER_WARNING"] = "1"
+
+# Redirect stdout/stderr to suppress SQL logs
+import io
+import contextlib
+
+# Completely disable all logging
+import logging
+logging.disable(logging.CRITICAL)
+
+# Set all SQLAlchemy loggers to CRITICAL level
+logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy.pool").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy.dialects").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy.orm").setLevel(logging.CRITICAL)
+
+# Also disable any other database-related loggers
+logging.getLogger("alembic").setLevel(logging.CRITICAL)
+logging.getLogger("psycopg2").setLevel(logging.CRITICAL)
+
+# Configure root logger to be quiet
+logging.basicConfig(level=logging.CRITICAL)
 
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
@@ -34,8 +45,6 @@ from radiator.core.logging import logger
 from radiator.crud.tracker import tracker_task, tracker_task_history, tracker_sync_log
 from radiator.services.tracker_service import tracker_service
 from radiator.models.tracker import TrackerSyncLog
-import logging
-
 
 class TrackerSyncCommand:
     """Command for syncing tracker data."""
@@ -218,7 +227,7 @@ class TrackerSyncCommand:
                 logger.error(f"❌ Не найдено задач для синхронизации")
                 self.update_sync_log(
                     status="failed",
-                    sync_completed_at=datetime.utcnow(),
+                    sync_completed_at=datetime.now(timezone.utc),
                     error_details="No tasks found to sync"
                 )
                 return False
