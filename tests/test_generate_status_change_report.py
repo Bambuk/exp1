@@ -47,7 +47,7 @@ class TestGenerateStatusChangeReportCommand:
             start_date = datetime.now(timezone.utc) - timedelta(days=7)
             end_date = datetime.now(timezone.utc)
             
-            result = cmd.get_status_changes_by_author(start_date, end_date)
+            result = cmd.get_status_changes_by_group(start_date, end_date)
             
             expected = {
                 "user1": {"changes": 2, "tasks": 2},  # 2 changes across 2 unique tasks
@@ -66,7 +66,7 @@ class TestGenerateStatusChangeReportCommand:
             start_date = datetime.now(timezone.utc) - timedelta(days=7)
             end_date = datetime.now(timezone.utc)
             
-            result = cmd.get_status_changes_by_author(start_date, end_date)
+            result = cmd.get_status_changes_by_group(start_date, end_date)
             
             assert result == {}
 
@@ -80,7 +80,7 @@ class TestGenerateStatusChangeReportCommand:
             start_date = datetime.now(timezone.utc) - timedelta(days=7)
             end_date = datetime.now(timezone.utc)
             
-            result = cmd.get_status_changes_by_author(start_date, end_date)
+            result = cmd.get_status_changes_by_group(start_date, end_date)
             
             assert result == {}
 
@@ -109,8 +109,8 @@ class TestGenerateStatusChangeReportCommand:
             with patch.object(cmd.db, 'query') as mock_query:
                 # Mock the query chain
                 mock_query.return_value.filter.return_value.all.return_value = mock_results
-                
-                result = cmd.get_open_tasks_by_author()
+    
+                result = cmd.get_open_tasks_by_group()
                 
                 expected = {
                     "user1": {"discovery": 1, "delivery": 1, "discovery_last_change": ref_datetime, "delivery_last_change": ref_datetime},  # 1 discovery + 1 delivery
@@ -128,8 +128,8 @@ class TestGenerateStatusChangeReportCommand:
             
             with patch.object(cmd.db, 'query') as mock_query:
                 mock_query.return_value.filter.return_value.all.return_value = []
-                
-                result = cmd.get_open_tasks_by_author()
+    
+                result = cmd.get_open_tasks_by_group()
                 
                 assert result == {}
 
@@ -143,7 +143,7 @@ class TestGenerateStatusChangeReportCommand:
             with patch.object(cmd.db, 'query') as mock_query:
                 mock_query.side_effect = Exception("Database error")
                 
-                result = cmd.get_open_tasks_by_author()
+                result = cmd.get_open_tasks_by_group()
                 
                 assert result == {}
 
@@ -209,8 +209,8 @@ class TestGenerateStatusChangeReportCommand:
         cmd = GenerateStatusChangeReportCommand()
         
         # Mock the methods directly on the command instance
-        with patch.object(cmd, 'get_status_changes_by_author') as mock_get_changes, \
-             patch.object(cmd, 'get_open_tasks_by_author') as mock_get_open_tasks:
+        with patch.object(cmd, 'get_status_changes_by_group') as mock_get_changes, \
+             patch.object(cmd, 'get_open_tasks_by_group') as mock_get_open_tasks:
             
             # Set up mock return values
             mock_get_changes.side_effect = [

@@ -22,9 +22,19 @@ from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 
 
 class GenerateStatusChangeReportCommand:
-    """Command for generating status change report for CPO tasks by authors over last 2 weeks."""
+    """Command for generating status change report for CPO tasks by authors or teams over last 2 weeks."""
     
-    def __init__(self):
+    def __init__(self, group_by: str = "author"):
+        """
+        Initialize command with grouping preference.
+        
+        Args:
+            group_by: Grouping field - "author" or "team"
+        """
+        if group_by not in ["author", "team"]:
+            raise ValueError("group_by must be 'author' or 'team'")
+        
+        self.group_by = group_by
         self.db = SessionLocal()
         self.report_data: Dict[str, Dict[str, int]] = {}
         self.week1_data: Dict[str, int] = {}
@@ -37,22 +47,29 @@ class GenerateStatusChangeReportCommand:
         if self.db:
             self.db.close()
     
-    def get_status_changes_by_author(self, start_date: datetime, end_date: datetime) -> Dict[str, Dict[str, int]]:
+    def get_status_changes_by_group(self, start_date: datetime, end_date: datetime) -> Dict[str, Dict[str, int]]:
         """
-        Get count of status changes and unique tasks by author within date range for CPO tasks only.
+        Get count of status changes and unique tasks by author or team within date range for CPO tasks only.
         
         Args:
             start_date: Start of date range
             end_date: End of date range
             
         Returns:
-            Dictionary mapping author to dict with 'changes', 'tasks', and 'open_tasks' counts
+            Dictionary mapping author/team to dict with 'changes', 'tasks', and 'open_tasks' counts
         """
         try:
             # Query status changes within date range
-            # We need to join tracker_tasks with tracker_task_history to get author information
+            # We need to join tracker_tasks with tracker_task_history to get author/team information
+            if self.group_by == "author":
+                group_field = TrackerTask.author
+                filter_condition = TrackerTask.author.isnot(None)
+            else:  # team
+                group_field = TrackerTask.team
+                filter_condition = TrackerTask.team.isnot(None)
+            
             query = self.db.query(
-                TrackerTask.author,
+                group_field,
                 TrackerTaskHistory.id,
                 TrackerTaskHistory.task_id
             ).join(
@@ -61,45 +78,46 @@ class GenerateStatusChangeReportCommand:
             ).filter(
                 TrackerTaskHistory.start_date >= start_date,
                 TrackerTaskHistory.start_date < end_date,
-                TrackerTask.author.isnot(None),  # Exclude tasks without author
+                filter_condition,  # Exclude tasks without author/team
                 TrackerTask.key.like('CPO-%')  # Only CPO tasks
             )
             
-            logger.info(f"Executing query for CPO tasks in date range: {start_date.date()} to {end_date.date()}")
+            logger.info(f"Executing query for CPO tasks grouped by {self.group_by} in date range: {start_date.date()} to {end_date.date()}")
             
-            # Execute query and count by author
+            # Execute query and count by author/team
             results = query.all()
             logger.info(f"Query returned {len(results)} results")
             
-            author_data = defaultdict(lambda: {'changes': 0, 'tasks': set()})
+            group_data = defaultdict(lambda: {'changes': 0, 'tasks': set()})
             
-            for i, (author, _, task_id) in enumerate(results):
-                if author:  # Double check author is not None
+            for i, (group_value, _, task_id) in enumerate(results):
+                if group_value:  # Double check group value is not None
                     try:
                         # Handle potential encoding issues
-                        if isinstance(author, bytes):
-                            author = author.decode('utf-8', errors='replace')
-                        elif isinstance(author, str):
+                        if isinstance(group_value, bytes):
+                            group_value = group_value.decode('utf-8', errors='replace')
+                        elif isinstance(group_value, str):
                             # Ensure it's valid UTF-8
-                            author.encode('utf-8').decode('utf-8')
+                            group_value.encode('utf-8').decode('utf-8')
                         
-                        author_data[author]['changes'] += 1
-                        author_data[author]['tasks'].add(task_id)
+                        group_data[group_value]['changes'] += 1
+                        group_data[group_value]['tasks'].add(task_id)
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
-                        logger.warning(f"Skipping author with encoding issue at position {i}: {e}, author value: {repr(author)}")
+                        logger.warning(f"Skipping {self.group_by} with encoding issue at position {i}: {e}, value: {repr(group_value)}")
                         continue
             
             # Convert sets to counts and return
             result = {}
-            for author, data in author_data.items():
-                result[author] = {
+            for group_value, data in group_data.items():
+                result[group_value] = {
                     'changes': data['changes'],
                     'tasks': len(data['tasks'])
                 }
             
             total_changes = sum(data['changes'] for data in result.values())
             total_tasks = sum(data['tasks'] for data in result.values())
-            logger.info(f"Found {total_changes} status changes across {total_tasks} unique tasks for {len(result)} authors from {start_date.date()} to {end_date.date()}")
+            group_name = "authors" if self.group_by == "author" else "teams"
+            logger.info(f"Found {total_changes} status changes across {total_tasks} unique tasks for {len(result)} {group_name} from {start_date.date()} to {end_date.date()}")
             return result
             
         except Exception as e:
@@ -108,12 +126,12 @@ class GenerateStatusChangeReportCommand:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {}
     
-    def get_open_tasks_by_author(self) -> Dict[str, Dict[str, Any]]:
+    def get_open_tasks_by_group(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get count of open tasks and last update dates by author grouped by discovery/delivery blocks for CPO tasks only.
+        Get count of open tasks and last update dates by author or team grouped by discovery/delivery blocks for CPO tasks only.
         
         Returns:
-            Dictionary mapping author to dict with 'discovery', 'delivery' counts and last update dates
+            Dictionary mapping author/team to dict with 'discovery', 'delivery' counts and last update dates
         """
         try:
             # Load status mapping from file
@@ -123,13 +141,20 @@ class GenerateStatusChangeReportCommand:
             closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
             
             # Get open tasks with their IDs, status, and last update date
+            if self.group_by == "author":
+                group_field = TrackerTask.author
+                filter_condition = TrackerTask.author.isnot(None)
+            else:  # team
+                group_field = TrackerTask.team
+                filter_condition = TrackerTask.team.isnot(None)
+            
             open_tasks_query = self.db.query(
-                TrackerTask.author,
+                group_field,
                 TrackerTask.id,
                 TrackerTask.status,
                 TrackerTask.task_updated_at
             ).filter(
-                TrackerTask.author.isnot(None),  # Exclude tasks without author
+                filter_condition,  # Exclude tasks without author/team
                 TrackerTask.key.like('CPO-%'),  # Only CPO tasks
                 ~TrackerTask.status.in_(closed_statuses)  # Not in closed statuses
             )
@@ -142,29 +167,29 @@ class GenerateStatusChangeReportCommand:
                 'delivery': {'count': 0, 'last_change': None}
             })
             
-            for author, task_id, status, task_updated_at in open_tasks:
-                if author:  # Double check author is not None
+            for group_value, task_id, status, task_updated_at in open_tasks:
+                if group_value:  # Double check group value is not None
                     try:
                         # Handle potential encoding issues
-                        if isinstance(author, bytes):
-                            author = author.decode('utf-8', errors='replace')
-                        elif isinstance(author, str):
+                        if isinstance(group_value, bytes):
+                            group_value = group_value.decode('utf-8', errors='replace')
+                        elif isinstance(group_value, str):
                             # Ensure it's valid UTF-8
-                            author.encode('utf-8').decode('utf-8')
+                            group_value.encode('utf-8').decode('utf-8')
                         
                         # Map status to block
                         block = status_mapping.get(status, 'discovery')  # Default to discovery if status not found
                         if block in ['discovery', 'delivery']:
-                            author_blocks[author][block]['count'] += 1
+                            author_blocks[group_value][block]['count'] += 1
                             
                             # Update last update date if this task has a more recent update
                             if task_updated_at:
-                                current_last = author_blocks[author][block]['last_change']
+                                current_last = author_blocks[group_value][block]['last_change']
                                 if current_last is None or task_updated_at > current_last:
-                                    author_blocks[author][block]['last_change'] = task_updated_at
+                                    author_blocks[group_value][block]['last_change'] = task_updated_at
                         
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
-                        logger.warning(f"Skipping author with encoding issue: {e}, author value: {repr(author)}")
+                        logger.warning(f"Skipping {self.group_by} with encoding issue: {e}, value: {repr(group_value)}")
                         continue
             
             # Convert to final format
@@ -250,27 +275,27 @@ class GenerateStatusChangeReportCommand:
         logger.info(f"  Week 3 (hidden): {week3_start.date()} to {week3_end.date()}")
         
         # Get data for each week
-        self.week1_data = self.get_status_changes_by_author(week1_start, week1_end)
-        self.week2_data = self.get_status_changes_by_author(week2_start, week2_end)
-        self.week3_data = self.get_status_changes_by_author(week3_start, week3_end)  # Hidden week for dynamics
+        self.week1_data = self.get_status_changes_by_group(week1_start, week1_end)
+        self.week2_data = self.get_status_changes_by_group(week2_start, week2_end)
+        self.week3_data = self.get_status_changes_by_group(week3_start, week3_end)  # Hidden week for dynamics
         
         # Get current open tasks data
-        self.open_tasks_data = self.get_open_tasks_by_author()
+        self.open_tasks_data = self.get_open_tasks_by_group()
         
-        # Combine all unique authors
-        all_authors = set(self.week1_data.keys()) | set(self.week2_data.keys()) | set(self.week3_data.keys()) | set(self.open_tasks_data.keys())
+        # Combine all unique authors/teams
+        all_groups = set(self.week1_data.keys()) | set(self.week2_data.keys()) | set(self.week3_data.keys()) | set(self.open_tasks_data.keys())
         
         # Build report data with changes, tasks counts, and open tasks by blocks
         # Note: week2 is earlier (left), week1 is later (right)
         # Week 3 is hidden but used for dynamics arrows
         self.report_data = {}
-        for author in sorted(all_authors):
-            week3_data = self.week3_data.get(author, {'changes': 0, 'tasks': 0})  # Hidden week
-            week2_data = self.week2_data.get(author, {'changes': 0, 'tasks': 0})
-            week1_data = self.week1_data.get(author, {'changes': 0, 'tasks': 0})
-            open_tasks_data = self.open_tasks_data.get(author, {'discovery': 0, 'delivery': 0})
+        for group_value in sorted(all_groups):
+            week3_data = self.week3_data.get(group_value, {'changes': 0, 'tasks': 0})  # Hidden week
+            week2_data = self.week2_data.get(group_value, {'changes': 0, 'tasks': 0})
+            week1_data = self.week1_data.get(group_value, {'changes': 0, 'tasks': 0})
+            open_tasks_data = self.open_tasks_data.get(group_value, {'discovery': 0, 'delivery': 0})
             
-            self.report_data[author] = {
+            self.report_data[group_value] = {
                 'week3_changes': week3_data['changes'],  # Hidden week for dynamics
                 'week3_tasks': week3_data['tasks'],      # Hidden week for dynamics
                 'week2_changes': week2_data['changes'],
@@ -283,7 +308,8 @@ class GenerateStatusChangeReportCommand:
                 'delivery_last_change': open_tasks_data.get('delivery_last_change')
             }
         
-        logger.info(f"Generated report for {len(self.report_data)} authors")
+        group_name = "authors" if self.group_by == "author" else "teams"
+        logger.info(f"Generated report for {len(self.report_data)} {group_name}")
         return self.report_data
     
     def _get_dynamics_arrow(self, current: int, previous: int) -> str:
@@ -354,12 +380,15 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
+            # Determine column header based on grouping
+            group_header = 'Автор' if self.group_by == "author" else 'Команда'
+            
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Автор', f'{week2_header}_активность', f'{week1_header}_активность', 'Discovery', 'Delivery']
+                fieldnames = [group_header, f'{week2_header}_активность', f'{week1_header}_активность', 'Discovery', 'Delivery']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
-                for author, data in self.report_data.items():
+                for group_value, data in self.report_data.items():
                     # Get dynamics arrows for both weeks
                     # Week 2: compare with hidden week 3
                     week2_changes_arrow = self._get_dynamics_arrow(data['week2_changes'], data['week3_changes'])
@@ -374,7 +403,7 @@ class GenerateStatusChangeReportCommand:
                     delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
                     
                     writer.writerow({
-                        'Автор': author,
+                        group_header: group_value,
                         f'{week2_header}_активность': f"{data['week2_changes']} изменений ({data['week2_tasks']} задач) {week2_changes_arrow}{week2_tasks_arrow}",
                         f'{week1_header}_активность': f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}",
                         'Discovery': f"{data['discovery_tasks']} {discovery_date}",
@@ -410,26 +439,26 @@ class GenerateStatusChangeReportCommand:
         
         try:
             # Prepare data for table
-            authors = list(self.report_data.keys())
-            week3_changes = [self.report_data[author]['week3_changes'] for author in authors]  # Hidden week changes
-            week3_tasks = [self.report_data[author]['week3_tasks'] for author in authors]      # Hidden week tasks
-            week2_changes = [self.report_data[author]['week2_changes'] for author in authors]  # Earlier week changes
-            week2_tasks = [self.report_data[author]['week2_tasks'] for author in authors]      # Earlier week tasks
-            week1_changes = [self.report_data[author]['week1_changes'] for author in authors]  # Later week changes
-            week1_tasks = [self.report_data[author]['week1_tasks'] for author in authors]      # Later week tasks
-            discovery_tasks = [self.report_data[author]['discovery_tasks'] for author in authors]  # Discovery tasks
-            delivery_tasks = [self.report_data[author]['delivery_tasks'] for author in authors]    # Delivery tasks
-            discovery_dates = [self.report_data[author].get('discovery_last_change') for author in authors]  # Discovery last update dates
-            delivery_dates = [self.report_data[author].get('delivery_last_change') for author in authors]    # Delivery last update dates
+            groups = list(self.report_data.keys())
+            week3_changes = [self.report_data[group]['week3_changes'] for group in groups]  # Hidden week changes
+            week3_tasks = [self.report_data[group]['week3_tasks'] for group in groups]      # Hidden week tasks
+            week2_changes = [self.report_data[group]['week2_changes'] for group in groups]  # Earlier week changes
+            week2_tasks = [self.report_data[group]['week2_tasks'] for group in groups]      # Earlier week tasks
+            week1_changes = [self.report_data[group]['week1_changes'] for group in groups]  # Later week changes
+            week1_tasks = [self.report_data[group]['week1_tasks'] for group in groups]      # Later week tasks
+            discovery_tasks = [self.report_data[group]['discovery_tasks'] for group in groups]  # Discovery tasks
+            delivery_tasks = [self.report_data[group]['delivery_tasks'] for group in groups]    # Delivery tasks
+            discovery_dates = [self.report_data[group].get('discovery_last_change') for group in groups]  # Discovery last update dates
+            delivery_dates = [self.report_data[group].get('delivery_last_change') for group in groups]    # Delivery last update dates
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (5 columns: Author, Week2_activity, Week1_activity, Discovery, Delivery)
+            # Calculate dimensions with proper padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
             cell_height = 0.08  # Height per row
             header_height = 0.1  # Header row height (standard height for single line)
-            table_height = len(authors) * cell_height + header_height
+            table_height = len(groups) * cell_height + header_height
             
             # Add minimal padding around table (top, bottom, left, right)
             padding = 0.05
@@ -446,7 +475,7 @@ class GenerateStatusChangeReportCommand:
             
             # Create table data with changes, tasks, and tasks by blocks
             table_data = []
-            for i, (author, w3_ch, w3_t, w2_ch, w2_t, w1_ch, w1_t, disc, deliv) in enumerate(zip(authors, week3_changes, week3_tasks, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks)):
+            for i, (group_value, w3_ch, w3_t, w2_ch, w2_t, w1_ch, w1_t, disc, deliv) in enumerate(zip(groups, week3_changes, week3_tasks, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks)):
                 # Add dynamics arrows for both weeks
                 # Week 2: compare with hidden week 3
                 week2_changes_arrow = self._get_dynamics_arrow(w2_ch, w3_ch)
@@ -457,7 +486,7 @@ class GenerateStatusChangeReportCommand:
                 week1_tasks_arrow = self._get_dynamics_arrow(w1_t, w2_t)
                 
                 table_data.append([
-                    author, 
+                    group_value, 
                     f"{w2_ch} изменений ({w2_t} задач) {week2_changes_arrow}{week2_tasks_arrow}", 
                     f"{w1_ch} изменений ({w1_t} задач) {week1_changes_arrow}{week1_tasks_arrow}", 
                     f"{disc} {self._format_last_change_date(discovery_dates[i])}", 
@@ -465,8 +494,9 @@ class GenerateStatusChangeReportCommand:
                 ])
             
             # Create table positioned in the center of the axis
+            group_header = 'Автор' if self.group_by == "author" else 'Команда'
             table = ax.table(cellText=table_data,
-                           colLabels=['Автор', f'{week2_header} | активность', f'{week1_header} | активность', 'Discovery', 'Delivery'],
+                           colLabels=[group_header, f'{week2_header} | активность', f'{week1_header} | активность', 'Discovery', 'Delivery'],
                            cellLoc='center',
                            loc='center',
                            colWidths=[0.25, 0.30, 0.30, 0.08, 0.08])  # Adjusted widths for 5 columns
@@ -519,7 +549,8 @@ class GenerateStatusChangeReportCommand:
             return
         
         print("\n" + "="*80)
-        print("CPO TASKS STATUS CHANGE REPORT - LAST 2 WEEKS")
+        group_name = "AUTHORS" if self.group_by == "author" else "TEAMS"
+        print(f"CPO TASKS STATUS CHANGE REPORT BY {group_name} - LAST 2 WEEKS")
         print("="*80)
         
         # Calculate totals
@@ -538,14 +569,16 @@ class GenerateStatusChangeReportCommand:
         print(f"Total Status Changes - {week2_header}: {total_week2_changes} across {total_week2_tasks} tasks")
         print(f"Total Discovery Tasks: {total_discovery_tasks}")
         print(f"Total Delivery Tasks: {total_delivery_tasks}")
-        print(f"Number of Authors: {len(self.report_data)}")
+        group_name = "Authors" if self.group_by == "author" else "Teams"
+        print(f"Number of {group_name}: {len(self.report_data)}")
         print("-"*80)
         
-        # Print by author with combined activity data
-        print(f"{'Author':<25} {week2_header:<35} {week1_header:<35} {'Discovery':<15} {'Delivery':<15}")
+        # Print by author/team with combined activity data
+        group_header = "Author" if self.group_by == "author" else "Team"
+        print(f"{group_header:<25} {week2_header:<35} {week1_header:<35} {'Discovery':<15} {'Delivery':<15}")
         print("-"*110)
         
-        for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
+        for group_value, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
             # Add dynamics arrows for both weeks
             # Week 2: compare with hidden week 3
             week2_changes_arrow = self._get_dynamics_arrow(data['week2_changes'], data['week3_changes'])
@@ -562,7 +595,7 @@ class GenerateStatusChangeReportCommand:
             delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
             discovery_str = f"{data['discovery_tasks']} {discovery_date}"
             delivery_str = f"{data['delivery_tasks']} {delivery_date}"
-            print(f"{author:<25} {week2_str:<35} {week1_str:<35} {discovery_str:<15} {delivery_str:<15}")
+            print(f"{group_value:<25} {week2_str:<35} {week1_str:<35} {discovery_str:<15} {delivery_str:<15}")
         
         print("="*80)
     
@@ -613,10 +646,12 @@ def main():
     parser = argparse.ArgumentParser(description='Generate CPO tasks status change report for last 2 weeks')
     parser.add_argument('--csv', help='CSV output filename')
     parser.add_argument('--table', help='Table image output filename')
+    parser.add_argument('--group-by', choices=['author', 'team'], default='author', 
+                       help='Group by author or team (default: author)')
     
     args = parser.parse_args()
     
-    with GenerateStatusChangeReportCommand() as cmd:
+    with GenerateStatusChangeReportCommand(group_by=args.group_by) as cmd:
         success = cmd.run(args.csv, args.table)
         sys.exit(0 if success else 1)
 
