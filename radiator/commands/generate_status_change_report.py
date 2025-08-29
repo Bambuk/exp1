@@ -129,6 +129,7 @@ class GenerateStatusChangeReportCommand:
     def get_open_tasks_by_group(self) -> Dict[str, Dict[str, Any]]:
         """
         Get count of open tasks and last update dates by author or team grouped by discovery/delivery blocks for CPO tasks only.
+        Closed tasks (with 'done' block) are automatically excluded by the status mapping logic.
         
         Returns:
             Dictionary mapping author/team to dict with 'discovery', 'delivery' counts and last update dates
@@ -136,9 +137,6 @@ class GenerateStatusChangeReportCommand:
         try:
             # Load status mapping from file
             status_mapping = self._load_status_mapping()
-            
-            # Query open tasks (not in closed statuses) with their last update date
-            closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
             
             # Get open tasks with their IDs, status, and last update date
             if self.group_by == "author":
@@ -155,8 +153,7 @@ class GenerateStatusChangeReportCommand:
                 TrackerTask.task_updated_at
             ).filter(
                 filter_condition,  # Exclude tasks without author/team
-                TrackerTask.key.like('CPO-%'),  # Only CPO tasks
-                ~TrackerTask.status.in_(closed_statuses)  # Not in closed statuses
+                TrackerTask.key.like('CPO-%')  # Only CPO tasks
             )
             
             open_tasks = open_tasks_query.all()
