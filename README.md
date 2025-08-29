@@ -97,6 +97,39 @@ chmod +x setup_cron.sh
 
 # Windows
 .\setup_cron.ps1
+
+## Status Change Reports
+
+Generate comprehensive reports on CPO task status changes and author activity:
+
+### Quick Report Generation
+
+```bash
+# Generate report with default settings
+make generate-status-report
+
+# Or run directly
+python -m radiator.commands.generate_status_change_report
+
+# With custom filenames
+python -m radiator.commands.generate_status_change_report --csv my_report.csv --table my_table.png
+```
+
+### Report Features
+
+- **2-Week Analysis**: Status changes and task counts for last 2 weeks
+- **Author Activity**: Per-author breakdown of changes and tasks
+- **Dynamic Indicators**: Visual arrows showing trends (🟢↗️ 🔴↘️ ⚪➡️)
+- **Block Analysis**: Discovery vs Delivery task distribution with last change dates
+- **Multiple Formats**: CSV export and visual PNG table
+
+### Output Files
+
+Reports are saved to the `reports/` folder:
+- `status_change_report_YYYYMMDD_HHMMSS.csv` - Data export
+- `status_change_table_YYYYMMDD_HHMMSS.png` - Visual table
+
+See [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) for detailed usage instructions.
 ```
 
 For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md).

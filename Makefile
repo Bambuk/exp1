@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -23,6 +23,7 @@ help:  ## Show this help message
 	@echo '  update-status-history-cpo - Update CPO queue status history (last 14 days)'
 	@echo '  update-status-history-dev - Update DEV queue status history (last 7 days)'
 	@echo '  update-status-history-qa - Update QA queue status history (last 30 days)'
+	@echo '  generate-status-report - Generate CPO tasks status change report (last 2 weeks)'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -253,3 +254,8 @@ telegram-get-chat-id: ## Get Chat ID from Telegram bot
 telegram-simple-chat-id: ## Get Chat ID using simple method
 	@echo "Getting Chat ID using simple method..."
 	@python scripts/simple_chat_id.py
+
+# Status change report commands
+generate-status-report:  ## Generate CPO tasks status change report (last 2 weeks)
+	@echo "Generating CPO tasks status change report for last 2 weeks..."
+	@python3 -m radiator.commands.generate_status_change_report

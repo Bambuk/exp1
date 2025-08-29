@@ -108,21 +108,22 @@ class GenerateStatusChangeReportCommand:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {}
     
-    def get_open_tasks_by_author(self) -> Dict[str, Dict[str, int]]:
+    def get_open_tasks_by_author(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get count of open tasks by author grouped by discovery/delivery blocks for CPO tasks only.
+        Get count of open tasks and last status change dates by author grouped by discovery/delivery blocks for CPO tasks only.
         
         Returns:
-            Dictionary mapping author to dict with 'discovery' and 'delivery' counts
+            Dictionary mapping author to dict with 'discovery', 'delivery' counts and last change dates
         """
         try:
             # Load status mapping from file
             status_mapping = self._load_status_mapping()
             
-            # Query open tasks (not in closed statuses)
+            # Query open tasks (not in closed statuses) with their last status change date
             closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
             
-            query = self.db.query(
+            # First get open tasks with their IDs
+            open_tasks_query = self.db.query(
                 TrackerTask.author,
                 TrackerTask.id,
                 TrackerTask.status
@@ -132,15 +133,36 @@ class GenerateStatusChangeReportCommand:
                 ~TrackerTask.status.in_(closed_statuses)  # Not in closed statuses
             )
             
-            logger.info("Executing query for open CPO tasks with status mapping")
+            open_tasks = open_tasks_query.all()
+            logger.info(f"Query returned {len(open_tasks)} open tasks")
             
-            # Execute query and count by author and block
-            results = query.all()
-            logger.info(f"Query returned {len(results)} open tasks")
+            # Get last status change dates for these tasks
+            task_ids = [task[1] for task in open_tasks]
+            if task_ids:
+                last_changes_query = self.db.query(
+                    TrackerTaskHistory.task_id,
+                    TrackerTaskHistory.start_date
+                ).filter(
+                    TrackerTaskHistory.task_id.in_(task_ids)
+                ).order_by(
+                    TrackerTaskHistory.start_date.desc()
+                )
+                
+                last_changes = last_changes_query.all()
+                # Create mapping of task_id to last change date
+                task_last_changes = {}
+                for task_id, change_date in last_changes:
+                    if task_id not in task_last_changes:  # Keep only the most recent
+                        task_last_changes[task_id] = change_date
+            else:
+                task_last_changes = {}
             
-            author_blocks = defaultdict(lambda: {'discovery': 0, 'delivery': 0})
+            author_blocks = defaultdict(lambda: {
+                'discovery': {'count': 0, 'last_change': None},
+                'delivery': {'count': 0, 'last_change': None}
+            })
             
-            for author, _, status in results:
+            for author, task_id, status in open_tasks:
                 if author:  # Double check author is not None
                     try:
                         # Handle potential encoding issues
@@ -153,7 +175,14 @@ class GenerateStatusChangeReportCommand:
                         # Map status to block
                         block = status_mapping.get(status, 'discovery')  # Default to discovery if status not found
                         if block in ['discovery', 'delivery']:
-                            author_blocks[author][block] += 1
+                            author_blocks[author][block]['count'] += 1
+                            
+                            # Update last change date if this task has a more recent change
+                            task_last_change = task_last_changes.get(task_id)
+                            if task_last_change:
+                                current_last = author_blocks[author][block]['last_change']
+                                if current_last is None or task_last_change > current_last:
+                                    author_blocks[author][block]['last_change'] = task_last_change
                         
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
                         logger.warning(f"Skipping author with encoding issue: {e}, author value: {repr(author)}")
@@ -163,8 +192,10 @@ class GenerateStatusChangeReportCommand:
             result = {}
             for author, blocks in author_blocks.items():
                 result[author] = {
-                    'discovery': blocks['discovery'],
-                    'delivery': blocks['delivery']
+                    'discovery': blocks['discovery']['count'],
+                    'delivery': blocks['delivery']['count'],
+                    'discovery_last_change': blocks['discovery']['last_change'],
+                    'delivery_last_change': blocks['delivery']['last_change']
                 }
             
             total_discovery = sum(data['discovery'] for data in result.values())
@@ -268,7 +299,9 @@ class GenerateStatusChangeReportCommand:
                 'week1_changes': week1_data['changes'],
                 'week1_tasks': week1_data['tasks'],
                 'discovery_tasks': open_tasks_data['discovery'],
-                'delivery_tasks': open_tasks_data['delivery']
+                'delivery_tasks': open_tasks_data['delivery'],
+                'discovery_last_change': open_tasks_data.get('discovery_last_change'),
+                'delivery_last_change': open_tasks_data.get('delivery_last_change')
             }
         
         logger.info(f"Generated report for {len(self.report_data)} authors")
@@ -291,6 +324,31 @@ class GenerateStatusChangeReportCommand:
             return "🔴↘️"  # Red down arrow for decline
         else:
             return "⚪➡️"  # White right arrow for no change
+    
+    def _format_last_change_date(self, date_value) -> str:
+        """
+        Format last change date for display.
+        
+        Args:
+            date_value: Date value or None
+            
+        Returns:
+            Formatted date string or empty string if no date
+        """
+        if date_value is None:
+            return ""
+        
+        try:
+            if isinstance(date_value, str):
+                # Parse string date
+                parsed_date = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+            else:
+                parsed_date = date_value
+            
+            # Format as DD.MM
+            return f"({parsed_date.strftime('%d.%m')})"
+        except Exception:
+            return ""
     
     def save_csv_report(self, filename: str = None) -> str:
         """
@@ -318,7 +376,7 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Автор', f'{week2_header}_изменения', f'{week2_header}_задачи', f'{week1_header}_изменения', f'{week1_header}_задачи', 'Discovery', 'Delivery']
+                fieldnames = ['Автор', f'{week2_header}_активность', f'{week1_header}_активность', 'Discovery', 'Delivery']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
@@ -332,14 +390,16 @@ class GenerateStatusChangeReportCommand:
                     week1_changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
                     week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
                     
+                    # Format last change dates
+                    discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
+                    delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
+                    
                     writer.writerow({
                         'Автор': author,
-                        f'{week2_header}_изменения': f"{data['week2_changes']} {week2_changes_arrow}",  # Earlier week changes with arrow
-                        f'{week2_header}_задачи': f"{data['week2_tasks']} {week2_tasks_arrow}",         # Earlier week tasks with arrow
-                        f'{week1_header}_изменения': f"{data['week1_changes']} {week1_changes_arrow}",  # Later week changes with arrow
-                        f'{week1_header}_задачи': f"{data['week1_tasks']} {week1_tasks_arrow}",         # Later week tasks with arrow
-                        'Discovery': data['discovery_tasks'],                 # Discovery tasks
-                        'Delivery': data['delivery_tasks']                    # Delivery tasks
+                        f'{week2_header}_активность': f"{data['week2_changes']} изменений ({data['week2_tasks']} задач) {week2_changes_arrow}{week2_tasks_arrow}",
+                        f'{week1_header}_активность': f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}",
+                        'Discovery': f"{data['discovery_tasks']} {discovery_date}",
+                        'Delivery': f"{data['delivery_tasks']} {delivery_date}"
                     })
             
             logger.info(f"CSV report saved to: {filepath}")
@@ -380,12 +440,14 @@ class GenerateStatusChangeReportCommand:
             week1_tasks = [self.report_data[author]['week1_tasks'] for author in authors]      # Later week tasks
             discovery_tasks = [self.report_data[author]['discovery_tasks'] for author in authors]  # Discovery tasks
             delivery_tasks = [self.report_data[author]['delivery_tasks'] for author in authors]    # Delivery tasks
+            discovery_dates = [self.report_data[author].get('discovery_last_change') for author in authors]  # Discovery last change dates
+            delivery_dates = [self.report_data[author].get('delivery_last_change') for author in authors]    # Delivery last change dates
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (7 columns: Author, Week2_changes, Week1_changes, Week2_tasks, Week1_tasks, Discovery, Delivery)
+            # Calculate dimensions with proper padding for table (5 columns: Author, Week2_activity, Week1_activity, Discovery, Delivery)
             cell_height = 0.08  # Height per row
             header_height = 0.1  # Header row height (standard height for single line)
             table_height = len(authors) * cell_height + header_height
@@ -395,7 +457,7 @@ class GenerateStatusChangeReportCommand:
             total_height = table_height + 2 * padding
             
             # Create figure with proper size including padding
-            fig_width = 20  # Increased width for 7 columns
+            fig_width = 16  # Reduced width for 5 columns
             fig_height = total_height
             fig = plt.figure(figsize=(fig_width, fig_height))
             
@@ -405,7 +467,7 @@ class GenerateStatusChangeReportCommand:
             
             # Create table data with changes, tasks, and tasks by blocks
             table_data = []
-            for author, w3_ch, w3_t, w2_ch, w2_t, w1_ch, w1_t, disc, deliv in zip(authors, week3_changes, week3_tasks, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks):
+            for i, (author, w3_ch, w3_t, w2_ch, w2_t, w1_ch, w1_t, disc, deliv) in enumerate(zip(authors, week3_changes, week3_tasks, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks)):
                 # Add dynamics arrows for both weeks
                 # Week 2: compare with hidden week 3
                 week2_changes_arrow = self._get_dynamics_arrow(w2_ch, w3_ch)
@@ -417,20 +479,18 @@ class GenerateStatusChangeReportCommand:
                 
                 table_data.append([
                     author, 
-                    f"{w2_ch} ({w2_t}) {week2_changes_arrow}", 
-                    f"{w1_ch} ({w1_t}) {week1_changes_arrow}", 
-                    f"{w2_t} {week2_tasks_arrow}", 
-                    f"{w1_t} {week1_tasks_arrow}", 
-                    disc, 
-                    deliv
+                    f"{w2_ch} изменений ({w2_t} задач) {week2_changes_arrow}{week2_tasks_arrow}", 
+                    f"{w1_ch} изменений ({w1_t} задач) {week1_changes_arrow}{week1_tasks_arrow}", 
+                    f"{disc} {self._format_last_change_date(discovery_dates[i])}", 
+                    f"{deliv} {self._format_last_change_date(delivery_dates[i])}"
                 ])
             
             # Create table positioned in the center of the axis
             table = ax.table(cellText=table_data,
-                           colLabels=['Автор', f'{week2_header} | изменения', f'{week1_header} | изменения', f'{week2_header} | задачи', f'{week1_header} | задачи', 'Discovery', 'Delivery'],
+                           colLabels=['Автор', f'{week2_header} | активность', f'{week1_header} | активность', 'Discovery', 'Delivery'],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.20, 0.18, 0.18, 0.18, 0.18, 0.06, 0.06])  # Adjusted widths for 7 columns
+                           colWidths=[0.25, 0.30, 0.30, 0.08, 0.08])  # Adjusted widths for 5 columns
             
             # Style the table
             table.auto_set_font_size(False)
@@ -440,13 +500,13 @@ class GenerateStatusChangeReportCommand:
             table.scale(1.0, 1.0)
             
             # Style header row
-            for i in range(7):
+            for i in range(5):
                 table[(0, i)].set_facecolor('#4CAF50')
                 table[(0, i)].set_text_props(weight='bold', color='white')
             
             # Style data rows
             for i in range(1, len(table_data) + 1):
-                for j in range(7):
+                for j in range(5):
                     cell = table[(i, j)]
                     if i % 2 == 0:  # Alternate row colors
                         cell.set_facecolor('#F5F5F5')
@@ -502,25 +562,28 @@ class GenerateStatusChangeReportCommand:
         print(f"Number of Authors: {len(self.report_data)}")
         print("-"*80)
         
-        # Print by author with changes, tasks, and tasks by blocks
-        print(f"{'Author':<25} {week2_header:<20} {week1_header:<20} {'Discovery':<10} {'Delivery':<10}")
-        print("-"*80)
+        # Print by author with combined activity data
+        print(f"{'Author':<25} {week2_header:<35} {week1_header:<35} {'Discovery':<15} {'Delivery':<15}")
+        print("-"*110)
         
         for author, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
             # Add dynamics arrows for both weeks
             # Week 2: compare with hidden week 3
             week2_changes_arrow = self._get_dynamics_arrow(data['week2_changes'], data['week3_changes'])
             week2_tasks_arrow = self._get_dynamics_arrow(data['week2_tasks'], data['week3_tasks'])
-            week2_str = f"{data['week2_changes']} ({data['week2_tasks']}) {week2_changes_arrow}{week2_tasks_arrow}"
+            week2_str = f"{data['week2_changes']} изменений ({data['week2_tasks']} задач) {week2_changes_arrow}{week2_tasks_arrow}"
             
             # Week 1: compare with week 2
             week1_changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
             week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
-            week1_str = f"{data['week1_changes']} ({data['week1_tasks']}) {week1_changes_arrow}{week1_tasks_arrow}"
+            week1_str = f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}"
             
-            discovery_str = str(data['discovery_tasks'])
-            delivery_str = str(data['delivery_tasks'])
-            print(f"{author:<25} {week2_str:<20} {week1_str:<20} {discovery_str:<10} {delivery_str:<10}")
+            # Format last change dates
+            discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
+            delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
+            discovery_str = f"{data['discovery_tasks']} {discovery_date}"
+            delivery_str = f"{data['delivery_tasks']} {delivery_date}"
+            print(f"{author:<25} {week2_str:<35} {week1_str:<35} {discovery_str:<15} {delivery_str:<15}")
         
         print("="*80)
     

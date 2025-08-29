@@ -112,9 +112,9 @@ class TestGenerateStatusChangeReportCommand:
                 result = cmd.get_open_tasks_by_author()
                 
                 expected = {
-                    "user1": {"discovery": 1, "delivery": 1},  # 1 discovery + 1 delivery
-                    "user2": {"discovery": 1, "delivery": 0},  # 1 discovery
-                    "user3": {"discovery": 0, "delivery": 1}   # 1 delivery
+                    "user1": {"discovery": 1, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None},  # 1 discovery + 1 delivery
+                    "user2": {"discovery": 1, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None},  # 1 discovery
+                    "user3": {"discovery": 0, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None}   # 1 delivery
                 }
                 assert result == expected
 
@@ -218,9 +218,9 @@ class TestGenerateStatusChangeReportCommand:
                 {"user1": {"changes": 1, "tasks": 1}, "user2": {"changes": 2, "tasks": 1}}   # week3 data (hidden)
             ]
             mock_get_open_tasks.return_value = {
-                "user1": {"discovery": 2, "delivery": 1}, 
-                "user2": {"discovery": 1, "delivery": 0}, 
-                "user3": {"discovery": 3, "delivery": 0}
+                "user1": {"discovery": 2, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None}, 
+                "user2": {"discovery": 1, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None}, 
+                "user3": {"discovery": 3, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None}
             }  # open tasks data by blocks
             
             # Call the method
@@ -230,16 +230,16 @@ class TestGenerateStatusChangeReportCommand:
             assert cmd.week1_data == {"user1": {"changes": 5, "tasks": 3}, "user2": {"changes": 3, "tasks": 2}}
             assert cmd.week2_data == {"user1": {"changes": 2, "tasks": 1}, "user3": {"changes": 4, "tasks": 2}}
             assert cmd.open_tasks_data == {
-                "user1": {"discovery": 2, "delivery": 1}, 
-                "user2": {"discovery": 1, "delivery": 0}, 
-                "user3": {"discovery": 3, "delivery": 0}
+                "user1": {"discovery": 2, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None},
+                "user2": {"discovery": 1, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None},
+                "user3": {"discovery": 3, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None}
             }
             
             # Check combined report data
             expected = {
-                "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier (left), week1 is later (right)
-                "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0},
-                "user3": {"week3_changes": 0, "week3_tasks": 0, "week2_changes": 4, "week2_tasks": 2, "week1_changes": 0, "week1_tasks": 0, "discovery_tasks": 3, "delivery_tasks": 0}
+                "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None},  # week2 is earlier (left), week1 is later (right)
+                "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None},
+                "user3": {"week3_changes": 0, "week3_tasks": 0, "week2_changes": 4, "week2_tasks": 2, "week1_changes": 0, "week1_tasks": 0, "discovery_tasks": 3, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None}
             }
             assert result == expected
 
@@ -249,8 +249,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier (left), week1 is later (right)
-            "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0}
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None},  # week2 is earlier (left), week1 is later (right)
+            "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None}
         }
         
         # Mock date attributes for CSV generation
@@ -271,11 +271,11 @@ class TestGenerateStatusChangeReportCommand:
             # Verify CSV content
             with open(tmp_filename, 'r', encoding='utf-8') as f:
                 content = f.read()
-                assert "Автор,14.08-21.08_изменения,14.08-21.08_задачи,21.08-28.08_изменения,21.08-28.08_задачи,Discovery,Delivery" in content
+                assert "Автор,14.08-21.08_активность,21.08-28.08_активность,Discovery,Delivery" in content
                 # Check that dynamics arrows are added to both weeks' data
                 # Week 2: compare with week 3 (hidden), Week 1: compare with week 2
-                assert "user1,2 🟢↗️,1 ⚪➡️,5 🟢↗️,3 🟢↗️,2,1" in content
-                assert "user2,0 🔴↘️,0 🔴↘️,3 🟢↗️,2 🟢↗️,1,0" in content
+                assert "user1,2 изменений (1 задач) 🟢↗️⚪➡️,5 изменений (3 задач) 🟢↗️🟢↗️,2 ,1 " in content
+                assert "user2,0 изменений (0 задач) 🔴↘️🔴↘️,3 изменений (2 задач) 🟢↗️🟢↗️,1 ,0 " in content
                 
         finally:
             if os.path.exists(tmp_filename):
@@ -297,13 +297,31 @@ class TestGenerateStatusChangeReportCommand:
         assert cmd._get_dynamics_arrow(5, 5) == "⚪➡️"
         assert cmd._get_dynamics_arrow(0, 0) == "⚪➡️"
 
+    def test_format_last_change_date(self):
+        """Test last change date formatting."""
+        cmd = GenerateStatusChangeReportCommand()
+        
+        # Test with datetime object
+        test_date = datetime(2025, 8, 15, 10, 30, 0)
+        assert cmd._format_last_change_date(test_date) == "(15.08)"
+        
+        # Test with string date
+        test_string = "2025-08-20T14:45:00Z"
+        assert cmd._format_last_change_date(test_string) == "(20.08)"
+        
+        # Test with None
+        assert cmd._format_last_change_date(None) == ""
+        
+        # Test with invalid date
+        assert cmd._format_last_change_date("invalid") == ""
+
     def test_save_csv_report_default_filename(self):
         """Test CSV report saving with default filename."""
         cmd = GenerateStatusChangeReportCommand()
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}  # week2 is earlier (left), week1 is later (right)
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None}  # week2 is earlier (left), week1 is later (right)
         }
         
         # Mock date attributes for CSV generation
@@ -329,8 +347,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1},
-            "user2": {"week3_changes": 2, "week3_tasks": 1, "week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0}
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None},
+            "user2": {"week3_changes": 2, "week3_tasks": 1, "week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None}
         }
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
@@ -356,7 +374,7 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1}
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None}
         }
         
         # Mock the entire generate_table method to avoid matplotlib complexity
@@ -374,8 +392,8 @@ class TestGenerateStatusChangeReportCommand:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1},
-            "user2": {"week3_changes": 2, "week3_tasks": 1, "week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0}
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None},
+            "user2": {"week3_changes": 2, "week3_tasks": 1, "week1_changes": 3, "week1_tasks": 2, "week2_changes": 0, "week2_tasks": 0, "discovery_tasks": 1, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None}
         }
         
         # Mock date attributes for summary generation
@@ -409,7 +427,7 @@ class TestGenerateStatusChangeReportCommand:
              patch.object(cmd, 'generate_table') as mock_table:
             
             # Mock successful data generation
-            cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1}}
+            cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "week2_changes": 2, "week2_tasks": 1, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None}}
             mock_generate.return_value = cmd.report_data
             
             # Mock file saving
@@ -516,7 +534,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}}
+        cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None}}
         
         with patch('builtins.open', create=True) as mock_open:
             mock_file = Mock()
@@ -537,7 +555,7 @@ class TestDateFormattingAndColumnOrdering:
         cmd.week2_end = datetime(2025, 8, 21)
         cmd.week1_start = datetime(2025, 8, 21)
         cmd.week1_end = datetime(2025, 8, 28)
-        cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1}}
+        cmd.report_data = {"user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None}}
         
         # Mock the entire generate_table method to avoid matplotlib complexity
         with patch.object(cmd, 'generate_table') as mock_generate:
@@ -558,8 +576,8 @@ class TestDateFormattingAndColumnOrdering:
         
         # Set up test data
         cmd.report_data = {
-            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1},  # week2 is earlier, week1 is later
-            "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0}
+            "user1": {"week3_changes": 1, "week3_tasks": 1, "week2_changes": 2, "week2_tasks": 1, "week1_changes": 5, "week1_tasks": 3, "discovery_tasks": 2, "delivery_tasks": 1, "discovery_last_change": None, "delivery_last_change": None},  # week2 is earlier, week1 is later
+            "user2": {"week3_changes": 2, "week3_tasks": 1, "week2_changes": 0, "week2_tasks": 0, "week1_changes": 3, "week1_tasks": 2, "discovery_tasks": 1, "delivery_tasks": 0, "discovery_last_change": None, "delivery_last_change": None}
         }
         
         # Mock date attributes
