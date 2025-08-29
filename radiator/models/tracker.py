@@ -32,6 +32,7 @@ class TrackerTask(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_sync_at = Column(DateTime, default=datetime.utcnow)
+    task_updated_at = Column(DateTime, nullable=True)  # When task was last updated in tracker
     
     def __repr__(self) -> str:
         return f"<TrackerTask(id={self.id}, tracker_id='{self.tracker_id}')>"
@@ -80,6 +81,7 @@ class TrackerSyncLog(Base):
 Index('idx_tracker_tasks_tracker_id', TrackerTask.tracker_id)
 Index('idx_tracker_tasks_key', TrackerTask.key)  # Index for task codes
 Index('idx_tracker_tasks_last_sync', TrackerTask.last_sync_at)
+Index('idx_tracker_tasks_task_updated', TrackerTask.task_updated_at)  # Index for tracker updates
 Index('idx_tracker_history_task_status', TrackerTaskHistory.task_id, TrackerTaskHistory.status)
 Index('idx_tracker_history_dates', TrackerTaskHistory.start_date, TrackerTaskHistory.end_date)
 Index('idx_tracker_sync_logs_status', TrackerSyncLog.status)

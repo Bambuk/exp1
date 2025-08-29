@@ -22,6 +22,12 @@ class CRUDTrackerTask(CRUDBase[TrackerTask, TrackerTask, TrackerTask]):
             TrackerTask.updated_at >= since
         ).all()
     
+    def get_tasks_updated_in_tracker_since(self, db: Session, since: datetime) -> List[TrackerTask]:
+        """Get tasks that were updated in tracker since given datetime."""
+        return db.query(TrackerTask).filter(
+            TrackerTask.task_updated_at >= since
+        ).all()
+    
     def get_tasks_for_sync(self, db: Session, last_sync: datetime) -> List[TrackerTask]:
         """Get tasks that need to be synced."""
         return db.query(TrackerTask).filter(

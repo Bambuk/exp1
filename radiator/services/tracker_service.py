@@ -192,6 +192,16 @@ class TrackerAPIService:
     
     def extract_task_data(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Extract relevant data from task response."""
+        # Parse updatedAt field if available
+        task_updated_at = None
+        if task.get("updatedAt"):
+            try:
+                # Handle both "Z" and "+00:00" timezone formats
+                updated_at_str = task["updatedAt"].replace("Z", "+00:00")
+                task_updated_at = datetime.fromisoformat(updated_at_str)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse updatedAt '{task.get('updatedAt')}': {e}")
+        
         return {
             "tracker_id": str(task.get("id", "")),
             "key": task.get("key", ""),  # Task code like TEST-123
@@ -203,7 +213,8 @@ class TrackerAPIService:
             "business_client": self._format_user_list(task.get("businessClient")),
             "team": str(task.get("63515d47fe387b7ce7b9fc55--team", "")),
             "prodteam": str(task.get("63515d47fe387b7ce7b9fc55--prodteam", "")),
-            "profit_forecast": str(task.get("63515d47fe387b7ce7b9fc55--profitForecast", ""))
+            "profit_forecast": str(task.get("63515d47fe387b7ce7b9fc55--profitForecast", "")),
+            "task_updated_at": task_updated_at
         }
     
     def extract_status_history(self, changelog: List[Dict[str, Any]], task_key: str = None) -> List[Dict[str, Any]]:
