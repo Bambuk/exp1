@@ -321,11 +321,11 @@ class GenerateStatusChangeReportCommand:
             Arrow emoji with color indication
         """
         if current > previous:
-            return "🟢↗️"  # Green up arrow for improvement
+            return "▲"  # Up arrow for improvement
         elif current < previous:
-            return "🔴↘️"  # Red down arrow for decline
+            return "▼"  # Down arrow for decline
         else:
-            return "⚪➡️"  # White right arrow for no change
+            return "→"  # Right arrow for no change
     
     def _format_last_change_date(self, date_value) -> str:
         """

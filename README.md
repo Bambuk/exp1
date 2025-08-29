@@ -119,7 +119,7 @@ python -m radiator.commands.generate_status_change_report --csv my_report.csv --
 
 - **2-Week Analysis**: Status changes and task counts for last 2 weeks
 - **Author Activity**: Per-author breakdown of changes and tasks
-- **Dynamic Indicators**: Visual arrows showing trends (🟢↗️ 🔴↘️ ⚪➡️)
+- **Dynamic Indicators**: Visual arrows showing trends (▲ ▼ →)
 - **Block Analysis**: Discovery vs Delivery task distribution with last change dates
 - **Multiple Formats**: CSV export and visual PNG table
 

@@ -267,17 +267,17 @@ class TestGenerateStatusChangeReportCommand:
         """Test dynamics arrow generation."""
         cmd = GenerateStatusChangeReportCommand()
         
-        # Test improvement (green up arrow)
-        assert cmd._get_dynamics_arrow(5, 2) == "🟢↗️"
-        assert cmd._get_dynamics_arrow(10, 0) == "🟢↗️"
+        # Test improvement (up arrow)
+        assert cmd._get_dynamics_arrow(5, 2) == "▲"
+        assert cmd._get_dynamics_arrow(10, 0) == "▲"
         
-        # Test decline (red down arrow)
-        assert cmd._get_dynamics_arrow(1, 5) == "🔴↘️"
-        assert cmd._get_dynamics_arrow(0, 3) == "🔴↘️"
+        # Test decline (down arrow)
+        assert cmd._get_dynamics_arrow(1, 5) == "▼"
+        assert cmd._get_dynamics_arrow(0, 3) == "▼"
         
-        # Test no change (white right arrow)
-        assert cmd._get_dynamics_arrow(5, 5) == "⚪➡️"
-        assert cmd._get_dynamics_arrow(0, 0) == "⚪➡️"
+        # Test no change (right arrow)
+        assert cmd._get_dynamics_arrow(5, 5) == "→"
+        assert cmd._get_dynamics_arrow(0, 0) == "→"
 
     def test_format_last_change_date(self):
         """Test last change date formatting."""
