@@ -110,23 +110,24 @@ class GenerateStatusChangeReportCommand:
     
     def get_open_tasks_by_author(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get count of open tasks and last status change dates by author grouped by discovery/delivery blocks for CPO tasks only.
+        Get count of open tasks and last update dates by author grouped by discovery/delivery blocks for CPO tasks only.
         
         Returns:
-            Dictionary mapping author to dict with 'discovery', 'delivery' counts and last change dates
+            Dictionary mapping author to dict with 'discovery', 'delivery' counts and last update dates
         """
         try:
             # Load status mapping from file
             status_mapping = self._load_status_mapping()
             
-            # Query open tasks (not in closed statuses) with their last status change date
+            # Query open tasks (not in closed statuses) with their last update date
             closed_statuses = ['closed', 'done', 'resolved', 'cancelled', 'rejected']
             
-            # First get open tasks with their IDs
+            # Get open tasks with their IDs, status, and last update date
             open_tasks_query = self.db.query(
                 TrackerTask.author,
                 TrackerTask.id,
-                TrackerTask.status
+                TrackerTask.status,
+                TrackerTask.task_updated_at
             ).filter(
                 TrackerTask.author.isnot(None),  # Exclude tasks without author
                 TrackerTask.key.like('CPO-%'),  # Only CPO tasks
@@ -136,33 +137,12 @@ class GenerateStatusChangeReportCommand:
             open_tasks = open_tasks_query.all()
             logger.info(f"Query returned {len(open_tasks)} open tasks")
             
-            # Get last status change dates for these tasks
-            task_ids = [task[1] for task in open_tasks]
-            if task_ids:
-                last_changes_query = self.db.query(
-                    TrackerTaskHistory.task_id,
-                    TrackerTaskHistory.start_date
-                ).filter(
-                    TrackerTaskHistory.task_id.in_(task_ids)
-                ).order_by(
-                    TrackerTaskHistory.start_date.desc()
-                )
-                
-                last_changes = last_changes_query.all()
-                # Create mapping of task_id to last change date
-                task_last_changes = {}
-                for task_id, change_date in last_changes:
-                    if task_id not in task_last_changes:  # Keep only the most recent
-                        task_last_changes[task_id] = change_date
-            else:
-                task_last_changes = {}
-            
             author_blocks = defaultdict(lambda: {
                 'discovery': {'count': 0, 'last_change': None},
                 'delivery': {'count': 0, 'last_change': None}
             })
             
-            for author, task_id, status in open_tasks:
+            for author, task_id, status, task_updated_at in open_tasks:
                 if author:  # Double check author is not None
                     try:
                         # Handle potential encoding issues
@@ -177,12 +157,11 @@ class GenerateStatusChangeReportCommand:
                         if block in ['discovery', 'delivery']:
                             author_blocks[author][block]['count'] += 1
                             
-                            # Update last change date if this task has a more recent change
-                            task_last_change = task_last_changes.get(task_id)
-                            if task_last_change:
+                            # Update last update date if this task has a more recent update
+                            if task_updated_at:
                                 current_last = author_blocks[author][block]['last_change']
-                                if current_last is None or task_last_change > current_last:
-                                    author_blocks[author][block]['last_change'] = task_last_change
+                                if current_last is None or task_updated_at > current_last:
+                                    author_blocks[author][block]['last_change'] = task_updated_at
                         
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
                         logger.warning(f"Skipping author with encoding issue: {e}, author value: {repr(author)}")
@@ -327,7 +306,7 @@ class GenerateStatusChangeReportCommand:
     
     def _format_last_change_date(self, date_value) -> str:
         """
-        Format last change date for display.
+        Format last update date for display.
         
         Args:
             date_value: Date value or None
@@ -390,7 +369,7 @@ class GenerateStatusChangeReportCommand:
                     week1_changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
                     week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
                     
-                    # Format last change dates
+                    # Format last update dates
                     discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
                     delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
                     
@@ -440,8 +419,8 @@ class GenerateStatusChangeReportCommand:
             week1_tasks = [self.report_data[author]['week1_tasks'] for author in authors]      # Later week tasks
             discovery_tasks = [self.report_data[author]['discovery_tasks'] for author in authors]  # Discovery tasks
             delivery_tasks = [self.report_data[author]['delivery_tasks'] for author in authors]    # Delivery tasks
-            discovery_dates = [self.report_data[author].get('discovery_last_change') for author in authors]  # Discovery last change dates
-            delivery_dates = [self.report_data[author].get('delivery_last_change') for author in authors]    # Delivery last change dates
+            discovery_dates = [self.report_data[author].get('discovery_last_change') for author in authors]  # Discovery last update dates
+            delivery_dates = [self.report_data[author].get('delivery_last_change') for author in authors]    # Delivery last update dates
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
@@ -578,7 +557,7 @@ class GenerateStatusChangeReportCommand:
             week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
             week1_str = f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}"
             
-            # Format last change dates
+            # Format last update dates
             discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
             delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
             discovery_str = f"{data['discovery_tasks']} {discovery_date}"

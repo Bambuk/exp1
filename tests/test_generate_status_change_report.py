@@ -88,12 +88,13 @@ class TestGenerateStatusChangeReportCommand:
         """Test successful retrieval of open tasks by author grouped by blocks."""
         cmd = GenerateStatusChangeReportCommand()
         
-        # Mock database query results (now includes status)
+        # Mock database query results (now includes status and task_updated_at)
+        ref_datetime = datetime(2024, 8, 29, 10, 30, 0, tzinfo=timezone.utc)
         mock_results = [
-            ("user1", 101, "В работе"),
-            ("user1", 102, "МП / В работе"),
-            ("user2", 201, "Аналитика / В работе"),
-            ("user3", 301, "Готово к релизу")
+            ("user1", 101, "В работе", ref_datetime),
+            ("user1", 102, "МП / В работе", ref_datetime),
+            ("user2", 201, "Аналитика / В работе", ref_datetime),
+            ("user3", 301, "Готово к релизу", ref_datetime)
         ]
         
         # Mock the status mapping file
@@ -112,9 +113,9 @@ class TestGenerateStatusChangeReportCommand:
                 result = cmd.get_open_tasks_by_author()
                 
                 expected = {
-                    "user1": {"discovery": 1, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None},  # 1 discovery + 1 delivery
-                    "user2": {"discovery": 1, "delivery": 0, "discovery_last_change": None, "delivery_last_change": None},  # 1 discovery
-                    "user3": {"discovery": 0, "delivery": 1, "discovery_last_change": None, "delivery_last_change": None}   # 1 delivery
+                    "user1": {"discovery": 1, "delivery": 1, "discovery_last_change": ref_datetime, "delivery_last_change": ref_datetime},  # 1 discovery + 1 delivery
+                    "user2": {"discovery": 1, "delivery": 0, "discovery_last_change": ref_datetime, "delivery_last_change": None},  # 1 discovery
+                    "user3": {"discovery": 0, "delivery": 1, "delivery_last_change": ref_datetime, "discovery_last_change": None}   # 1 delivery
                 }
                 assert result == expected
 
