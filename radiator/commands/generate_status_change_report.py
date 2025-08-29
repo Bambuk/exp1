@@ -355,19 +355,15 @@ class GenerateStatusChangeReportCommand:
         except Exception:
             return ""
     
-    def save_csv_report(self, filename: str = None) -> str:
+    def save_csv_report(self) -> str:
         """
         Save report data to CSV file with dynamics indicators.
         
-        Args:
-            filename: Optional filename, will generate default if not provided
-            
         Returns:
             Path to saved CSV file
         """
-        if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"status_change_report_{timestamp}.csv"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"status_change_report_{timestamp}.csv"
         
         # Ensure reports directory exists
         reports_dir = Path("reports")
@@ -417,19 +413,15 @@ class GenerateStatusChangeReportCommand:
             logger.error(f"Failed to save CSV report: {e}")
             raise
     
-    def generate_table(self, filename: str = None) -> str:
+    def generate_table(self) -> str:
         """
         Generate table visualization of the report data.
         
-        Args:
-            filename: Optional filename, will generate default if not provided
-            
         Returns:
             Path to saved table image
         """
-        if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"status_change_table_{timestamp}.png"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"status_change_table_{timestamp}.png"
         
         # Ensure reports directory exists
         reports_dir = Path("reports")
@@ -599,14 +591,10 @@ class GenerateStatusChangeReportCommand:
         
         print("="*80)
     
-    def run(self, csv_filename: str = None, table_filename: str = None) -> bool:
+    def run(self) -> bool:
         """
         Run the complete report generation process.
         
-        Args:
-            csv_filename: Optional CSV filename
-            table_filename: Optional table image filename
-            
         Returns:
             True if successful, False otherwise
         """
@@ -624,11 +612,11 @@ class GenerateStatusChangeReportCommand:
             self.print_summary()
             
             # Save CSV report
-            csv_path = self.save_csv_report(csv_filename)
+            csv_path = self.save_csv_report()
             logger.info(f"CSV report saved: {csv_path}")
             
             # Generate table
-            table_path = self.generate_table(table_filename)
+            table_path = self.generate_table()
             logger.info(f"Table saved: {table_path}")
             
             logger.info("Status change report generation completed successfully")
@@ -644,15 +632,13 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Generate CPO tasks status change report for last 2 weeks')
-    parser.add_argument('--csv', help='CSV output filename')
-    parser.add_argument('--table', help='Table image output filename')
     parser.add_argument('--group-by', choices=['author', 'team'], default='author', 
                        help='Group by author or team (default: author)')
     
     args = parser.parse_args()
     
     with GenerateStatusChangeReportCommand(group_by=args.group_by) as cmd:
-        success = cmd.run(args.csv, args.table)
+        success = cmd.run()
         sys.exit(0 if success else 1)
 
 
