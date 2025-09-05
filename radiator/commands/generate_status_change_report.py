@@ -396,8 +396,8 @@ class GenerateStatusChangeReportCommand:
             total_height = table_height + 2 * padding
             
             # Create figure with proper size including padding
-            fig_width = 14  # Reduced width for 5 columns (activity columns reduced by 30%)
-            fig_height = total_height
+            fig_width = 7 / 1.5  # Further reduced width for 5 columns
+            fig_height = (total_height / 2) / 1.5  # Further reduce height
             fig = plt.figure(figsize=(fig_width, fig_height))
             
             # Create axis with padding around table
@@ -425,7 +425,7 @@ class GenerateStatusChangeReportCommand:
             
             # Style the table
             table.auto_set_font_size(False)
-            table.set_fontsize(11)
+            table.set_fontsize(4)  # Further reduced font size for smaller image
             
             # Minimal scaling to fit properly
             table.scale(1.0, 1.0)
