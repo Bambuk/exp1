@@ -387,8 +387,8 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
             # Calculate dimensions with proper padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
-            cell_height = 0.08  # Height per row
-            header_height = 0.1  # Header row height (standard height for single line)
+            cell_height = 0.06  # Reduced height per row for tighter spacing
+            header_height = 0.08  # Reduced header row height
             table_height = len(groups) * cell_height + header_height
             
             # Add minimal padding around table (top, bottom, left, right)
@@ -427,8 +427,8 @@ class GenerateStatusChangeReportCommand:
             table.auto_set_font_size(False)
             table.set_fontsize(4)  # Further reduced font size for smaller image
             
-            # Minimal scaling to fit properly
-            table.scale(1.0, 1.0)
+            # Reduce cell padding by scaling down vertically and horizontally
+            table.scale(1.0, 0.7)  # Reduce vertical scaling to decrease cell height and padding
             
             # Style header row
             for i in range(5):
