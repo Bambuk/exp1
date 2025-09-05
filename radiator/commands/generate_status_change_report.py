@@ -386,13 +386,13 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
             
-            # Calculate dimensions with proper padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
-            cell_height = 0.06  # Reduced height per row for tighter spacing
-            header_height = 0.08  # Reduced header row height
+            # Calculate dimensions with minimal padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
+            cell_height = 0.04  # Minimal height per row for compact spacing
+            header_height = 0.05  # Minimal header row height
             table_height = len(groups) * cell_height + header_height
             
             # Add minimal padding around table (top, bottom, left, right)
-            padding = 0.05
+            padding = 0.02
             total_height = table_height + 2 * padding
             
             # Create figure with proper size including padding
@@ -427,8 +427,15 @@ class GenerateStatusChangeReportCommand:
             table.auto_set_font_size(False)
             table.set_fontsize(4)  # Further reduced font size for smaller image
             
-            # Reduce cell padding by scaling down vertically and horizontally
-            table.scale(1.0, 0.7)  # Reduce vertical scaling to decrease cell height and padding
+            # Remove cell padding by setting cell height and width to minimum
+            table.scale(1.0, 1.0)  # No scaling to maintain proper proportions
+            
+            # Set minimum cell padding
+            for i in range(len(table_data) + 1):
+                for j in range(5):
+                    cell = table[(i, j)]
+                    cell.set_height(0.1)  # Minimal cell height
+                    cell.PAD = 0.1  # Minimal internal padding
             
             # Style header row
             for i in range(5):
