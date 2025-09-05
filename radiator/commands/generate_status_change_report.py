@@ -309,49 +309,6 @@ class GenerateStatusChangeReportCommand:
         logger.info(f"Generated report for {len(self.report_data)} {group_name}")
         return self.report_data
     
-    def _get_dynamics_arrow(self, current: int, previous: int) -> str:
-        """
-        Get dynamics arrow based on comparison of current vs previous values.
-        
-        Args:
-            current: Current week value
-            previous: Previous week value
-            
-        Returns:
-            Arrow emoji with color indication
-        """
-        if current > previous:
-            return "▲"  # Up arrow for improvement
-        elif current < previous:
-            return "▼"  # Down arrow for decline
-        else:
-            return "→"  # Right arrow for no change
-    
-    def _format_last_change_date(self, date_value) -> str:
-        """
-        Format last update date for display.
-        
-        Args:
-            date_value: Date value or None
-            
-        Returns:
-            Formatted date string or empty string if no date
-        """
-        if date_value is None:
-            return ""
-        
-        try:
-            if isinstance(date_value, str):
-                # Parse string date
-                parsed_date = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
-            else:
-                parsed_date = date_value
-            
-            # Format as DD.MM
-            return f"({parsed_date.strftime('%d.%m')})"
-        except Exception:
-            return ""
-    
     def save_csv_report(self) -> str:
         """
         Save report data to CSV file with dynamics indicators.
@@ -382,25 +339,12 @@ class GenerateStatusChangeReportCommand:
                 
                 writer.writeheader()
                 for group_value, data in self.report_data.items():
-                    # Get dynamics arrows for both weeks
-                    # Week 2: compare with hidden week 3
-                    week2_changes_arrow = self._get_dynamics_arrow(data['week2_changes'], data['week3_changes'])
-                    week2_tasks_arrow = self._get_dynamics_arrow(data['week2_tasks'], data['week3_tasks'])
-                    
-                    # Week 1: compare with week 2
-                    week1_changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
-                    week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
-                    
-                    # Format last update dates
-                    discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
-                    delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
-                    
                     writer.writerow({
                         group_header: group_value,
-                        f'{week2_header}_активность': f"{data['week2_changes']} изменений ({data['week2_tasks']} задач) {week2_changes_arrow}{week2_tasks_arrow}",
-                        f'{week1_header}_активность': f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}",
-                        'Discovery': f"{data['discovery_tasks']} {discovery_date}",
-                        'Delivery': f"{data['delivery_tasks']} {delivery_date}"
+                        f'{week2_header}_активность': f"{data['week2_changes']} изменений ({data['week2_tasks']} задач)",
+                        f'{week1_header}_активность': f"{data['week1_changes']} изменений ({data['week1_tasks']} задач)",
+                        'Discovery': f"{data['discovery_tasks']}",
+                        'Delivery': f"{data['delivery_tasks']}"
                     })
             
             logger.info(f"CSV report saved to: {filepath}")
@@ -437,8 +381,6 @@ class GenerateStatusChangeReportCommand:
             week1_tasks = [self.report_data[group]['week1_tasks'] for group in groups]      # Later week tasks
             discovery_tasks = [self.report_data[group]['discovery_tasks'] for group in groups]  # Discovery tasks
             delivery_tasks = [self.report_data[group]['delivery_tasks'] for group in groups]    # Delivery tasks
-            discovery_dates = [self.report_data[group].get('discovery_last_change') for group in groups]  # Discovery last update dates
-            delivery_dates = [self.report_data[group].get('delivery_last_change') for group in groups]    # Delivery last update dates
             
             # Format dates for column headers
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
@@ -454,7 +396,7 @@ class GenerateStatusChangeReportCommand:
             total_height = table_height + 2 * padding
             
             # Create figure with proper size including padding
-            fig_width = 16  # Reduced width for 5 columns
+            fig_width = 14  # Reduced width for 5 columns (activity columns reduced by 30%)
             fig_height = total_height
             fig = plt.figure(figsize=(fig_width, fig_height))
             
@@ -465,21 +407,12 @@ class GenerateStatusChangeReportCommand:
             # Create table data with changes, tasks, and tasks by blocks
             table_data = []
             for i, (group_value, w3_ch, w3_t, w2_ch, w2_t, w1_ch, w1_t, disc, deliv) in enumerate(zip(groups, week3_changes, week3_tasks, week2_changes, week2_tasks, week1_changes, week1_tasks, discovery_tasks, delivery_tasks)):
-                # Add dynamics arrows for both weeks
-                # Week 2: compare with hidden week 3
-                week2_changes_arrow = self._get_dynamics_arrow(w2_ch, w3_ch)
-                week2_tasks_arrow = self._get_dynamics_arrow(w2_t, w3_t)
-                
-                # Week 1: compare with week 2
-                week1_changes_arrow = self._get_dynamics_arrow(w1_ch, w2_ch)
-                week1_tasks_arrow = self._get_dynamics_arrow(w1_t, w2_t)
-                
                 table_data.append([
                     group_value, 
-                    f"{w2_ch} изменений ({w2_t} задач) {week2_changes_arrow}{week2_tasks_arrow}", 
-                    f"{w1_ch} изменений ({w1_t} задач) {week1_changes_arrow}{week1_tasks_arrow}", 
-                    f"{disc} {self._format_last_change_date(discovery_dates[i])}", 
-                    f"{deliv} {self._format_last_change_date(delivery_dates[i])}"
+                    f"{w2_ch} изменений ({w2_t} задач)", 
+                    f"{w1_ch} изменений ({w1_t} задач)", 
+                    f"{disc}", 
+                    f"{deliv}"
                 ])
             
             # Create table positioned in the center of the axis
@@ -488,7 +421,7 @@ class GenerateStatusChangeReportCommand:
                            colLabels=[group_header, f'{week2_header} | активность', f'{week1_header} | активность', 'Discovery', 'Delivery'],
                            cellLoc='center',
                            loc='center',
-                           colWidths=[0.25, 0.30, 0.30, 0.08, 0.08])  # Adjusted widths for 5 columns
+                           colWidths=[0.25, 0.21, 0.21, 0.08, 0.08])  # Adjusted widths for 5 columns (activity columns reduced by 30%)
             
             # Style the table
             table.auto_set_font_size(False)
@@ -568,22 +501,11 @@ class GenerateStatusChangeReportCommand:
         print("-"*110)
         
         for group_value, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
-            # Add dynamics arrows for both weeks
-            # Week 2: compare with hidden week 3
-            week2_changes_arrow = self._get_dynamics_arrow(data['week2_changes'], data['week3_changes'])
-            week2_tasks_arrow = self._get_dynamics_arrow(data['week2_tasks'], data['week3_tasks'])
-            week2_str = f"{data['week2_changes']} изменений ({data['week2_tasks']} задач) {week2_changes_arrow}{week2_tasks_arrow}"
+            week2_str = f"{data['week2_changes']} изменений ({data['week2_tasks']} задач)"
+            week1_str = f"{data['week1_changes']} изменений ({data['week1_tasks']} задач)"
             
-            # Week 1: compare with week 2
-            week1_changes_arrow = self._get_dynamics_arrow(data['week1_changes'], data['week2_changes'])
-            week1_tasks_arrow = self._get_dynamics_arrow(data['week1_tasks'], data['week2_tasks'])
-            week1_str = f"{data['week1_changes']} изменений ({data['week1_tasks']} задач) {week1_changes_arrow}{week1_tasks_arrow}"
-            
-            # Format last update dates
-            discovery_date = self._format_last_change_date(data.get('discovery_last_change'))
-            delivery_date = self._format_last_change_date(data.get('delivery_last_change'))
-            discovery_str = f"{data['discovery_tasks']} {discovery_date}"
-            delivery_str = f"{data['delivery_tasks']} {delivery_date}"
+            discovery_str = f"{data['discovery_tasks']}"
+            delivery_str = f"{data['delivery_tasks']}"
             print(f"{group_value:<25} {week2_str:<35} {week1_str:<35} {discovery_str:<15} {delivery_str:<15}")
         
         print("="*80)

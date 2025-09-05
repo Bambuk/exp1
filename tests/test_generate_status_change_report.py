@@ -263,39 +263,6 @@ class TestGenerateStatusChangeReportCommand:
         assert result.endswith('.csv')
         assert 'status_change_report' in result
 
-    def test_get_dynamics_arrow(self):
-        """Test dynamics arrow generation."""
-        cmd = GenerateStatusChangeReportCommand()
-        
-        # Test improvement (up arrow)
-        assert cmd._get_dynamics_arrow(5, 2) == "▲"
-        assert cmd._get_dynamics_arrow(10, 0) == "▲"
-        
-        # Test decline (down arrow)
-        assert cmd._get_dynamics_arrow(1, 5) == "▼"
-        assert cmd._get_dynamics_arrow(0, 3) == "▼"
-        
-        # Test no change (right arrow)
-        assert cmd._get_dynamics_arrow(5, 5) == "→"
-        assert cmd._get_dynamics_arrow(0, 0) == "→"
-
-    def test_format_last_change_date(self):
-        """Test last change date formatting."""
-        cmd = GenerateStatusChangeReportCommand()
-        
-        # Test with datetime object
-        test_date = datetime(2025, 8, 15, 10, 30, 0)
-        assert cmd._format_last_change_date(test_date) == "(15.08)"
-        
-        # Test with string date
-        test_string = "2025-08-20T14:45:00Z"
-        assert cmd._format_last_change_date(test_string) == "(20.08)"
-        
-        # Test with None
-        assert cmd._format_last_change_date(None) == ""
-        
-        # Test with invalid date
-        assert cmd._format_last_change_date("invalid") == ""
 
     def test_save_csv_report_default_filename(self):
         """Test CSV report saving with default filename."""

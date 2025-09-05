@@ -98,16 +98,16 @@ migrate-reset:  ## Reset to base (remove all migrations)
 	alembic downgrade base
 
 db-init:  ## Initialize main database
-	python -c "import asyncio; from radiator.core.database import init_db; asyncio.run(init_db())"
+	python3 -c "import asyncio; from radiator.core.database import init_db; asyncio.run(init_db())"
 
 # Test database management commands
 test-db-create:  ## Create test database
 	@echo "Creating test database 'radiator_test'..."
-	python scripts/database/create_test_db.py
+	python3 scripts/database/create_test_db.py
 
 test-db-drop:  ## Drop test database
 	@echo "Dropping test database 'radiator_test'..."
-	python scripts/database/create_test_db.py --drop
+	python3 scripts/database/create_test_db.py --drop
 
 test-db-reset: test-db-drop test-db-create  ## Reset test database (drop and recreate)
 	@echo "Test database reset complete."
@@ -124,35 +124,35 @@ pre-commit-run:  ## Run pre-commit hooks on all files
 # Tracker sync commands
 sync-tracker:
 	@echo "Syncing recent tracker tasks..."
-	@python scripts/sync/sync_tracker.py
+	@python3 scripts/sync/sync_tracker.py
 
 sync-tracker-active:
 	@echo "Syncing active tracker tasks..."
-	@python scripts/sync/sync_tracker.py --sync-mode active
+	@python3 scripts/sync/sync_tracker.py --sync-mode active
 
 sync-tracker-recent:
 	@echo "Syncing recent tracker tasks (last 7 days)..."
-	@python scripts/sync/sync_tracker.py --days 7
+	@python3 scripts/sync/sync_tracker.py --days 7
 
 sync-tracker-filter:
 	@echo "Syncing tracker tasks with custom filters..."
-	@python scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
+	@python3 scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
 
 sync-tracker-file:
 	@echo "Syncing tracker tasks from file (legacy mode)..."
-	@python scripts/sync/sync_tracker.py --sync-mode file --file-path data/input/tasks.txt
+	@python3 scripts/sync/sync_tracker.py --sync-mode file --file-path data/input/tasks.txt
 
 sync-tracker-debug:
 	@echo "Syncing tracker data with debug..."
-	@python scripts/sync/sync_tracker.py --debug
+	@python3 scripts/sync/sync_tracker.py --debug
 
 sync-tracker-force:
 	@echo "Force full sync of tracker data..."
-	@python scripts/sync/sync_tracker.py --force-full-sync
+	@python3 scripts/sync/sync_tracker.py --force-full-sync
 
 test-tracker-sync:
 	@echo "Testing tracker sync system..."
-	@python test_tracker_sync.py
+	@python3 test_tracker_sync.py
 
 # Tracker test commands
 test-tracker:  ## Run all tracker-related tests
@@ -186,25 +186,25 @@ test-tracker-simple:  ## Run simple tracker tests (basic functionality)
 # Status history update commands
 update-status-history:  ## Update status history for tasks (default: CPO queue, last 14 days)
 	@echo "Updating status history for CPO queue (last 14 days)..."
-	@python radiator/commands/update_status_history.py --queue CPO --days 14
+	@python3 radiator/commands/update_status_history.py --queue CPO --days 14
 
 update-status-history-cpo:  ## Update CPO queue status history (last 14 days)
 	@echo "Updating status history for CPO queue (last 14 days)..."
-	@python radiator/commands/update_status_history.py --queue CPO --days 14
+	@python3 radiator/commands/update_status_history.py --queue CPO --days 14
 
 update-status-history-dev:  ## Update DEV queue status history (last 7 days)
 	@echo "Updating status history for DEV queue (last 7 days)..."
-	@python radiator/commands/update_status_history.py --queue DEV --days 7
+	@python3 radiator/commands/update_status_history.py --queue DEV --days 7
 
 update-status-history-qa:  ## Update QA queue status history (last 30 days)
 	@echo "Updating status history for QA queue (last 30 days)..."
-	@python radiator/commands/update_status_history.py --queue QA --days 30
+	@python3 radiator/commands/update_status_history.py --queue QA --days 30
 
 update-status-history-custom:  ## Update status history with custom parameters
 	@echo "Usage: make update-status-history-custom QUEUE=<queue> DAYS=<days> LIMIT=<limit>"
 	@echo "Example: make update-status-history-custom QUEUE=SUPPORT DAYS=7 LIMIT=500"
 	@if [ -n "$(QUEUE)" ] && [ -n "$(DAYS)" ]; then \
-		python radiator/commands/update_status_history.py --queue $(QUEUE) --days $(DAYS) --limit $(LIMIT:-1000); \
+		python3 radiator/commands/update_status_history.py --queue $(QUEUE) --days $(DAYS) --limit $(LIMIT:-1000); \
 	else \
 		echo "Please specify QUEUE and DAYS parameters"; \
 		exit 1; \
@@ -213,15 +213,15 @@ update-status-history-custom:  ## Update status history with custom parameters
 # Telegram Bot commands
 telegram-bot: ## Start Telegram bot for reports monitoring
 	@echo "Starting Telegram bot..."
-	@python -m radiator.telegram_bot.main
+	@python3 -m radiator.telegram_bot.main
 
 telegram-test: ## Test Telegram bot connection
 	@echo "Testing Telegram bot connection..."
-	@python -m radiator.telegram_bot.main --test
+	@python3 -m radiator.telegram_bot.main --test
 
 telegram-config: ## Show Telegram bot configuration
 	@echo "Telegram bot configuration:"
-	@python -m radiator.telegram_bot.main --config
+	@python3 -m radiator.telegram_bot.main --config
 
 telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "Resetting Telegram bot file monitoring state..."
@@ -241,19 +241,19 @@ telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "   2. Generate new report       # Bot automatically finds and sends it"
 	@echo "   3. No need to reset anything!"
 	@echo ""
-	@python -m radiator.telegram_bot.main --reset
+	@python3 -m radiator.telegram_bot.main --reset
 
 telegram-cleanup: ## Clean up old files from Telegram bot state
 	@echo "Cleaning up old files from Telegram bot state..."
-	@python -m radiator.telegram_bot.main --cleanup
+	@python3 -m radiator.telegram_bot.main --cleanup
 
 telegram-get-chat-id: ## Get Chat ID from Telegram bot
 	@echo "Getting Chat ID from Telegram bot..."
-	@python scripts/get_chat_id.py
+	@python3 scripts/get_chat_id.py
 
 telegram-simple-chat-id: ## Get Chat ID using simple method
 	@echo "Getting Chat ID using simple method..."
-	@python scripts/simple_chat_id.py
+	@python3 scripts/simple_chat_id.py
 
 # Status change report commands
 generate-status-report:  ## Generate CPO tasks status change report by authors (last 2 weeks)
