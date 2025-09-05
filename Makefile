@@ -138,9 +138,6 @@ sync-tracker-filter:
 	@echo "Syncing tracker tasks with custom filters..."
 	@python3 scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
 
-sync-tracker-file:
-	@echo "Syncing tracker tasks from file (legacy mode)..."
-	@python3 scripts/sync/sync_tracker.py --sync-mode file --file-path data/input/tasks.txt
 
 sync-tracker-debug:
 	@echo "Syncing tracker data with debug..."
@@ -150,9 +147,6 @@ sync-tracker-force:
 	@echo "Force full sync of tracker data..."
 	@python3 scripts/sync/sync_tracker.py --force-full-sync
 
-test-tracker-sync:
-	@echo "Testing tracker sync system..."
-	@python3 test_tracker_sync.py
 
 # Tracker test commands
 test-tracker:  ## Run all tracker-related tests
