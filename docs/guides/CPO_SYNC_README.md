@@ -27,19 +27,31 @@ DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/radiator_db
 
 ### 2. Запуск синхронизации
 
-#### Вариант 1: PowerShell скрипт (Windows)
+#### Вариант 1: Makefile команды (рекомендуется)
+```bash
+# Синхронизация CPO задач за последние 6 месяцев
+make sync-cpo
+
+# Принудительная полная синхронизация
+make sync-cpo-force
+
+# Синхронизация с ограничением количества задач
+make sync-cpo-limit LIMIT=500
+```
+
+#### Вариант 2: PowerShell скрипт (Windows)
 ```powershell
 .\sync_cpo_tasks.ps1
 ```
 
-#### Вариант 2: Python скрипт
+#### Вариант 3: Python скрипт
 ```bash
-python sync_cpo_tasks.py
+python scripts/sync/sync_cpo_tasks.py
 ```
 
-#### Вариант 3: Прямая команда
+#### Вариант 4: Прямая команда
 ```bash
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --updated-since "2024-02-28" --limit 1000 --force-full-sync
+python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 1000 --force-full-sync
 ```
 
 ## 🔧 Что происходит при синхронизации
@@ -62,26 +74,29 @@ python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --upda
 
 ### Настройка периода
 ```bash
-# Задачи за последние 3 месяца
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --updated-since "2024-05-28" --limit 1000
+# Задачи за последние 3 месяца (измените дату в скрипте)
+python scripts/sync/sync_cpo_tasks.py
 
-# Задачи за последний год
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --updated-since "2023-08-28" --limit 1000
+# Задачи за последний год (измените дату в скрипте)
+python scripts/sync/sync_cpo_tasks.py
 ```
 
 ### Ограничение количества задач
 ```bash
 # Максимум 500 задач
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --updated-since "2024-02-28" --limit 500
+make sync-cpo-limit LIMIT=500
+
+# Или прямая команда
+python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 500 --force-full-sync
 ```
 
 ### Дополнительные фильтры
 ```bash
 # Только открытые задачи CPO
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --status "Open" --updated-since "2024-02-28"
+python -m radiator.commands.sync_tracker --filter "key:CPO-* AND status:Open" --limit 1000 --force-full-sync
 
 # Задачи CPO для конкретного исполнителя
-python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --assignee "john.doe" --updated-since "2024-02-28"
+python -m radiator.commands.sync_tracker --filter "key:CPO-* AND assignee:john.doe" --limit 1000 --force-full-sync
 ```
 
 ## 🔍 Мониторинг процесса
@@ -122,7 +137,14 @@ python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --assi
 
 1. **Генерировать отчеты**:
    ```bash
-   python -m radiator.commands.generate_status_change_report
+   # Отчет по авторам
+   make generate-status-report
+   
+   # Отчет по командам
+   make generate-status-report-teams
+   
+   # Оба отчета
+   make generate-status-report-all
    ```
 
 2. **Просматривать данные** в базе данных:
@@ -138,8 +160,17 @@ python -m radiator.commands.sync_tracker --sync-mode filter --key "CPO-*" --assi
 - Добавит новые задачи, если они появились
 - Обновит историю изменений
 
+```bash
+# Обычная синхронизация (рекомендуется)
+make sync-cpo
+
+# Принудительная полная синхронизация
+make sync-cpo-force
+```
+
 ## 📝 Примечания
 
 - Синхронизация может занять некоторое время в зависимости от количества задач
 - Рекомендуется запускать в нерабочее время для больших объемов данных
 - Система автоматически ограничивает скорость запросов к API Tracker
+- Для изменения периода синхронизации отредактируйте переменную `six_months_ago` в скрипте `sync_cpo_tasks.py`
