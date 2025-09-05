@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report generate-status-report-teams generate-status-report-all
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report generate-status-report-teams generate-status-report-all sync-and-report
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -25,6 +25,7 @@ help:  ## Show this help message
 	@echo '  update-status-history-dev - Update DEV queue status history (last 7 days)'
 	@echo '  update-status-history-qa - Update QA queue status history (last 30 days)'
 	@echo '  generate-status-report - Generate CPO tasks status change report (last 2 weeks)'
+	@echo '  sync-and-report - Complete CPO workflow: sync tasks + generate report'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -287,3 +288,14 @@ generate-status-report-all:  ## Generate both author and team reports (last 2 we
 	@python3 -m radiator.commands.generate_status_change_report --group-by team
 	@echo ""
 	@echo "✅ Both reports generated successfully!"
+
+sync-and-report:  ## Sync CPO tasks and generate status report (complete workflow)
+	@echo "🔄 Starting complete CPO workflow: sync + report generation..."
+	@echo ""
+	@echo "Step 1/2: Syncing CPO tasks (last 14 days)..."
+	@source venv/bin/activate && python -m radiator.commands.sync_tracker --filter "Queue: CPO Status: changed(date: today()-14d .. today())"
+	@echo ""
+	@echo "Step 2/2: Generating status change report..."
+	@source venv/bin/activate && python radiator/commands/generate_status_change_report.py
+	@echo ""
+	@echo "✅ Complete CPO workflow finished successfully!"
