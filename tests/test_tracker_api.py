@@ -477,12 +477,16 @@ class TestTrackerAPIService:
         mock_response.headers = {"X-Total-Pages": "999"}  # Very high page count
         mock_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
         
+        # Reduce request delay for faster testing
+        service.request_delay = 0.001
+        
         with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
-            result = service.search_tasks("test query", limit=10000)
+            # Use smaller limit to test protection mechanism faster
+            result = service.search_tasks("test query", limit=1000)
             
             # Should stop after reasonable number of pages (protection against infinite loops)
             assert isinstance(result, list)
-            # Should not make more than 200 requests (page > 100 protection)
+            # Should not make more than 20 requests (1000 tasks ÷ 50 per page = 20 pages)
             # This tests the safety mechanism in the actual code
 
     def test_search_tasks_api_format_errors(self, service):

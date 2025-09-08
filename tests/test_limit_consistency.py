@@ -8,7 +8,6 @@ from io import StringIO
 
 from radiator.commands.sync_tracker import main as sync_main
 from radiator.commands.search_tasks import main as search_main
-from radiator.commands.update_status_history import main as update_main
 from radiator.services.tracker_service import TrackerAPIService
 
 
@@ -133,27 +132,6 @@ class TestLimitConsistency:
             args = parser.parse_args(case["args"])
             assert args.limit == case["expected"]
 
-    def test_update_status_history_cli_limit_parsing(self):
-        """Test update_status_history CLI limit argument parsing."""
-        test_cases = [
-            {"args": ["--limit", "50"], "expected": 50},
-            {"args": ["--limit", "0"], "expected": 0},
-            {"args": ["--limit", "5000"], "expected": 5000},
-            {"args": [], "expected": 1000},  # Default
-        ]
-        
-        for case in test_cases:
-            # Parse arguments manually to test parsing logic
-            import argparse
-            parser = argparse.ArgumentParser()
-            parser.add_argument("--queue", default="CPO")
-            parser.add_argument("--days", type=int, default=14)
-            parser.add_argument("--limit", type=int, default=1000)
-            parser.add_argument("--auto-sync", action="store_true")
-            parser.add_argument("--verbose", "-v", action="store_true")
-            
-            args = parser.parse_args(case["args"])
-            assert args.limit == case["expected"]
 
     def test_limit_propagation_through_layers(self):
         """Test that limits are properly propagated through all layers."""

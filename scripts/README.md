@@ -18,7 +18,6 @@
 ### `reports/` - Скрипты для генерации отчетов
 - `generate_demo_report.ps1` - Генерация демо отчета
 - `generate_status_report.ps1` - Генерация отчета по статусам
-- `update_status_history.ps1` - Обновление истории статусов
 
 ### `analysis/` - Скрипты для анализа данных
 - `real_cfd_parallel.py` - Анализ CFD с параллельной обработкой

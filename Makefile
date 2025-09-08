@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env update-status-history update-status-history-cpo update-status-history-dev update-status-history-qa update-status-history-custom generate-status-report generate-status-report-teams generate-status-report-all sync-and-report
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams generate-status-report-all sync-and-report
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -20,10 +20,6 @@ help:  ## Show this help message
 	@echo '  test-tracker-coverage - Run tracker tests with coverage report'
 	@echo ''
 	@echo 'Status History Commands:'
-	@echo '  update-status-history* - Update status history for tasks'
-	@echo '  update-status-history-cpo - Update CPO queue status history (last 14 days)'
-	@echo '  update-status-history-dev - Update DEV queue status history (last 7 days)'
-	@echo '  update-status-history-qa - Update QA queue status history (last 30 days)'
 	@echo '  generate-status-report - Generate CPO tasks status change report (last 2 weeks)'
 	@echo '  sync-and-report - Complete CPO workflow: sync tasks + generate report'
 
@@ -192,32 +188,6 @@ test-tracker-simple:  ## Run simple tracker tests (basic functionality)
 	@echo "Running simple tracker tests..."
 	pytest tests/test_tracker_simple.py -v
 
-# Status history update commands
-update-status-history:  ## Update status history for tasks (default: CPO queue, last 14 days)
-	@echo "Updating status history for CPO queue (last 14 days)..."
-	@python3 radiator/commands/update_status_history.py --queue CPO --days 14
-
-update-status-history-cpo:  ## Update CPO queue status history (last 14 days)
-	@echo "Updating status history for CPO queue (last 14 days)..."
-	@python3 radiator/commands/update_status_history.py --queue CPO --days 14
-
-update-status-history-dev:  ## Update DEV queue status history (last 7 days)
-	@echo "Updating status history for DEV queue (last 7 days)..."
-	@python3 radiator/commands/update_status_history.py --queue DEV --days 7
-
-update-status-history-qa:  ## Update QA queue status history (last 30 days)
-	@echo "Updating status history for QA queue (last 30 days)..."
-	@python3 radiator/commands/update_status_history.py --queue QA --days 30
-
-update-status-history-custom:  ## Update status history with custom parameters
-	@echo "Usage: make update-status-history-custom QUEUE=<queue> DAYS=<days> LIMIT=<limit>"
-	@echo "Example: make update-status-history-custom QUEUE=SUPPORT DAYS=7 LIMIT=500"
-	@if [ -n "$(QUEUE)" ] && [ -n "$(DAYS)" ]; then \
-		python3 radiator/commands/update_status_history.py --queue $(QUEUE) --days $(DAYS) --limit $(LIMIT:-1000); \
-	else \
-		echo "Please specify QUEUE and DAYS parameters"; \
-		exit 1; \
-	fi
 
 # Telegram Bot commands
 telegram-bot: ## Start Telegram bot for reports monitoring
