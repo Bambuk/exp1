@@ -201,19 +201,23 @@ class UpdateStatusHistoryCommand:
         self.db.commit()
         logger.info(f"Task sync completed")
     
-    def run(self, queue: str = "CPO", days: int = 14, limit: int = 1000, auto_sync_missing: bool = False) -> bool:
+    def run(self, queue: str = "CPO", days: int = 14, limit: int = None, auto_sync_missing: bool = False) -> bool:
         """
         Run the status history update command.
         
         Args:
             queue: Queue name to filter tasks (default: CPO)
             days: Number of days to look back for status changes (default: 14)
-            limit: Maximum number of tasks to process (default: 1000)
+            limit: Maximum number of tasks to process (uses default from config if None)
             
         Returns:
             True if successful, False otherwise
         """
         try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_HISTORY_LIMIT
+            
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started status history update: {self.sync_log.id}")
@@ -281,8 +285,8 @@ def main():
     parser.add_argument(
         "--limit",
         type=int,
-        default=1000,
-        help="Maximum number of tasks to process (default: 1000)"
+        default=None,
+        help=f"Maximum number of tasks to process (default: {settings.DEFAULT_HISTORY_LIMIT})"
     )
     parser.add_argument(
         "--auto-sync",

@@ -88,18 +88,22 @@ class TrackerSyncCommand:
             # Default to 30 days ago if no previous sync
             return datetime.now(timezone.utc) - timedelta(days=30)
     
-    def get_tasks_to_sync(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[str]:
+    def get_tasks_to_sync(self, filters: Dict[str, Any] = None, limit: int = None) -> List[str]:
         """
         Get list of tasks to sync using filters.
         
         Args:
             filters: Custom filters for getting tasks
-            limit: Maximum number of tasks to sync
+            limit: Maximum number of tasks to sync (uses default from config if None)
             
         Returns:
             List of task IDs to sync
         """
         try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SYNC_LIMIT
+            
             logger.info(f"Getting tasks using filters: {filters}")
             task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
             
@@ -200,7 +204,7 @@ class TrackerSyncCommand:
         logger.info(f"✅ История синхронизирована: {total_history_entries} записей создано для {len(task_ids)} задач")
         return total_history_entries
     
-    def run(self, filters: Dict[str, Any] = None, limit: int = 100, force_full_sync: bool = False, skip_history: bool = False):
+    def run(self, filters: Dict[str, Any] = None, limit: int = None, force_full_sync: bool = False, skip_history: bool = False):
         """Run the sync command."""
         try:
             # Debug: log all parameters
@@ -309,13 +313,14 @@ def main():
         epilog="""
 Note: Yandex Tracker API returns maximum 50 records per page. 
 The command automatically handles pagination to retrieve the requested number of tasks.
+Maximum limit is 10000 tasks per sync operation.
         """
     )
     parser.add_argument(
         "--limit",
         type=int,
-        default=10000,
-        help="Maximum number of tasks to sync (default: 10000, use 0 for unlimited)"
+        default=None,
+        help=f"Maximum number of tasks to sync (default: {settings.DEFAULT_SYNC_LIMIT})"
     )
     parser.add_argument(
         "--filter",

@@ -16,13 +16,13 @@ class TaskSearchCommand:
     def __init__(self):
         self.tracker_service = tracker_service
     
-    def search_tasks(self, query: str, limit: int = 100, output_format: str = "table") -> List[Dict[str, Any]]:
+    def search_tasks(self, query: str, limit: int = None, output_format: str = "table") -> List[Dict[str, Any]]:
         """
         Search tasks using custom query.
         
         Args:
             query: Yandex Tracker search query
-            limit: Maximum number of tasks to return
+            limit: Maximum number of tasks to return (uses default from config if None)
             output_format: Output format (table, json, csv)
             
         Returns:
@@ -118,7 +118,7 @@ class TaskSearchCommand:
         
         return f"{header}\n{separator}\n" + "\n".join(rows)
     
-    def run(self, query: str, limit: int = 100, output_format: str = "table") -> bool:
+    def run(self, query: str, limit: int = None, output_format: str = "table") -> bool:
         """Run the search command."""
         try:
             # Search for tasks
@@ -177,8 +177,8 @@ Examples:
     parser.add_argument(
         "--limit",
         type=int,
-        default=100,
-        help="Maximum number of tasks to return (default: 100)"
+        default=None,
+        help=f"Maximum number of tasks to return (default: {settings.DEFAULT_SEARCH_LIMIT})"
     )
     
     parser.add_argument(

@@ -85,6 +85,12 @@ class Settings(BaseSettings):
     TRACKER_MAX_WORKERS: int = Field(default=10, env="TRACKER_MAX_WORKERS")
     TRACKER_REQUEST_DELAY: float = Field(default=0.1, env="TRACKER_REQUEST_DELAY")
     TRACKER_SYNC_BATCH_SIZE: int = Field(default=100, env="TRACKER_SYNC_BATCH_SIZE")
+    
+    # Task limits - unified constants for all components
+    DEFAULT_SYNC_LIMIT: int = Field(default=1000, env="DEFAULT_SYNC_LIMIT")
+    DEFAULT_SEARCH_LIMIT: int = Field(default=100, env="DEFAULT_SEARCH_LIMIT")
+    DEFAULT_HISTORY_LIMIT: int = Field(default=1000, env="DEFAULT_HISTORY_LIMIT")
+    MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
 
     model_config = {
         "env_file": ".env",

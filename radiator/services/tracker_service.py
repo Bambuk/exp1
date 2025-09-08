@@ -359,79 +359,48 @@ class TrackerAPIService:
             logger.error(f"Failed to get total tasks count: {e}")
             return 0
 
-    def search_tasks(self, query: str, limit: int = 100) -> List[str]:
+    def search_tasks(self, query: str, limit: int = None) -> List[str]:
         """
-        Search for tasks using a query with pagination support.
+        Search for tasks using a query with simplified pagination.
         
         Args:
             query: Yandex Tracker search query
-            limit: Maximum number of tasks to return
+            limit: Maximum number of tasks to return (uses default from config if None)
             
         Returns:
             List of task IDs
         """
         try:
-            # Use the correct endpoint for searching issues
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SEARCH_LIMIT
+            
+            # Handle unlimited mode (limit=0) by setting to max limit
+            if limit == 0:
+                limit = settings.MAX_UNLIMITED_LIMIT
+                logger.info(f"🔍 Поиск задач с фильтром: {query} (unlimited mode, max {limit})")
+            else:
+                logger.info(f"🔍 Поиск задач с фильтром: {query}")
+                logger.info(f"   Лимит: {limit} задач")
+            
             url = f"{self.base_url}issues/_search"
             all_task_ids = []
             page = 1
             per_page = 50  # API default and maximum per page
             
-            logger.info(f"🔍 Поиск задач с фильтром: {query}")
-            logger.info(f"   Лимит: {limit} задач")
-            
-            # First, get total count to know how many pages we need
-            total_count = self.get_total_tasks_count(query)
-            if total_count > 0:
-                logger.info(f"   Всего найдено задач: {total_count}")
-                # Calculate how many pages we need
-                total_pages_needed = (total_count + per_page - 1) // per_page
-                logger.info(f"   Всего страниц: {total_pages_needed}")
-                
-                # If limit is 0 (unlimited), set it to total count
-                if limit == 0:
-                    limit = total_count
-                    logger.info(f"   Лимит снят, будет загружено все {total_count} задач")
-            else:
-                total_pages_needed = None
-                logger.warning("   Не удалось определить общее количество задач")
-                # If we can't get total count and limit is 0, set a reasonable limit
-                if limit == 0:
-                    limit = 1000
-                    logger.warning(f"   Установлен лимит {limit} задач (не удалось определить общее количество)")
-            
             while len(all_task_ids) < limit:
-                # For POST request to _search endpoint, we need to send data in request body
-                post_data = {
-                    "query": query
-                }
+                # Prepare request data
+                post_data = {"query": query}
+                params = {"perPage": per_page, "page": page}
                 
-                # perPage and page should be in query string, not in POST body
-                params = {
-                    "perPage": per_page,  # Always use full page size for efficiency
-                    "page": page
-                }
-                
-                logger.debug(f"   Страница {page}: запрос {params['perPage']} задач")
+                logger.debug(f"   Страница {page}: запрос {per_page} задач")
                 response = self._make_request(url, method="POST", json=post_data, params=params)
                 data = response.json()
                 
-                # Extract task IDs - handle different response formats
-                page_task_ids = []
-                if isinstance(data, list):
-                    # API returned list of issues directly
-                    for item in data:
-                        if isinstance(item, dict) and item.get("id"):
-                            page_task_ids.append(str(item["id"]))
-                elif isinstance(data, dict):
-                    # API returned dict with issues key
-                    issues = data.get("issues", [])
-                    if isinstance(issues, list):
-                        for item in issues:
-                            if isinstance(item, dict) and item.get("id"):
-                                page_task_ids.append(str(item["id"]))
+                # Extract task IDs from response
+                page_task_ids = self._extract_task_ids_from_response(data)
                 
-                # If no more tasks, break
+                # If no more tasks, stop
                 if not page_task_ids:
                     logger.debug(f"   Страница {page}: задач не найдено")
                     break
@@ -439,7 +408,7 @@ class TrackerAPIService:
                 all_task_ids.extend(page_task_ids)
                 logger.debug(f"   Страница {page}: получено {len(page_task_ids)} задач, всего: {len(all_task_ids)}")
                 
-                # If we have enough tasks, break early
+                # Check if we have enough tasks
                 if len(all_task_ids) >= limit:
                     logger.info(f"   Достигнут лимит {limit} задач")
                     break
@@ -450,51 +419,59 @@ class TrackerAPIService:
                     logger.info(f"   Достигнута последняя страница {total_pages}")
                     break
                 
-                # Also check if we know total pages from initial count
-                # But only if we have enough tasks to fill the page
-                if total_pages_needed and page >= total_pages_needed:
-                    logger.info(f"   Достигнута последняя страница {total_pages_needed} (из начального подсчета)")
-                    break
-                
-                # Continue to next page if we have more tasks to fetch
-                if len(all_task_ids) < limit:
-                    page += 1
-                else:
-                    break
-                
-                # Debug logging
-                logger.debug(f"   Страница {page}: total_pages_needed={total_pages_needed}, page={page}, page_task_ids={len(page_task_ids)}, per_page={per_page}")
-                
                 # Safety check to prevent infinite loops
-                if page > 100:  # Maximum 100 pages
+                if page > 200:  # Maximum 200 pages = 10000 tasks
                     logger.warning("Reached maximum page limit, stopping pagination")
                     break
+                
+                page += 1
             
-            # Limit to requested number (should already be limited, but just in case)
+            # Limit to requested number
             result = all_task_ids[:limit]
             logger.info(f"Found {len(result)} tasks via API search (requested: {limit})")
             return result
             
         except Exception as e:
             logger.error(f"Failed to search tasks: {e}")
-            logger.error(f"Exception type: {type(e)}")
-            logger.error(f"Exception args: {e.args}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
-    def get_tasks_by_filter(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[str]:
+    def _extract_task_ids_from_response(self, data: Any) -> List[str]:
+        """Extract task IDs from API response data."""
+        task_ids = []
+        
+        if isinstance(data, list):
+            # API returned list of issues directly
+            for item in data:
+                if isinstance(item, dict) and item.get("id"):
+                    task_ids.append(str(item["id"]))
+        elif isinstance(data, dict):
+            # API returned dict with issues key
+            issues = data.get("issues", [])
+            if isinstance(issues, list):
+                for item in issues:
+                    if isinstance(item, dict) and item.get("id"):
+                        task_ids.append(str(item["id"]))
+        
+        return task_ids
+    
+    def get_tasks_by_filter(self, filters: Dict[str, Any] = None, limit: int = None) -> List[str]:
         """
         Get tasks using various filters.
         
         Args:
             filters: Dictionary of filters (status, assignee, team, etc.)
-            limit: Maximum number of tasks to return
+            limit: Maximum number of tasks to return (uses default from config if None)
             
         Returns:
             List of task IDs
         """
         try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SEARCH_LIMIT
+            
             # Check if we have a direct query string
             if filters and "query" in filters:
                 # Use the query string directly as provided
@@ -545,18 +522,22 @@ class TrackerAPIService:
             logger.error(f"Failed to get tasks by filter: {e}")
             return []
     
-    def get_recent_tasks(self, days: int = 30, limit: int = 100) -> List[str]:
+    def get_recent_tasks(self, days: int = 30, limit: int = None) -> List[str]:
         """
         Get recently updated tasks.
         
         Args:
             days: Number of days to look back
-            limit: Maximum number of tasks to return
+            limit: Maximum number of tasks to return (uses default from config if None)
             
         Returns:
             List of task IDs
         """
         try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SEARCH_LIMIT
+            
             # Use simple query for recent tasks
             updated_since = datetime.now() - timedelta(days=days)
             date_str = updated_since.strftime("%Y-%m-%d")
