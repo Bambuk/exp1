@@ -40,7 +40,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.core.database import SessionLocal
-from radiator.core.config import settings
+from radiator.core.config import settings, with_default_limit
 from radiator.core.logging import logger
 from radiator.crud.tracker import tracker_task, tracker_task_history, tracker_sync_log
 from radiator.services.tracker_service import tracker_service
@@ -102,7 +102,7 @@ class TrackerSyncCommand:
         try:
             # Use default limit from config if not provided
             if limit is None:
-                limit = settings.DEFAULT_SYNC_LIMIT
+                limit = settings.MAX_UNLIMITED_LIMIT  # Use unlimited for sync by default
             
             logger.info(f"Getting tasks using filters: {filters}")
             task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
@@ -320,7 +320,7 @@ Maximum limit is 10000 tasks per sync operation.
         "--limit",
         type=int,
         default=None,
-        help=f"Maximum number of tasks to sync (default: {settings.DEFAULT_SYNC_LIMIT})"
+        help=f"Maximum number of tasks to sync (default: {settings.DEFAULT_LARGE_LIMIT})"
     )
     parser.add_argument(
         "--filter",

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from radiator.core.config import settings
+from radiator.core.config import settings, with_default_limit_method, log_limit_info
 from radiator.core.logging import logger
 
 
@@ -375,20 +375,14 @@ class TrackerAPIService:
             if limit is None:
                 limit = settings.DEFAULT_SEARCH_LIMIT
             
-            # Handle unlimited mode (limit=0) by setting to max limit
-            if limit == 0:
-                limit = settings.MAX_UNLIMITED_LIMIT
-                logger.info(f"🔍 Поиск задач с фильтром: {query} (unlimited mode, max {limit})")
-            else:
-                logger.info(f"🔍 Поиск задач с фильтром: {query}")
-                logger.info(f"   Лимит: {limit} задач")
+            log_limit_info(f"Поиск задач с фильтром: {query}", limit)
             
             url = f"{self.base_url}issues/_search"
             all_task_ids = []
             page = 1
-            per_page = 50  # API default and maximum per page
+            per_page = settings.API_PAGE_SIZE
             
-            while len(all_task_ids) < limit:
+            while True:
                 # Prepare request data
                 post_data = {"query": query}
                 params = {"perPage": per_page, "page": page}
@@ -400,28 +394,22 @@ class TrackerAPIService:
                 # Extract task IDs from response
                 page_task_ids = self._extract_task_ids_from_response(data)
                 
-                # If no more tasks, stop
-                if not page_task_ids:
-                    logger.debug(f"   Страница {page}: задач не найдено")
-                    break
-                
+                # Add tasks to collection
                 all_task_ids.extend(page_task_ids)
                 logger.debug(f"   Страница {page}: получено {len(page_task_ids)} задач, всего: {len(all_task_ids)}")
                 
-                # Check if we have enough tasks
-                if len(all_task_ids) >= limit:
-                    logger.info(f"   Достигнут лимит {limit} задач")
-                    break
-                
-                # Check if we've reached the last page
-                total_pages = response.headers.get("X-Total-Pages")
-                if total_pages and page >= int(total_pages):
-                    logger.info(f"   Достигнута последняя страница {total_pages}")
-                    break
-                
-                # Safety check to prevent infinite loops
-                if page > 200:  # Maximum 200 pages = 10000 tasks
-                    logger.warning("Reached maximum page limit, stopping pagination")
+                # Check if we should continue pagination
+                if not self._should_continue_pagination(all_task_ids, limit, page, page_task_ids, response):
+                    if len(all_task_ids) >= limit:
+                        logger.info(f"   Достигнут лимит {limit} задач")
+                    elif not page_task_ids:
+                        logger.debug(f"   Страница {page}: задач не найдено")
+                    else:
+                        total_pages = response.headers.get("X-Total-Pages")
+                        if total_pages:
+                            logger.info(f"   Достигнута последняя страница {total_pages}")
+                        else:
+                            logger.warning("Reached maximum page limit, stopping pagination")
                     break
                 
                 page += 1
@@ -455,6 +443,40 @@ class TrackerAPIService:
                         task_ids.append(str(item["id"]))
         
         return task_ids
+    
+    def _should_continue_pagination(self, all_task_ids: List[str], limit: int, page: int, 
+                                   page_task_ids: List[str], response) -> bool:
+        """
+        Check if pagination should continue.
+        
+        Args:
+            all_task_ids: All collected task IDs so far
+            limit: Maximum number of tasks to collect
+            page: Current page number
+            page_task_ids: Task IDs from current page
+            response: HTTP response object
+            
+        Returns:
+            True if pagination should continue, False otherwise
+        """
+        # Stop if we have enough tasks
+        if len(all_task_ids) >= limit:
+            return False
+            
+        # Stop if no more tasks on current page
+        if not page_task_ids:
+            return False
+            
+        # Stop if we've reached the last page
+        total_pages = response.headers.get("X-Total-Pages")
+        if total_pages and page >= int(total_pages):
+            return False
+            
+        # Safety check to prevent infinite loops
+        if page > 200:  # Maximum 200 pages = 10000 tasks
+            return False
+            
+        return True
     
     def get_tasks_by_filter(self, filters: Dict[str, Any] = None, limit: int = None) -> List[str]:
         """

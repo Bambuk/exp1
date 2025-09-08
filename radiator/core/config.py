@@ -5,6 +5,8 @@ from typing import List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+from functools import wraps
+from typing import Callable, Any
 
 
 class Settings(BaseSettings):
@@ -87,10 +89,10 @@ class Settings(BaseSettings):
     TRACKER_SYNC_BATCH_SIZE: int = Field(default=100, env="TRACKER_SYNC_BATCH_SIZE")
     
     # Task limits - unified constants for all components
-    DEFAULT_SYNC_LIMIT: int = Field(default=1000, env="DEFAULT_SYNC_LIMIT")
+    DEFAULT_LARGE_LIMIT: int = Field(default=1000, env="DEFAULT_LARGE_LIMIT")
     DEFAULT_SEARCH_LIMIT: int = Field(default=100, env="DEFAULT_SEARCH_LIMIT")
-    DEFAULT_HISTORY_LIMIT: int = Field(default=1000, env="DEFAULT_HISTORY_LIMIT")
     MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
+    API_PAGE_SIZE: int = Field(default=50, env="API_PAGE_SIZE")
 
     model_config = {
         "env_file": ".env",
@@ -125,3 +127,52 @@ def get_settings() -> Settings:
 
 # Global settings instance
 settings = get_settings()
+
+
+def with_default_limit(default_limit: int):
+    """
+    Decorator to automatically set default limit if None is provided.
+    
+    Args:
+        default_limit: Default limit value to use when limit is None
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Check if 'limit' is in kwargs and is None
+            if 'limit' in kwargs and kwargs['limit'] is None:
+                kwargs['limit'] = default_limit
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def with_default_limit_method(default_limit: int):
+    """
+    Decorator for class methods to automatically set default limit if None is provided.
+    
+    Args:
+        default_limit: Default limit value to use when limit is None
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Check if 'limit' is in kwargs and is None
+            if 'limit' in kwargs and kwargs['limit'] is None:
+                kwargs['limit'] = default_limit
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def log_limit_info(operation: str, limit: int) -> None:
+    """
+    Unified logging for limit information.
+    
+    Args:
+        operation: Description of the operation
+        limit: Limit value to log
+    """
+    from radiator.core.logging import logger
+    logger.info(f"🔍 {operation}")
+    logger.info(f"   Лимит: {limit} задач")

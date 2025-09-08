@@ -310,6 +310,18 @@ class TestTrackerSyncCommand:
             assert result == ["33333"]
             mock_tracker_service.get_tasks_by_filter.assert_called_once_with(None, limit=10)
 
+    def test_get_tasks_to_sync_with_default_limit(self, mock_sync_command, mock_tracker_service):
+        """Test getting tasks with default limit (limit=None)."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            with patch('radiator.commands.sync_tracker.settings') as mock_settings:
+                mock_settings.MAX_UNLIMITED_LIMIT = 10000
+                
+                result = mock_sync_command.get_tasks_to_sync()  # Без limit!
+                
+                assert result == ["33333"]
+                # Должен использовать MAX_UNLIMITED_LIMIT (10000) по умолчанию
+                mock_tracker_service.get_tasks_by_filter.assert_called_once_with(None, limit=10000)
+
     def test_create_sync_log(self, mock_sync_command):
         """Test creating sync log."""
         # Mock the database session to return a mock log
@@ -594,6 +606,45 @@ class TestIntegration:
                                 # Should succeed and call service with correct limit
                                 assert result is True
                                 mock_service.get_tasks_by_filter.assert_called_with({}, limit=scenario["limit"])
+
+    def test_sync_tracker_cli_default_unlimited_behavior(self, mock_sync_command):
+        """Test that sync_tracker CLI uses unlimited mode by default (no --limit argument)."""
+        with patch('radiator.commands.sync_tracker.tracker_service') as mock_service:
+            with patch('radiator.commands.sync_tracker.settings') as mock_settings:
+                mock_settings.MAX_UNLIMITED_LIMIT = 10000
+                mock_settings.TRACKER_API_TOKEN = "test_token"
+                mock_settings.TRACKER_ORG_ID = "test_org"
+                
+                # Mock service responses
+                mock_service.get_tasks_by_filter.return_value = ["task1", "task2", "task3"]
+                
+                # Mock database operations
+                with patch('radiator.commands.sync_tracker.tracker_task') as mock_task_crud:
+                    with patch('radiator.commands.sync_tracker.tracker_task_history') as mock_history_crud:
+                        with patch('radiator.commands.sync_tracker.tracker_sync_log') as mock_sync_log_crud:
+                            # Mock sync log
+                            mock_log = Mock()
+                            mock_log.id = "sync-123"
+                            mock_sync_log_crud.create.return_value = mock_log
+                            
+                            # Mock task operations
+                            mock_task_crud.get_by_tracker_id.return_value = None
+                            mock_task_crud.bulk_create_or_update.return_value = {"created": 3, "updated": 0}
+                            mock_history_crud.bulk_create.return_value = 0
+                            mock_history_crud.cleanup_duplicates.return_value = 0
+                            
+                            # Mock database session
+                            with patch.object(mock_sync_command, 'db') as mock_db:
+                                mock_db.add.return_value = None
+                                mock_db.commit.return_value = None
+                                mock_db.refresh.return_value = None
+                                
+                                # Run sync without limit argument (should use default)
+                                result = mock_sync_command.run(filters={})  # Без limit!
+                                
+                                # Should succeed and use MAX_UNLIMITED_LIMIT
+                                assert result is True
+                                mock_service.get_tasks_by_filter.assert_called_with({}, limit=10000)
 
 
 # Mock open function for file mode testing

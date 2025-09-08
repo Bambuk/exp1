@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
-from radiator.core.config import settings
+from radiator.core.config import settings, log_limit_info
 from radiator.core.logging import logger
 from radiator.services.tracker_service import tracker_service
 
@@ -29,8 +29,7 @@ class TaskSearchCommand:
             List of task data dictionaries
         """
         try:
-            logger.info(f"Searching tasks with query: {query}")
-            logger.info(f"Limit: {limit}")
+            log_limit_info(f"Searching tasks with query: {query}", limit)
             
             # Get task IDs from search
             task_ids = self.tracker_service.search_tasks(query=query, limit=limit)

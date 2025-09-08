@@ -375,49 +375,33 @@ class TestTrackerAPIService:
 
     # ===== TESTS FOR LIMIT LOGIC AND PAGINATION =====
     
-    def test_search_tasks_unlimited_mode(self, service):
-        """Test search_tasks with limit=0 (unlimited mode)."""
-        # Mock get_total_tasks_count to return a known value
-        with patch.object(service, 'get_total_tasks_count', return_value=150):
-            # Mock multiple pages of responses
-            page1_response = Mock()
-            page1_response.headers = {"X-Total-Pages": "3"}
-            page1_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]  # 50 tasks
-            
-            page2_response = Mock()
-            page2_response.headers = {"X-Total-Pages": "3"}
-            page2_response.json.return_value = [{"id": str(i)} for i in range(51, 101)]  # 50 tasks
-            
-            page3_response = Mock()
-            page3_response.headers = {"X-Total-Pages": "3"}
-            page3_response.json.return_value = [{"id": str(i)} for i in range(101, 151)]  # 50 tasks
-            
-            with patch('radiator.services.tracker_service.requests.request') as mock_request:
-                mock_request.side_effect = [page1_response, page2_response, page3_response]
-                
-                result = service.search_tasks("test query", limit=0)
-                
-                # Should return all 150 tasks
-                assert len(result) == 150
-                assert "1" in result
-                assert "150" in result
-                # Should have made 3 requests (one per page)
-                assert mock_request.call_count == 3
-
     def test_search_tasks_large_limit(self, service):
-        """Test search_tasks with very large limit."""
-        with patch.object(service, 'get_total_tasks_count', return_value=1000):
-            # Mock response with 50 tasks per page
-            mock_response = Mock()
-            mock_response.headers = {"X-Total-Pages": "20"}
-            mock_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
+        """Test search_tasks with large limit."""
+        # Mock multiple pages of responses
+        page1_response = Mock()
+        page1_response.headers = {"X-Total-Pages": "3"}
+        page1_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]  # 50 tasks
+        
+        page2_response = Mock()
+        page2_response.headers = {"X-Total-Pages": "3"}
+        page2_response.json.return_value = [{"id": str(i)} for i in range(51, 101)]  # 50 tasks
+        
+        page3_response = Mock()
+        page3_response.headers = {"X-Total-Pages": "3"}
+        page3_response.json.return_value = [{"id": str(i)} for i in range(101, 151)]  # 50 tasks
+        
+        with patch('radiator.services.tracker_service.requests.request') as mock_request:
+            mock_request.side_effect = [page1_response, page2_response, page3_response]
             
-            with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
-                result = service.search_tasks("test query", limit=5000)
-                
-                # Should return up to the limit, but API only has 1000 total
-                assert len(result) <= 1000
-                assert len(result) <= 5000
+            result = service.search_tasks("test query", limit=150)
+            
+            # Should return all 150 tasks
+            assert len(result) == 150
+            assert "1" in result
+            assert "150" in result
+            # Should have made 3 requests (one per page)
+            assert mock_request.call_count == 3
+
 
     def test_search_tasks_small_limit(self, service):
         """Test search_tasks with limit=1."""

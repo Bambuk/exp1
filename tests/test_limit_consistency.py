@@ -20,7 +20,7 @@ class TestLimitConsistency:
         # These should match the actual defaults in the code
         expected_defaults = {
             'sync_tracker_cli': 10000,  # From argparse default
-            'sync_tracker_method': 100,  # From get_tasks_to_sync default
+            'sync_tracker_method': 10000,  # From get_tasks_to_sync default (MAX_UNLIMITED_LIMIT)
             'search_tasks_cli': 100,  # From argparse default
             'search_tasks_method': 100,  # From search_tasks default
             'update_history_cli': 1000,  # From argparse default
@@ -31,7 +31,7 @@ class TestLimitConsistency:
         # This test documents the current defaults and will fail if they change
         # This helps identify inconsistencies that need to be addressed
         assert expected_defaults['sync_tracker_cli'] == 10000
-        assert expected_defaults['sync_tracker_method'] == 100
+        assert expected_defaults['sync_tracker_method'] == 10000  # MAX_UNLIMITED_LIMIT for sync
         assert expected_defaults['search_tasks_cli'] == 100
         assert expected_defaults['search_tasks_method'] == 100
         assert expected_defaults['update_history_cli'] == 1000
@@ -52,8 +52,44 @@ class TestLimitConsistency:
             with patch('radiator.commands.sync_tracker.TrackerSyncCommand') as mock_command:
                 with patch('radiator.commands.sync_tracker.logger'):
                     with patch('radiator.commands.sync_tracker.settings') as mock_settings:
+                        with patch('sys.exit') as mock_exit:  # Mock sys.exit to prevent test termination
+                            mock_settings.TRACKER_API_TOKEN = "test_token"
+                            mock_settings.TRACKER_ORG_ID = "test_org"
+                            
+                            # Mock the command instance
+                            mock_instance = Mock()
+                            mock_instance.run.return_value = True
+                            mock_command.return_value.__enter__.return_value = mock_instance
+                            
+                            # Capture sys.argv
+                            original_argv = sys.argv
+                            try:
+                                sys.argv = ["sync_tracker.py"] + case["args"]
+                                
+                                # Test the CLI parsing
+                                result = sync_main()
+                                
+                                # Verify the command was called with correct limit
+                                mock_instance.run.assert_called_once()
+                                call_args = mock_instance.run.call_args
+                                if case["expected"] == 10000:  # Default case
+                                    # Should be called without limit (None), which gets converted to MAX_UNLIMITED_LIMIT
+                                    assert call_args[1].get('limit') is None or call_args[1].get('limit') == 10000
+                                else:
+                                    assert call_args[1].get('limit') == case["expected"]
+                            finally:
+                                sys.argv = original_argv
+
+    def test_sync_tracker_cli_default_behavior(self):
+        """Test that sync_tracker CLI uses unlimited mode by default (no --limit argument)."""
+        # Mock the actual execution to avoid running the full command
+        with patch('radiator.commands.sync_tracker.TrackerSyncCommand') as mock_command:
+            with patch('radiator.commands.sync_tracker.logger'):
+                with patch('radiator.commands.sync_tracker.settings') as mock_settings:
+                    with patch('sys.exit') as mock_exit:  # Mock sys.exit to prevent test termination
                         mock_settings.TRACKER_API_TOKEN = "test_token"
                         mock_settings.TRACKER_ORG_ID = "test_org"
+                        mock_settings.MAX_UNLIMITED_LIMIT = 10000
                         
                         # Mock the command instance
                         mock_instance = Mock()
@@ -63,20 +99,16 @@ class TestLimitConsistency:
                         # Capture sys.argv
                         original_argv = sys.argv
                         try:
-                            sys.argv = ["sync_tracker.py"] + case["args"]
+                            sys.argv = ["sync_tracker.py"]  # Без --limit!
                             
-                            # Parse arguments manually to test parsing logic
-                            import argparse
-                            parser = argparse.ArgumentParser()
-                            parser.add_argument("--limit", type=int, default=10000)
-                            parser.add_argument("--filter", type=str)
-                            parser.add_argument("--force-full-sync", action="store_true")
-                            parser.add_argument("--skip-history", action="store_true")
-                            parser.add_argument("--debug", action="store_true")
+                            # Test the CLI parsing
+                            result = sync_main()
                             
-                            args = parser.parse_args(case["args"])
-                            assert args.limit == case["expected"]
-                            
+                            # Verify the command was called without limit (should use default)
+                            mock_instance.run.assert_called_once()
+                            call_args = mock_instance.run.call_args
+                            # Should be called without limit (None), which gets converted to MAX_UNLIMITED_LIMIT
+                            assert call_args[1].get('limit') is None
                         finally:
                             sys.argv = original_argv
 

@@ -11,7 +11,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.core.database import SessionLocal
-from radiator.core.config import settings
+from radiator.core.config import settings, with_default_limit
 from radiator.core.logging import logger
 from radiator.crud.tracker import tracker_task, tracker_task_history, tracker_sync_log
 from radiator.services.tracker_service import tracker_service
@@ -216,7 +216,7 @@ class UpdateStatusHistoryCommand:
         try:
             # Use default limit from config if not provided
             if limit is None:
-                limit = settings.DEFAULT_HISTORY_LIMIT
+                limit = settings.DEFAULT_LARGE_LIMIT
             
             # Create sync log
             self.sync_log = self.create_sync_log()
@@ -286,7 +286,7 @@ def main():
         "--limit",
         type=int,
         default=None,
-        help=f"Maximum number of tasks to process (default: {settings.DEFAULT_HISTORY_LIMIT})"
+        help=f"Maximum number of tasks to process (default: {settings.DEFAULT_LARGE_LIMIT})"
     )
     parser.add_argument(
         "--auto-sync",
