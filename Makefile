@@ -145,24 +145,18 @@ sync-tracker-debug:
 	@echo "Syncing tracker data with debug..."
 	@python3 scripts/sync/sync_tracker.py --debug
 
-sync-tracker-force:
-	@echo "Force full sync of tracker data..."
-	@python3 scripts/sync/sync_tracker.py --force-full-sync
 
 # CPO sync commands
 sync-cpo:  ## Sync CPO tasks for last 6 months
 	@echo "Syncing CPO tasks for last 6 months..."
 	@python3 scripts/sync/sync_cpo_tasks.py
 
-sync-cpo-force:  ## Force full sync of CPO tasks
-	@echo "Force full sync of CPO tasks..."
-	@python3 -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 1000 --force-full-sync
 
 sync-cpo-limit:  ## Sync CPO tasks with custom limit
 	@echo "Usage: make sync-cpo-limit LIMIT=<number>"
 	@echo "Example: make sync-cpo-limit LIMIT=500"
 	@if [ -n "$(LIMIT)" ]; then \
-		python3 -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit $(LIMIT) --force-full-sync; \
+		python3 -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit $(LIMIT); \
 	else \
 		echo "Please specify LIMIT parameter"; \
 		exit 1; \

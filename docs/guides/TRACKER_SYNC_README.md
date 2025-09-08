@@ -85,10 +85,6 @@ python sync_tracker.py --sync-mode filter --team "Development"
 python sync_tracker.py --sync-mode filter --status "Open" --assignee "john.doe" --limit 25
 ```
 
-#### Принудительная полная синхронизация
-```bash
-python sync_tracker.py --force-full-sync
-```
 
 ### Legacy режим (из файла)
 
@@ -118,8 +114,6 @@ make sync-tracker-file
 # Синхронизация с отладкой
 make sync-tracker-debug
 
-# Принудительная полная синхронизация
-make sync-tracker-force
 ```
 
 ### Автоматическая синхронизация

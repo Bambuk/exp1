@@ -51,7 +51,7 @@ python scripts/sync/sync_cpo_tasks.py
 
 #### Вариант 4: Прямая команда
 ```bash
-python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 1000 --force-full-sync
+python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 1000
 ```
 
 ## 🔧 Что происходит при синхронизации
@@ -87,16 +87,16 @@ python scripts/sync/sync_cpo_tasks.py
 make sync-cpo-limit LIMIT=500
 
 # Или прямая команда
-python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 500 --force-full-sync
+python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 500
 ```
 
 ### Дополнительные фильтры
 ```bash
 # Только открытые задачи CPO
-python -m radiator.commands.sync_tracker --filter "key:CPO-* AND status:Open" --limit 1000 --force-full-sync
+python -m radiator.commands.sync_tracker --filter "key:CPO-* AND status:Open" --limit 1000
 
 # Задачи CPO для конкретного исполнителя
-python -m radiator.commands.sync_tracker --filter "key:CPO-* AND assignee:john.doe" --limit 1000 --force-full-sync
+python -m radiator.commands.sync_tracker --filter "key:CPO-* AND assignee:john.doe" --limit 1000
 ```
 
 ## 🔍 Мониторинг процесса

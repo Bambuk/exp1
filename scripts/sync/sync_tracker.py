@@ -4,7 +4,7 @@ Script for syncing data from Yandex Tracker.
 This script can be run manually or via cron.
 
 Usage:
-    python sync_tracker.py [--sync-mode MODE] [--days DAYS] [--limit LIMIT] [--status STATUS] [--assignee ASSIGNEE] [--team TEAM] [--force-full-sync] [--debug]
+    python sync_tracker.py [--sync-mode MODE] [--days DAYS] [--limit LIMIT] [--status STATUS] [--assignee ASSIGNEE] [--team TEAM] [--debug]
 
 Examples:
     # Sync recent tasks (default)
@@ -25,8 +25,6 @@ Examples:
     # Legacy mode - sync from file
     python sync_tracker.py --sync-mode file --file-path tasks.txt
     
-    # Force full sync
-    python sync_tracker.py --force-full-sync
 """
 
 import sys

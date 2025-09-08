@@ -25,7 +25,6 @@ python sync_tracker.py --sync-mode filter --status "In Progress"  # с филь�
 
 # Отладка
 python sync_tracker.py --debug                   # с подробными логами
-python sync_tracker.py --force-full-sync         # принудительная полная синхронизация
 ```
 
 ## ⚙️ **НАСТРОЙКИ (.env)**

@@ -79,14 +79,6 @@ class TrackerSyncCommand:
                     setattr(self.sync_log, key, value)
             self.db.commit()
     
-    def get_last_sync_time(self) -> datetime:
-        """Get timestamp of last successful sync."""
-        last_sync = tracker_sync_log.get_last_successful_sync(self.db)
-        if last_sync:
-            return last_sync.sync_completed_at
-        else:
-            # Default to 30 days ago if no previous sync
-            return datetime.now(timezone.utc) - timedelta(days=30)
     
     def get_tasks_to_sync(self, filters: Dict[str, Any] = None, limit: int = None) -> List[str]:
         """
@@ -204,14 +196,13 @@ class TrackerSyncCommand:
         logger.info(f"✅ История синхронизирована: {total_history_entries} записей создано для {len(task_ids)} задач")
         return total_history_entries
     
-    def run(self, filters: Dict[str, Any] = None, limit: int = None, force_full_sync: bool = False, skip_history: bool = False):
+    def run(self, filters: Dict[str, Any] = None, limit: int = None, skip_history: bool = False):
         """Run the sync command."""
         try:
             # Debug: log all parameters
             logger.debug(f"🔍 DEBUG: run() вызван с параметрами:")
             logger.debug(f"   filters: {filters}")
             logger.debug(f"   limit: {limit}")
-            logger.debug(f"   force_full_sync: {force_full_sync}")
             logger.debug(f"   skip_history: {skip_history}")
             
             # Create sync log
@@ -240,13 +231,6 @@ class TrackerSyncCommand:
             
             self.update_sync_log(tasks_processed=len(task_ids))
             
-            # Determine sync scope
-            if force_full_sync:
-                last_sync_time = datetime.utcnow() - timedelta(days=365)  # Very old date
-                logger.info("🔄 Принудительная полная синхронизация включена")
-            else:
-                last_sync_time = self.get_last_sync_time()
-                logger.info(f"⏰ Время последней синхронизации: {last_sync_time}")
             
             # Sync tasks
             logger.info("🔄 Начинаем синхронизацию задач...")
@@ -329,11 +313,6 @@ Maximum limit is 10000 tasks per sync operation.
     )
 
     parser.add_argument(
-        "--force-full-sync",
-        action="store_true",
-        help="Force full sync ignoring last sync time"
-    )
-    parser.add_argument(
         "--skip-history",
         action="store_true",
         help="Skip syncing task history (faster sync for testing)"
@@ -366,14 +345,13 @@ Maximum limit is 10000 tasks per sync operation.
     
     # Run sync
     logger.info("🚀 Запускаем синхронизацию...")
-    logger.debug(f"🔍 Параметры: filters={filters}, limit={args.limit}, force_full_sync={args.force_full_sync}, skip_history={args.skip_history}")
+    logger.debug(f"🔍 Параметры: filters={filters}, limit={args.limit}, skip_history={args.skip_history}")
     
     with TrackerSyncCommand() as sync_cmd:
         logger.debug(f"✅ TrackerSyncCommand создан успешно")
         success = sync_cmd.run(
             filters=filters,
             limit=args.limit,
-            force_full_sync=args.force_full_sync,
             skip_history=args.skip_history
         )
         logger.debug(f"🔍 Результат run(): {success}")

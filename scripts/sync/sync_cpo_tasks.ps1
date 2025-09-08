@@ -32,7 +32,6 @@ try {
         --key "CPO-*" `
         --updated-since $sixMonthsAgo `
         --limit 1000 `
-        --force-full-sync
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Синхронизация завершена успешно!" -ForegroundColor Green

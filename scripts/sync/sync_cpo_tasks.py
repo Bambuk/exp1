@@ -52,7 +52,6 @@ def main():
                 filters=filters,
                 days=180,
                 limit=1000,
-                force_full_sync=True
             )
             
             if success:

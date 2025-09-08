@@ -129,7 +129,6 @@ def run_test_sync():
                 sync_mode="recent",
                 days=3,
                 limit=5,
-                force_full_sync=False
             )
             
             if success:

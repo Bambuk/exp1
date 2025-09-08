@@ -75,8 +75,6 @@ python sync_tracker.py --sync-mode active
 # Синхронизация с фильтрами
 python sync_tracker.py --sync-mode filter --status "In Progress"
 
-# Принудительная полная синхронизация
-python sync_tracker.py --force-full-sync
 ```
 
 ### **Через Makefile:**
