@@ -470,6 +470,131 @@ class TestIntegration:
                                 assert result is True
                                 mock_service.get_tasks_by_filter.assert_called_once_with({}, limit=5)
 
+    # ===== TESTS FOR LIMIT LOGIC IN SYNC COMMANDS =====
+    
+    def test_sync_command_with_unlimited_mode(self, mock_sync_command, mock_tracker_service):
+        """Test sync command with limit=0 (unlimited mode)."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            # Mock unlimited mode - should pass limit=0 to service
+            mock_tracker_service.get_tasks_by_filter.return_value = ["task1", "task2", "task3"]
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=0)
+            
+            assert result == ["task1", "task2", "task3"]
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=0)
+
+    def test_sync_command_with_large_limit(self, mock_sync_command, mock_tracker_service):
+        """Test sync command with very large limit."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            large_limit = 50000
+            mock_tracker_service.get_tasks_by_filter.return_value = ["task" + str(i) for i in range(1000)]
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=large_limit)
+            
+            assert len(result) == 1000
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=large_limit)
+
+    def test_sync_command_with_small_limit(self, mock_sync_command, mock_tracker_service):
+        """Test sync command with limit=1."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            mock_tracker_service.get_tasks_by_filter.return_value = ["task1"]
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=1)
+            
+            assert result == ["task1"]
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=1)
+
+    def test_sync_command_limit_consistency(self, mock_sync_command, mock_tracker_service):
+        """Test that limits are consistently passed through all layers."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            test_limits = [1, 10, 100, 1000, 10000]
+            
+            for limit in test_limits:
+                mock_tracker_service.get_tasks_by_filter.return_value = ["task1"]
+                result = mock_sync_command.get_tasks_to_sync(filters={}, limit=limit)
+                
+                # Should pass the exact limit to the service
+                mock_tracker_service.get_tasks_by_filter.assert_called_with({}, limit=limit)
+                assert result == ["task1"]
+
+    def test_sync_command_with_negative_limit(self, mock_sync_command, mock_tracker_service):
+        """Test sync command with negative limit."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            mock_tracker_service.get_tasks_by_filter.return_value = []
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=-5)
+            
+            # Should pass negative limit to service (service should handle it)
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=-5)
+            assert result == []
+
+    def test_sync_command_no_tasks_found(self, mock_sync_command, mock_tracker_service):
+        """Test sync command when no tasks are found."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            mock_tracker_service.get_tasks_by_filter.return_value = []
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=100)
+            
+            assert result == []
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=100)
+
+    def test_sync_command_error_handling(self, mock_sync_command, mock_tracker_service):
+        """Test sync command error handling with limits."""
+        with patch('radiator.commands.sync_tracker.tracker_service', mock_tracker_service):
+            mock_tracker_service.get_tasks_by_filter.side_effect = Exception("API Error")
+            
+            result = mock_sync_command.get_tasks_to_sync(filters={}, limit=100)
+            
+            # Should return empty list on error
+            assert result == []
+            mock_tracker_service.get_tasks_by_filter.assert_called_once_with({}, limit=100)
+
+    def test_sync_command_run_with_various_limits(self, mock_sync_command):
+        """Test sync command run method with different limit scenarios."""
+        test_scenarios = [
+            {"limit": 1, "expected_tasks": ["task1"]},
+            {"limit": 10, "expected_tasks": ["task" + str(i) for i in range(1, 11)]},
+            {"limit": 0, "expected_tasks": ["task" + str(i) for i in range(1, 101)]},  # unlimited
+            {"limit": 1000, "expected_tasks": ["task" + str(i) for i in range(1, 501)]},  # large limit
+        ]
+        
+        for scenario in test_scenarios:
+            with patch('radiator.commands.sync_tracker.tracker_service') as mock_service:
+                # Mock all required methods
+                mock_service.get_tasks_by_filter.return_value = scenario["expected_tasks"]
+                mock_service.get_tasks_batch.return_value = [(task_id, {"id": task_id}) for task_id in scenario["expected_tasks"]]
+                mock_service.extract_task_data.return_value = {"id": "test", "key": "TEST-1"}
+                mock_service.get_changelogs_batch.return_value = []
+                mock_service.extract_status_history.return_value = []
+                
+                # Mock CRUD operations
+                with patch('radiator.commands.sync_tracker.tracker_task') as mock_task_crud:
+                    with patch('radiator.commands.sync_tracker.tracker_task_history') as mock_history_crud:
+                        with patch('radiator.commands.sync_tracker.tracker_sync_log') as mock_sync_log_crud:
+                            # Mock sync log
+                            mock_log = Mock()
+                            mock_log.id = "sync-123"
+                            mock_sync_log_crud.create.return_value = mock_log
+                            
+                            # Mock task operations
+                            mock_task_crud.get_by_tracker_id.return_value = None
+                            mock_task_crud.bulk_create_or_update.return_value = {"created": 1, "updated": 0}
+                            mock_history_crud.bulk_create.return_value = 0
+                            mock_history_crud.cleanup_duplicates.return_value = 0
+                            
+                            # Mock database session
+                            with patch.object(mock_sync_command, 'db') as mock_db:
+                                mock_db.add.return_value = None
+                                mock_db.commit.return_value = None
+                                mock_db.refresh.return_value = None
+                                
+                                # Run sync with specific limit
+                                result = mock_sync_command.run(filters={}, limit=scenario["limit"])
+                                
+                                # Should succeed and call service with correct limit
+                                assert result is True
+                                mock_service.get_tasks_by_filter.assert_called_with({}, limit=scenario["limit"])
+
 
 # Mock open function for file mode testing
 def mock_open(mock_data):

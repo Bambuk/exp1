@@ -452,7 +452,7 @@ class TrackerAPIService:
                 
                 # Also check if we know total pages from initial count
                 # But only if we have enough tasks to fill the page
-                if total_pages_needed and page >= total_pages_needed and len(page_task_ids) < per_page:
+                if total_pages_needed and page >= total_pages_needed:
                     logger.info(f"   Достигнута последняя страница {total_pages_needed} (из начального подсчета)")
                     break
                 

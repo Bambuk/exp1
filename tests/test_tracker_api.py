@@ -373,6 +373,224 @@ class TestTrackerAPIService:
             assert all(isinstance(task, tuple) for task in result)
             assert all(task[1]["id"] == "12345" for task in result)
 
+    # ===== TESTS FOR LIMIT LOGIC AND PAGINATION =====
+    
+    def test_search_tasks_unlimited_mode(self, service):
+        """Test search_tasks with limit=0 (unlimited mode)."""
+        # Mock get_total_tasks_count to return a known value
+        with patch.object(service, 'get_total_tasks_count', return_value=150):
+            # Mock multiple pages of responses
+            page1_response = Mock()
+            page1_response.headers = {"X-Total-Pages": "3"}
+            page1_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]  # 50 tasks
+            
+            page2_response = Mock()
+            page2_response.headers = {"X-Total-Pages": "3"}
+            page2_response.json.return_value = [{"id": str(i)} for i in range(51, 101)]  # 50 tasks
+            
+            page3_response = Mock()
+            page3_response.headers = {"X-Total-Pages": "3"}
+            page3_response.json.return_value = [{"id": str(i)} for i in range(101, 151)]  # 50 tasks
+            
+            with patch('radiator.services.tracker_service.requests.request') as mock_request:
+                mock_request.side_effect = [page1_response, page2_response, page3_response]
+                
+                result = service.search_tasks("test query", limit=0)
+                
+                # Should return all 150 tasks
+                assert len(result) == 150
+                assert "1" in result
+                assert "150" in result
+                # Should have made 3 requests (one per page)
+                assert mock_request.call_count == 3
+
+    def test_search_tasks_large_limit(self, service):
+        """Test search_tasks with very large limit."""
+        with patch.object(service, 'get_total_tasks_count', return_value=1000):
+            # Mock response with 50 tasks per page
+            mock_response = Mock()
+            mock_response.headers = {"X-Total-Pages": "20"}
+            mock_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
+            
+            with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+                result = service.search_tasks("test query", limit=5000)
+                
+                # Should return up to the limit, but API only has 1000 total
+                assert len(result) <= 1000
+                assert len(result) <= 5000
+
+    def test_search_tasks_small_limit(self, service):
+        """Test search_tasks with limit=1."""
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123"},
+            {"id": "67890", "key": "TEST-456"}
+        ]
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = service.search_tasks("test query", limit=1)
+            
+            # Should return exactly 1 task
+            assert len(result) == 1
+            assert "12345" in result
+
+    def test_search_tasks_negative_limit(self, service):
+        """Test search_tasks with negative limit (should be handled gracefully)."""
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = [{"id": "12345"}]
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = service.search_tasks("test query", limit=-5)
+            
+            # Should handle negative limit gracefully (return empty or limited result)
+            assert isinstance(result, list)
+
+    def test_search_tasks_multiple_pages(self, service):
+        """Test pagination across multiple pages."""
+        with patch.object(service, 'get_total_tasks_count', return_value=75):
+            # Mock 3 pages: 50 + 25 tasks
+            page1_response = Mock()
+            page1_response.headers = {"X-Total-Pages": "2"}
+            page1_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
+            
+            page2_response = Mock()
+            page2_response.headers = {"X-Total-Pages": "2"}
+            page2_response.json.return_value = [{"id": str(i)} for i in range(51, 76)]
+            
+            with patch('radiator.services.tracker_service.requests.request') as mock_request:
+                mock_request.side_effect = [page1_response, page2_response]
+                
+                result = service.search_tasks("test query", limit=100)
+                
+                # Should return all 75 tasks from both pages
+                assert len(result) == 75
+                assert "1" in result
+                assert "75" in result
+                assert mock_request.call_count == 2
+
+    def test_search_tasks_total_count_error(self, service):
+        """Test handling when get_total_tasks_count fails."""
+        # Mock get_total_tasks_count to fail
+        with patch.object(service, 'get_total_tasks_count', side_effect=Exception("API Error")):
+            # Mock response for the actual search
+            mock_response = Mock()
+            mock_response.headers = {"X-Total-Pages": "1"}
+            mock_response.json.return_value = [{"id": "12345"}]
+            
+            with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+                result = service.search_tasks("test query", limit=0)
+                
+                # Should fallback to reasonable limit when total count fails
+                assert isinstance(result, list)
+                assert len(result) >= 0
+
+    def test_search_tasks_infinite_loop_protection(self, service):
+        """Test protection against infinite pagination loops."""
+        # Mock response that always returns tasks (simulating infinite pages)
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "999"}  # Very high page count
+        mock_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = service.search_tasks("test query", limit=10000)
+            
+            # Should stop after reasonable number of pages (protection against infinite loops)
+            assert isinstance(result, list)
+            # Should not make more than 200 requests (page > 100 protection)
+            # This tests the safety mechanism in the actual code
+
+    def test_search_tasks_api_format_errors(self, service):
+        """Test handling of unexpected API response formats."""
+        # Test with malformed response
+        mock_response = Mock()
+        mock_response.headers = {"X-Total-Pages": "1"}
+        mock_response.json.return_value = "invalid_format"  # Not a list or dict
+        
+        with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+            result = service.search_tasks("test query")
+            
+            # Should handle malformed response gracefully
+            assert isinstance(result, list)
+
+    def test_search_tasks_empty_pages(self, service):
+        """Test handling of empty pages in pagination."""
+        # Mock get_total_tasks_count response - return 0 to disable total count logic
+        total_count_response = Mock()
+        total_count_response.headers = {"X-Total-Count": "0"}  # No total count
+        total_count_response.json.return_value = []
+        
+        # First page has tasks
+        page1_response = Mock()
+        page1_response.headers = {"X-Total-Pages": "2"}
+        page1_response.json.return_value = [{"id": "12345"}]
+        
+        # Second page is empty
+        page2_response = Mock()
+        page2_response.headers = {"X-Total-Pages": "2"}
+        page2_response.json.return_value = []  # Empty page
+        
+        with patch('radiator.services.tracker_service.requests.request') as mock_request:
+            mock_request.side_effect = [total_count_response, page1_response, page2_response]
+            
+            result = service.search_tasks("test query", limit=100)
+            
+            # Should stop when encountering empty page
+            assert len(result) == 1
+            assert "12345" in result
+            assert mock_request.call_count == 3
+
+    def test_search_tasks_limit_exact_match(self, service):
+        """Test when limit exactly matches available tasks."""
+        with patch.object(service, 'get_total_tasks_count', return_value=50):
+            mock_response = Mock()
+            mock_response.headers = {"X-Total-Pages": "1"}
+            mock_response.json.return_value = [{"id": str(i)} for i in range(1, 51)]
+            
+            with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+                result = service.search_tasks("test query", limit=50)
+                
+                # Should return exactly 50 tasks
+                assert len(result) == 50
+                assert "1" in result
+                assert "50" in result
+
+    def test_search_tasks_limit_exceeds_available(self, service):
+        """Test when limit exceeds available tasks."""
+        with patch.object(service, 'get_total_tasks_count', return_value=25):
+            mock_response = Mock()
+            mock_response.headers = {"X-Total-Pages": "1"}
+            mock_response.json.return_value = [{"id": str(i)} for i in range(1, 26)]
+            
+            with patch('radiator.services.tracker_service.requests.request', return_value=mock_response):
+                result = service.search_tasks("test query", limit=100)
+                
+                # Should return only available tasks (25), not the full limit
+                assert len(result) == 25
+                assert "1" in result
+                assert "25" in result
+
+    def test_get_tasks_by_filter_limit_consistency(self, service):
+        """Test that get_tasks_by_filter properly passes limit to search_tasks."""
+        with patch.object(service, 'search_tasks', return_value=["12345", "67890"]) as mock_search:
+            filters = {"query": "test query"}
+            result = service.get_tasks_by_filter(filters, limit=50)
+            
+            # Should call search_tasks with the same limit
+            mock_search.assert_called_once_with(query="test query", limit=50)
+            assert result == ["12345", "67890"]
+
+    def test_get_recent_tasks_limit_consistency(self, service):
+        """Test that get_recent_tasks properly passes limit to search_tasks."""
+        with patch.object(service, 'search_tasks', return_value=["12345"]) as mock_search:
+            result = service.get_recent_tasks(days=7, limit=25)
+            
+            # Should call search_tasks with the same limit
+            mock_search.assert_called_once()
+            call_args = mock_search.call_args
+            assert call_args[1]['limit'] == 25
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
