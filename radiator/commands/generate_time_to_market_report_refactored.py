@@ -241,6 +241,21 @@ def main():
             csv_file = cmd.generate_csv(args.csv, report_type)
             table_file = cmd.generate_table(args.table, report_type)
             
+            # Generate separate TTD and TTM files if report_type is 'both'
+            ttd_csv_file = ""
+            ttd_table_file = ""
+            ttm_csv_file = ""
+            ttm_table_file = ""
+            
+            if report_type == ReportType.BOTH:
+                # Generate TTD files
+                ttd_csv_file = cmd.generate_csv(None, ReportType.TTD)
+                ttd_table_file = cmd.generate_table(None, ReportType.TTD)
+                
+                # Generate TTM files
+                ttm_csv_file = cmd.generate_csv(None, ReportType.TTM)
+                ttm_table_file = cmd.generate_table(None, ReportType.TTM)
+            
             # Print summary
             cmd.print_summary(report_type)
             
@@ -249,6 +264,16 @@ def main():
                 print(f"CSV file: {csv_file}")
             if table_file:
                 print(f"Table file: {table_file}")
+            
+            # Print separate files if generated
+            if ttd_csv_file:
+                print(f"TTD CSV file: {ttd_csv_file}")
+            if ttd_table_file:
+                print(f"TTD Table file: {ttd_table_file}")
+            if ttm_csv_file:
+                print(f"TTM CSV file: {ttm_csv_file}")
+            if ttm_table_file:
+                print(f"TTM Table file: {ttm_table_file}")
                 
     except Exception as e:
         logger.error(f"Failed to generate report: {e}")
