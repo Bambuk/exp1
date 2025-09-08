@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams generate-status-report-all sync-and-report
+.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams generate-status-report-all sync-and-report generate-time-to-market-report generate-time-to-market-report-teams generate-time-to-market-report-all
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -22,6 +22,11 @@ help:  ## Show this help message
 	@echo 'Status History Commands:'
 	@echo '  generate-status-report - Generate CPO tasks status change report (last 2 weeks)'
 	@echo '  sync-and-report - Complete CPO workflow: sync tasks + generate report'
+	@echo ''
+	@echo 'Time To Market Commands:'
+	@echo '  generate-time-to-market-report - Generate TTD/TTM report by authors'
+	@echo '  generate-time-to-market-report-teams - Generate TTD/TTM report by teams'
+	@echo '  generate-time-to-market-report-all - Generate both author and team TTD/TTM reports'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -276,3 +281,27 @@ sync-and-report:  ## Sync CPO tasks and generate status report (complete workflo
 	@. venv/bin/activate && python radiator/commands/generate_status_change_report.py
 	@echo ""
 	@echo "✅ Complete CPO workflow finished successfully!"
+
+# Time To Market Report Commands
+generate-time-to-market-report:  ## Generate Time To Delivery and Time To Market report by authors
+	@echo "📊 Generating Time To Market report by authors..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report_refactored --group-by author --report-type both
+	@echo ""
+	@echo "✅ Time To Market report by authors generated successfully!"
+
+generate-time-to-market-report-teams:  ## Generate Time To Delivery and Time To Market report by teams
+	@echo "📊 Generating Time To Market report by teams..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report_refactored --group-by team --report-type both
+	@echo ""
+	@echo "✅ Time To Market report by teams generated successfully!"
+
+generate-time-to-market-report-all:  ## Generate both author and team Time To Market reports
+	@echo "📊 Generating Time To Market reports for both authors and teams..."
+	@echo ""
+	@echo "Step 1/2: Generating report by authors..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report_refactored --group-by author --report-type both
+	@echo ""
+	@echo "Step 2/2: Generating report by teams..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report_refactored --group-by team --report-type both
+	@echo ""
+	@echo "✅ Both Time To Market reports generated successfully!"
