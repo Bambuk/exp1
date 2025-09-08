@@ -11,7 +11,7 @@ help:  ## Show this help message
 	@echo '  test-db-*          - Manage test database (create, drop, reset)'
 	@echo ''
 	@echo 'Tracker Sync Commands:'
-	@echo '  sync-tracker*      - Sync recent tracker tasks'
+	@echo '  sync-tracker       - Sync tracker tasks with custom filter and optional skip-history'
 	@echo '  sync-tracker-*     - Various sync modes (active, recent, filter, file)'
 	@echo '  sync-cpo*          - Sync CPO tasks (last 6 months, force, custom limit)'
 	@echo ''
@@ -120,9 +120,6 @@ pre-commit-run:  ## Run pre-commit hooks on all files
 	pre-commit run --all-files
 
 # Tracker sync commands
-sync-tracker:
-	@echo "Syncing recent tracker tasks..."
-	@python3 scripts/sync/sync_tracker.py
 
 sync-tracker-active:
 	@echo "Syncing active tracker tasks..."
@@ -135,6 +132,22 @@ sync-tracker-recent:
 sync-tracker-filter:
 	@echo "Syncing tracker tasks with custom filters..."
 	@python3 scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
+
+sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-history
+	@echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true]"
+	@echo "Example: make sync-tracker FILTER='Queue: CPO Status: In Progress'"
+	@echo "Example: make sync-tracker FILTER='key:CPO-*' SKIP_HISTORY=true"
+	@if [ -n "$(FILTER)" ]; then \
+		if [ "$(SKIP_HISTORY)" = "true" ]; then \
+			python3 -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
+		else \
+			python3 -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
+		fi; \
+	else \
+		echo "Please specify FILTER parameter"; \
+		echo "Example: make sync-tracker FILTER='Queue: CPO'"; \
+		exit 1; \
+	fi
 
 
 sync-tracker-debug:

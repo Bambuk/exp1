@@ -9,6 +9,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from radiator.core.config import settings, with_default_limit_method, log_limit_info
 from radiator.core.logging import logger
 
+# Constants for status field handling
+STATUS_FIELD_ID = "status"
+
 
 class TrackerAPIService:
     """Service for interacting with Yandex Tracker API."""
@@ -227,7 +230,7 @@ class TrackerAPIService:
                 continue
                 
             for field in entry.get("fields", []):
-                if field.get("field", {}).get("id") != "status":
+                if field.get("field", {}).get("id") != STATUS_FIELD_ID:
                     continue
                 
                 status_name = field.get("to", {}).get("display") or field.get("to", {}).get("key")
@@ -264,6 +267,53 @@ class TrackerAPIService:
             print(f"📊 Найдено {len(unique_changes)} изменений статуса (из {len(changelog)} записей)")
         
         return unique_changes
+    
+    def extract_status_history_with_initial_status(self, changelog: List[Dict[str, Any]], task_data: Dict[str, Any], task_key: str = None) -> List[Dict[str, Any]]:
+        """
+        Extract status history from changelog, adding initial status if no changelog entries exist.
+        
+        This method solves the problem where tasks created with an initial status but never changed
+        would have no history entries, losing the initial status information.
+        
+        Args:
+            changelog: List of changelog entries from Tracker API
+            task_data: Task data containing status and date information
+            task_key: Optional task key for logging purposes
+            
+        Returns:
+            List of status history entries, including initial status if no changelog entries exist
+        """
+        # First, get status history from changelog (existing logic)
+        status_changes = self.extract_status_history(changelog, task_key)
+        
+        # If no status changes in changelog, add initial status
+        if not status_changes and task_data.get("status"):
+            initial_status = self._create_initial_status_entry(task_data)
+            status_changes = [initial_status]
+        
+        return status_changes
+    
+    def _create_initial_status_entry(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create initial status entry for tasks with no changelog entries."""
+        start_date = self._determine_initial_status_date(task_data)
+        
+        return {
+            "status": task_data["status"],
+            "status_display": task_data["status"],
+            "start_date": start_date,
+            "end_date": None
+        }
+    
+    def _determine_initial_status_date(self, task_data: Dict[str, Any]) -> datetime:
+        """Determine the best date to use for initial status entry."""
+        # Priority: created_at > task_updated_at > current time
+        if task_data.get("created_at"):
+            return task_data["created_at"]
+        elif task_data.get("task_updated_at"):
+            return task_data["task_updated_at"]
+        else:
+            # Fallback to current time if no dates available
+            return datetime.now(timezone.utc)
     
     def _format_user_list(self, value: Any) -> str:
         """Format user list from tracker response."""
