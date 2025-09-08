@@ -237,11 +237,7 @@ def main():
             # Generate report data
             cmd.generate_report_data()
             
-            # Generate outputs
-            csv_file = cmd.generate_csv(args.csv, report_type)
-            table_file = cmd.generate_table(args.table, report_type)
-            
-            # Generate separate TTD and TTM files if report_type is 'both'
+            # Generate separate TTD and TTM files
             ttd_csv_file = ""
             ttd_table_file = ""
             ttm_csv_file = ""
@@ -255,17 +251,21 @@ def main():
                 # Generate TTM files
                 ttm_csv_file = cmd.generate_csv(None, ReportType.TTM)
                 ttm_table_file = cmd.generate_table(None, ReportType.TTM)
+            else:
+                # Generate single report type files
+                if report_type == ReportType.TTD:
+                    ttd_csv_file = cmd.generate_csv(args.csv, ReportType.TTD)
+                    ttd_table_file = cmd.generate_table(args.table, ReportType.TTD)
+                elif report_type == ReportType.TTM:
+                    ttm_csv_file = cmd.generate_csv(args.csv, ReportType.TTM)
+                    ttm_table_file = cmd.generate_table(args.table, ReportType.TTM)
             
             # Print summary
             cmd.print_summary(report_type)
             
             print(f"\nReport generated successfully!")
-            if csv_file:
-                print(f"CSV file: {csv_file}")
-            if table_file:
-                print(f"Table file: {table_file}")
             
-            # Print separate files if generated
+            # Print generated files
             if ttd_csv_file:
                 print(f"TTD CSV file: {ttd_csv_file}")
             if ttd_table_file:
