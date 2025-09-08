@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from radiator.commands.generate_time_to_market_report_refactored import GenerateTimeToMarketReportCommand
+from radiator.commands.generate_time_to_market_report import GenerateTimeToMarketReportCommand
 from radiator.commands.models.time_to_market_models import GroupBy, ReportType
 
 
