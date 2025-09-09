@@ -39,6 +39,6 @@ A/B-тест завершен;delivery
 Выпилено;done
 Выполнено с ИТ;done
 Выполнено без ИТ;done
-Отменено;done
+Отменено;cancelled
 Done;done
 Закрыт;done
