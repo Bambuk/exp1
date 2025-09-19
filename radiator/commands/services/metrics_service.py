@@ -89,7 +89,7 @@ class MetricsService:
             ttm_strategy: Strategy for TTM start date calculation
         """
         self.ttd_strategy = ttd_strategy or FirstChangeStrategy()
-        self.ttm_strategy = ttm_strategy or CreationDateStrategy()
+        self.ttm_strategy = ttm_strategy or FirstChangeStrategy()
     
     def calculate_time_to_delivery(
         self, 

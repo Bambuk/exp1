@@ -122,7 +122,7 @@ class TestMetricsService:
     def test_calculate_time_to_market_success(self):
         """Test successful TTM calculation."""
         result = self.service.calculate_time_to_market(self.history, ["Done"])
-        assert result == 9  # 10 days - 1 day = 9 days
+        assert result == 5  # 10 days - 5 days (first change) = 5 days
     
     def test_calculate_time_to_market_no_target_status(self):
         """Test TTM calculation when target status not found."""
@@ -211,6 +211,18 @@ class TestMetricsServiceWithStrategies:
         ]
         
         result = service.calculate_time_to_delivery(history, ["Discovery"])
+        assert result == 4  # 5 days - 1 day (creation) = 4 days
+    
+    def test_ttm_with_creation_date_strategy(self):
+        """Test TTM calculation with CreationDateStrategy."""
+        service = MetricsService(ttm_strategy=CreationDateStrategy())
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 3), None),
+            StatusHistoryEntry("Done", "Done", datetime(2024, 1, 5), None),
+        ]
+        
+        result = service.calculate_time_to_market(history, ["Done"])
         assert result == 4  # 5 days - 1 day (creation) = 4 days
     
     def test_calculate_statistics_empty_list(self):
