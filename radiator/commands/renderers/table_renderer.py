@@ -44,7 +44,7 @@ class TableRenderer(BaseRenderer):
                 return ""
             
             # Create table - optimized for smaller file size
-            fig_width = max(12, len(quarters) * 1.8 + 2)
+            fig_width = max(8, len(quarters) * 0.9 + 2)
             # Limit height for very large datasets to prevent extremely tall images
             max_height = 20
             fig_height = min(max_height, max(6, len(all_groups) * 0.15 + 2))
@@ -121,7 +121,7 @@ class TableRenderer(BaseRenderer):
                              colLabels=ttd_headers,
                              cellLoc='center',
                              loc='center',
-                             colWidths=[0.15] + [0.28/len(quarters)] * (len(quarters) * 3))
+                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 3))
         
         # Style TTD table
         self._style_table(ttd_table, len(ttd_headers), len(ttd_table_data), all_groups, '#4CAF50')
@@ -155,7 +155,7 @@ class TableRenderer(BaseRenderer):
                              colLabels=ttm_headers,
                              cellLoc='center',
                              loc='center',
-                             colWidths=[0.15] + [0.28/len(quarters)] * (len(quarters) * 3))
+                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 3))
         
         # Style TTM table
         self._style_table(ttm_table, len(ttm_headers), len(ttm_table_data), all_groups, '#2196F3')
