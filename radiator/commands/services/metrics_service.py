@@ -90,14 +90,92 @@ class MetricsService:
         """
         self.ttd_strategy = ttd_strategy or FirstChangeStrategy()
         self.ttm_strategy = ttm_strategy or FirstChangeStrategy()
+        self.pause_status = "Приостановлено"  # Status that indicates pause
     
+    def calculate_pause_time(self, history_data: List[StatusHistoryEntry]) -> int:
+        """
+        Calculate total time spent in pause status.
+        
+        Args:
+            history_data: List of status history entries
+            
+        Returns:
+            Total days spent in pause status
+        """
+        if not history_data:
+            return 0
+        
+        try:
+            total_pause_time = 0
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            
+            for i, entry in enumerate(sorted_history):
+                if entry.status == self.pause_status:
+                    # Find the next status change to calculate pause duration
+                    next_entry = None
+                    for j in range(i + 1, len(sorted_history)):
+                        if sorted_history[j].status != self.pause_status:
+                            next_entry = sorted_history[j]
+                            break
+                    
+                    if next_entry:
+                        pause_duration = (next_entry.start_date - entry.start_date).days
+                        total_pause_time += max(0, pause_duration)
+            
+            return total_pause_time
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate pause time: {e}")
+            return 0
+
+    def calculate_pause_time_up_to_date(self, history_data: List[StatusHistoryEntry], end_date: datetime) -> int:
+        """
+        Calculate time spent in pause status up to a specific date.
+        
+        Args:
+            history_data: List of status history entries
+            end_date: Date to calculate pause time up to
+            
+        Returns:
+            Total days spent in pause status up to end_date
+        """
+        if not history_data:
+            return 0
+        
+        try:
+            total_pause_time = 0
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            
+            for i, entry in enumerate(sorted_history):
+                if entry.status == self.pause_status and entry.start_date < end_date:
+                    # Find the next status change to calculate pause duration
+                    next_entry = None
+                    for j in range(i + 1, len(sorted_history)):
+                        if sorted_history[j].status != self.pause_status:
+                            next_entry = sorted_history[j]
+                            break
+                    
+                    if next_entry and next_entry.start_date <= end_date:
+                        pause_duration = (next_entry.start_date - entry.start_date).days
+                        total_pause_time += max(0, pause_duration)
+                    elif not next_entry or next_entry.start_date > end_date:
+                        # Pause period extends beyond end_date, calculate up to end_date
+                        pause_duration = (end_date - entry.start_date).days
+                        total_pause_time += max(0, pause_duration)
+            
+            return total_pause_time
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate pause time up to date: {e}")
+            return 0
+
     def calculate_time_to_delivery(
         self, 
         history_data: List[StatusHistoryEntry], 
         target_statuses: List[str]
     ) -> Optional[int]:
         """
-        Calculate Time To Delivery using configured strategy.
+        Calculate Time To Delivery using configured strategy, excluding pause time.
         
         Args:
             history_data: List of status history entries
@@ -116,12 +194,20 @@ class MetricsService:
                 return None
             
             # Find 'Готова к разработке' status specifically
+            target_entry = None
             for entry in sorted(history_data, key=lambda x: x.start_date):
                 if entry.status == 'Готова к разработке':
-                    days = (entry.start_date - start_date).days
-                    return max(0, days)  # Ensure non-negative
+                    target_entry = entry
+                    break
             
-            return None
+            if not target_entry:
+                return None
+            
+            # Calculate pause time only up to the target status
+            pause_time = self.calculate_pause_time_up_to_date(history_data, target_entry.start_date)
+            total_days = (target_entry.start_date - start_date).days
+            effective_days = total_days - pause_time
+            return max(0, effective_days)  # Ensure non-negative
             
         except Exception as e:
             logger.warning(f"Failed to calculate Time To Delivery: {e}")
@@ -133,7 +219,7 @@ class MetricsService:
         target_statuses: List[str]
     ) -> Optional[int]:
         """
-        Calculate Time To Market using configured strategy.
+        Calculate Time To Market using configured strategy, excluding pause time.
         
         Args:
             history_data: List of status history entries
@@ -152,12 +238,20 @@ class MetricsService:
                 return None
             
             # Find first target status
+            target_entry = None
             for entry in sorted(history_data, key=lambda x: x.start_date):
                 if entry.status in target_statuses:
-                    days = (entry.start_date - start_date).days
-                    return max(0, days)  # Ensure non-negative
+                    target_entry = entry
+                    break
             
-            return None
+            if not target_entry:
+                return None
+            
+            # Calculate pause time only up to the target status
+            pause_time = self.calculate_pause_time_up_to_date(history_data, target_entry.start_date)
+            total_days = (target_entry.start_date - start_date).days
+            effective_days = total_days - pause_time
+            return max(0, effective_days)  # Ensure non-negative
             
         except Exception as e:
             logger.warning(f"Failed to calculate Time To Market: {e}")
@@ -190,6 +284,62 @@ class MetricsService:
         except Exception as e:
             logger.warning(f"Failed to calculate statistics: {e}")
             return TimeMetrics(times=times, mean=None, p85=None, count=len(times))
+
+    def calculate_enhanced_statistics(self, times: List[int], pause_times: List[int]) -> TimeMetrics:
+        """
+        Calculate enhanced statistics including pause time metrics.
+        
+        Args:
+            times: List of time values in days
+            pause_times: List of pause time values in days
+            
+        Returns:
+            TimeMetrics object with pause time data
+        """
+        if not times:
+            return TimeMetrics(
+                times=[], 
+                mean=None, 
+                p85=None, 
+                count=0,
+                pause_times=pause_times if pause_times else [],
+                pause_mean=None,
+                pause_p85=None
+            )
+        
+        try:
+            # Calculate regular statistics
+            mean = np.mean(times)
+            p85 = np.percentile(times, 85)
+            
+            # Calculate pause statistics
+            pause_mean = None
+            pause_p85 = None
+            if pause_times:
+                pause_mean = float(np.mean(pause_times))
+                pause_p85 = float(np.percentile(pause_times, 85))
+            
+            return TimeMetrics(
+                times=times,
+                mean=float(mean),
+                p85=float(p85),
+                count=len(times),
+                pause_times=pause_times if pause_times else [],
+                pause_mean=pause_mean,
+                pause_p85=pause_p85
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate enhanced statistics: {e}")
+            return TimeMetrics(
+                times=times, 
+                mean=None, 
+                p85=None, 
+                count=len(times),
+                pause_times=pause_times if pause_times else [],
+                pause_mean=None,
+                pause_p85=None
+            )
     
     def calculate_group_metrics(
         self,
@@ -210,6 +360,37 @@ class MetricsService:
         """
         ttd_metrics = self.calculate_statistics(ttd_times)
         ttm_metrics = self.calculate_statistics(ttm_times)
+        
+        return GroupMetrics(
+            group_name=group_name,
+            ttd_metrics=ttd_metrics,
+            ttm_metrics=ttm_metrics,
+            total_tasks=ttd_metrics.count + ttm_metrics.count
+        )
+
+    def calculate_enhanced_group_metrics(
+        self,
+        group_name: str,
+        ttd_times: List[int],
+        ttd_pause_times: List[int],
+        ttm_times: List[int],
+        ttm_pause_times: List[int]
+    ) -> GroupMetrics:
+        """
+        Calculate enhanced metrics for a specific group including pause time.
+        
+        Args:
+            group_name: Name of the group
+            ttd_times: List of TTD times
+            ttd_pause_times: List of TTD pause times
+            ttm_times: List of TTM times
+            ttm_pause_times: List of TTM pause times
+            
+        Returns:
+            GroupMetrics object with pause time data
+        """
+        ttd_metrics = self.calculate_enhanced_statistics(ttd_times, ttd_pause_times)
+        ttm_metrics = self.calculate_enhanced_statistics(ttm_times, ttm_pause_times)
         
         return GroupMetrics(
             group_name=group_name,

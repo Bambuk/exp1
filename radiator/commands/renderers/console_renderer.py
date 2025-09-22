@@ -48,10 +48,10 @@ class ConsoleRenderer(BaseRenderer):
         
         # Print TTD section if needed
         if report_type in [ReportType.TTD, ReportType.BOTH]:
-            print("Time To Delivery (days):")
+            print("Time To Delivery (days) - Excluding Pause Time:")
             print(f"{'':<25}", end="")
             for quarter in quarters:
-                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4}", end="")
+                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10}", end="")
             print()
             
             for group in all_groups:
@@ -63,19 +63,21 @@ class ConsoleRenderer(BaseRenderer):
                         ttd_avg = group_metrics.ttd_metrics.mean or 0
                         ttd_p85 = group_metrics.ttd_metrics.p85 or 0
                         tasks = group_metrics.ttd_metrics.count
-                        line += f"{ttd_avg:>8.1f}{ttd_p85:>8.1f}{tasks:>4}"
+                        pause_avg = group_metrics.ttd_metrics.pause_mean or 0
+                        pause_p85 = group_metrics.ttd_metrics.pause_p85 or 0
+                        line += f"{ttd_avg:>8.1f}{ttd_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
                     else:
-                        line += f"{'':>8}{'':>8}{'':>4}"
+                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
                 print(line)
             
             print()
         
         # Print TTM section if needed
         if report_type in [ReportType.TTM, ReportType.BOTH]:
-            print("Time To Market (days):")
+            print("Time To Market (days) - Excluding Pause Time:")
             print(f"{'':<25}", end="")
             for quarter in quarters:
-                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4}", end="")
+                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10}", end="")
             print()
             
             for group in all_groups:
@@ -87,9 +89,11 @@ class ConsoleRenderer(BaseRenderer):
                         ttm_avg = group_metrics.ttm_metrics.mean or 0
                         ttm_p85 = group_metrics.ttm_metrics.p85 or 0
                         tasks = group_metrics.ttm_metrics.count
-                        line += f"{ttm_avg:>8.1f}{ttm_p85:>8.1f}{tasks:>4}"
+                        pause_avg = group_metrics.ttm_metrics.pause_mean or 0
+                        pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
+                        line += f"{ttm_avg:>8.1f}{ttm_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
                     else:
-                        line += f"{'':>8}{'':>8}{'':>4}"
+                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
                 print(line)
         
         # Print totals

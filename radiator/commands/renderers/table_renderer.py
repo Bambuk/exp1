@@ -106,26 +106,28 @@ class TableRenderer(BaseRenderer):
                     ttd_avg = group_metrics.ttd_metrics.mean or 0
                     ttd_p85 = group_metrics.ttd_metrics.p85 or 0
                     tasks = group_metrics.ttd_metrics.count
-                    row.extend([f"{ttd_avg:.1f}", f"{ttd_p85:.1f}", str(tasks)])
+                    pause_avg = group_metrics.ttd_metrics.pause_mean or 0
+                    pause_p85 = group_metrics.ttd_metrics.pause_p85 or 0
+                    row.extend([f"{ttd_avg:.1f}", f"{ttd_p85:.1f}", str(tasks), f"{pause_avg:.1f}", f"{pause_p85:.1f}"])
                 else:
-                    row.extend(["", "", ""])
+                    row.extend(["", "", "", "", ""])
             ttd_table_data.append(row)
         
         # Create headers
         ttd_headers = ['Group']
         for quarter in quarters:
-            ttd_headers.extend([f'{quarter}\nAvg', f'{quarter}\n85%', f'{quarter}\nTasks'])
+            ttd_headers.extend([f'{quarter}\nAvg', f'{quarter}\n85%', f'{quarter}\nTasks', f'{quarter}\nPause Avg', f'{quarter}\nPause 85%'])
         
         # Create table
         ttd_table = ax.table(cellText=ttd_table_data,
                              colLabels=ttd_headers,
                              cellLoc='center',
                              loc='center',
-                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 3))
+                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 5))
         
         # Style TTD table
         self._style_table(ttd_table, len(ttd_headers), len(ttd_table_data), all_groups, '#4CAF50')
-        ax.set_title('Time To Delivery (days)', fontsize=12, fontweight='bold', pad=10)
+        ax.set_title('Time To Delivery (days) - Excluding Pause Time', fontsize=12, fontweight='bold', pad=10)
     
     def _render_ttm_table(self, ax, quarters: list, all_groups: list):
         """Render TTM table section."""
@@ -140,26 +142,28 @@ class TableRenderer(BaseRenderer):
                     ttm_avg = group_metrics.ttm_metrics.mean or 0
                     ttm_p85 = group_metrics.ttm_metrics.p85 or 0
                     tasks = group_metrics.ttm_metrics.count
-                    row.extend([f"{ttm_avg:.1f}", f"{ttm_p85:.1f}", str(tasks)])
+                    pause_avg = group_metrics.ttm_metrics.pause_mean or 0
+                    pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
+                    row.extend([f"{ttm_avg:.1f}", f"{ttm_p85:.1f}", str(tasks), f"{pause_avg:.1f}", f"{pause_p85:.1f}"])
                 else:
-                    row.extend(["", "", ""])
+                    row.extend(["", "", "", "", ""])
             ttm_table_data.append(row)
         
         # Create headers
         ttm_headers = ['Group']
         for quarter in quarters:
-            ttm_headers.extend([f'{quarter}\nAvg', f'{quarter}\n85%', f'{quarter}\nTasks'])
+            ttm_headers.extend([f'{quarter}\nAvg', f'{quarter}\n85%', f'{quarter}\nTasks', f'{quarter}\nPause Avg', f'{quarter}\nPause 85%'])
         
         # Create table
         ttm_table = ax.table(cellText=ttm_table_data,
                              colLabels=ttm_headers,
                              cellLoc='center',
                              loc='center',
-                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 3))
+                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 5))
         
         # Style TTM table
         self._style_table(ttm_table, len(ttm_headers), len(ttm_table_data), all_groups, '#2196F3')
-        ax.set_title('Time To Market (days)', fontsize=12, fontweight='bold', pad=10)
+        ax.set_title('Time To Market (days) - Excluding Pause Time', fontsize=12, fontweight='bold', pad=10)
     
     def _style_table(self, table, num_headers: int, num_rows: int, all_groups: list, header_color: str):
         """Style table with colors and formatting."""

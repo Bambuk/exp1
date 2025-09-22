@@ -98,7 +98,9 @@ class GenerateTimeToMarketReportCommand:
                 # Group tasks by author/team
                 group_data = defaultdict(lambda: {
                     'ttd_times': [],
-                    'ttm_times': []
+                    'ttd_pause_times': [],
+                    'ttm_times': [],
+                    'ttm_pause_times': []
                 })
                 
                 for task in tasks:
@@ -112,12 +114,16 @@ class GenerateTimeToMarketReportCommand:
                         logger.debug(f"No history found for task {task.key}")
                         continue
                     
+                    # Calculate pause time for this task
+                    pause_time = self.metrics_service.calculate_pause_time(history)
+                    
                     # Calculate Time To Delivery
                     ttd = self.metrics_service.calculate_time_to_delivery(
                         history, status_mapping.discovery_statuses
                     )
                     if ttd is not None:
                         group_data[group_value]['ttd_times'].append(ttd)
+                        group_data[group_value]['ttd_pause_times'].append(pause_time)
                     
                     # Calculate Time To Market
                     ttm = self.metrics_service.calculate_time_to_market(
@@ -125,13 +131,18 @@ class GenerateTimeToMarketReportCommand:
                     )
                     if ttm is not None:
                         group_data[group_value]['ttm_times'].append(ttm)
+                        group_data[group_value]['ttm_pause_times'].append(pause_time)
                 
                 # Calculate metrics for each group
                 groups = {}
                 for group_value, data in group_data.items():
                     if data['ttd_times'] or data['ttm_times']:
-                        groups[group_value] = self.metrics_service.calculate_group_metrics(
-                            group_value, data['ttd_times'], data['ttm_times']
+                        groups[group_value] = self.metrics_service.calculate_enhanced_group_metrics(
+                            group_value, 
+                            data['ttd_times'], 
+                            data['ttd_pause_times'],
+                            data['ttm_times'], 
+                            data['ttm_pause_times']
                         )
                 
                 if groups:

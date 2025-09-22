@@ -66,11 +66,19 @@ class TimeMetrics:
     mean: Optional[float]
     p85: Optional[float]
     count: int
+    pause_times: Optional[List[int]] = None
+    pause_mean: Optional[float] = None
+    pause_p85: Optional[float] = None
     
     @property
     def has_data(self) -> bool:
         """Check if metrics have data."""
         return bool(self.times)
+    
+    @property
+    def has_pause_data(self) -> bool:
+        """Check if pause metrics have data."""
+        return bool(self.pause_times)
 
 
 @dataclass
