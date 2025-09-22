@@ -8,9 +8,12 @@ Discovery backlog;backlog
 Требуется информация;discovery
 Гипотеза;discovery
 Аналитика / Бэклог;discovery
+Analytics ToDo;discovery
 Analytics Backlog;discovery
 Аналитика / Метеор;discovery
 Аналитика / В работе;discovery
+Analytics InProgress;discovery
+Analytics Review;discovery
 В работе;discovery
 Можно тестировать;discovery
 Тестируется;discovery
@@ -40,5 +43,7 @@ A/B-тест завершен;delivery
 Выполнено с ИТ;done
 Выполнено без ИТ;done
 Отменено;cancelled
+Analytics Cancel;cancelled
 Done;done
 Закрыт;done
+Analytics Done;done
