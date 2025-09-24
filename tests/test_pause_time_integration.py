@@ -48,7 +48,7 @@ class TestPauseTimeIntegration:
             )
         ]
         
-        # Mock task histories with pause time
+        # Mock task histories with pause time and MP/External Test for Tail metric
         self.mock_histories = {
             1: [
                 StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
@@ -56,24 +56,19 @@ class TestPauseTimeIntegration:
                 StatusHistoryEntry("Приостановлено", "Приостановлено", datetime(2024, 1, 5), None),
                 StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 8), None),
                 StatusHistoryEntry("Готова к разработке", "Готова к разработке", datetime(2024, 1, 10), None),
+                StatusHistoryEntry("МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 11), None),
                 StatusHistoryEntry("Done", "Done", datetime(2024, 1, 12), None),
             ],
             2: [
                 StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
                 StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 2), None),
+                StatusHistoryEntry("МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 4), None),
                 StatusHistoryEntry("Done", "Done", datetime(2024, 1, 5), None),
             ]
         }
     
-    @patch('radiator.commands.services.data_service.DataService')
-    def test_full_report_generation_with_pause_time(self, mock_data_service):
+    def test_full_report_generation_with_pause_time(self):
         """Test full report generation including pause time calculation."""
-        # Setup mocks
-        mock_data_instance = Mock()
-        mock_data_instance.get_tasks_for_period.return_value = self.mock_tasks
-        mock_data_instance.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
-        mock_data_service.return_value = mock_data_instance
-        
         # Create command with mocked config
         with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
             # Mock the database session
@@ -83,6 +78,11 @@ class TestPauseTimeIntegration:
             cmd.config_service = Mock()
             cmd.config_service.load_quarters.return_value = self.quarters
             cmd.config_service.load_status_mapping.return_value = self.status_mapping
+            
+            # Mock the data service
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.return_value = self.mock_tasks
+            cmd.data_service.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
             
             # Generate report
             report = cmd.generate_report_data()
@@ -100,40 +100,45 @@ class TestPauseTimeIntegration:
             author1_metrics = quarter_report.groups["Author1"]
             assert author1_metrics.ttd_metrics.count == 1
             assert author1_metrics.ttm_metrics.count == 1
+            assert author1_metrics.tail_metrics.count == 1
             
             # TTD should exclude pause time: 10-3=7 days total, minus 3 days pause = 4 days
             assert author1_metrics.ttd_metrics.times[0] == 4
             # TTM should exclude pause time: 12-3=9 days total, minus 3 days pause = 6 days  
             assert author1_metrics.ttm_metrics.times[0] == 6
+            # Tail should be: 12-11=1 day (no pause time in this period)
+            assert author1_metrics.tail_metrics.times[0] == 1
             
             # Check pause time metrics
             assert author1_metrics.ttd_metrics.pause_times[0] == 3
             assert author1_metrics.ttm_metrics.pause_times[0] == 3
+            assert author1_metrics.tail_metrics.pause_times[0] == 0
             assert author1_metrics.ttd_metrics.pause_mean == 3.0
             assert author1_metrics.ttd_metrics.pause_p85 == 3.0
             assert author1_metrics.ttm_metrics.pause_mean == 3.0
             assert author1_metrics.ttm_metrics.pause_p85 == 3.0
+            assert author1_metrics.tail_metrics.pause_mean == 0.0
+            assert author1_metrics.tail_metrics.pause_p85 == 0.0
             
             # Check Author2 metrics (no pause time)
             author2_metrics = quarter_report.groups["Author2"]
             assert author2_metrics.ttd_metrics.count == 0  # No TTD for Author2
             assert author2_metrics.ttm_metrics.count == 1
+            assert author2_metrics.tail_metrics.count == 1
             
             # TTM should be normal: 5-2=3 days, no pause time
             assert author2_metrics.ttm_metrics.times[0] == 3
+            # Tail should be: 5-4=1 day, no pause time
+            assert author2_metrics.tail_metrics.times[0] == 1
             assert author2_metrics.ttm_metrics.pause_times[0] == 0
+            assert author2_metrics.tail_metrics.pause_times[0] == 0
             assert author2_metrics.ttm_metrics.pause_mean == 0.0
             assert author2_metrics.ttm_metrics.pause_p85 == 0.0
+            assert author2_metrics.tail_metrics.pause_mean == 0.0
+            assert author2_metrics.tail_metrics.pause_p85 == 0.0
     
-    @patch('radiator.commands.services.data_service.DataService')
-    def test_csv_rendering_with_pause_time(self, mock_data_service):
+    def test_csv_rendering_with_pause_time(self):
         """Test CSV rendering includes pause time columns."""
-        # Setup mocks
-        mock_data_instance = Mock()
-        mock_data_instance.get_tasks_for_period.return_value = self.mock_tasks
-        mock_data_instance.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
-        mock_data_service.return_value = mock_data_instance
-        
         # Create command and generate report
         with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
             cmd.db = self.mock_db
@@ -142,6 +147,11 @@ class TestPauseTimeIntegration:
             cmd.config_service = Mock()
             cmd.config_service.load_quarters.return_value = self.quarters
             cmd.config_service.load_status_mapping.return_value = self.status_mapping
+            
+            # Mock the data service
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.return_value = self.mock_tasks
+            cmd.data_service.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
             
             cmd.generate_report_data()
             
@@ -157,20 +167,15 @@ class TestPauseTimeIntegration:
             assert 'Q1 2024_ttd_pause_p85' in content
             assert 'Q1 2024_ttm_pause_mean' in content
             assert 'Q1 2024_ttm_pause_p85' in content
+            assert 'Q1 2024_tail_pause_mean' in content
+            assert 'Q1 2024_tail_pause_p85' in content
             
             # Check that data is present
             assert 'Author1' in content
             assert 'Author2' in content
     
-    @patch('radiator.commands.services.data_service.DataService')
-    def test_console_rendering_with_pause_time(self, mock_data_service, capsys):
+    def test_console_rendering_with_pause_time(self, capsys):
         """Test console rendering includes pause time information."""
-        # Setup mocks
-        mock_data_instance = Mock()
-        mock_data_instance.get_tasks_for_period.return_value = self.mock_tasks
-        mock_data_instance.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
-        mock_data_service.return_value = mock_data_instance
-        
         # Create command and generate report
         with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
             cmd.db = self.mock_db
@@ -179,6 +184,11 @@ class TestPauseTimeIntegration:
             cmd.config_service = Mock()
             cmd.config_service.load_quarters.return_value = self.quarters
             cmd.config_service.load_status_mapping.return_value = self.status_mapping
+            
+            # Mock the data service
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.return_value = self.mock_tasks
+            cmd.data_service.get_task_history.side_effect = lambda task_id: self.mock_histories.get(task_id, [])
             
             cmd.generate_report_data()
             
@@ -193,6 +203,7 @@ class TestPauseTimeIntegration:
             assert 'Excluding Pause Time' in output
             assert 'Pause Avg' in output
             assert 'Pause 85%' in output
+            assert 'Tail (days from MP/External Test to Done)' in output
             assert 'Author1' in output
             assert 'Author2' in output
 

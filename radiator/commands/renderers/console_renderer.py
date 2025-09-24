@@ -29,9 +29,9 @@ class ConsoleRenderer(BaseRenderer):
         if report_type == ReportType.TTD:
             title = f"TIME TO DELIVERY REPORT BY {group_name}"
         elif report_type == ReportType.TTM:
-            title = f"TIME TO MARKET REPORT BY {group_name}"
+            title = f"TIME TO MARKET & TAIL REPORT BY {group_name}"
         else:
-            title = f"TIME TO DELIVERY & TIME TO MARKET REPORT BY {group_name}"
+            title = f"TIME TO DELIVERY, TIME TO MARKET & TAIL REPORT BY {group_name}"
         
         print(title)
         print("="*120)
@@ -92,6 +92,32 @@ class ConsoleRenderer(BaseRenderer):
                         pause_avg = group_metrics.ttm_metrics.pause_mean or 0
                         pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
                         line += f"{ttm_avg:>8.1f}{ttm_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
+                    else:
+                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
+                print(line)
+            
+            print()
+        
+        # Print Tail section if needed (only for TTM and BOTH)
+        if report_type in [ReportType.TTM, ReportType.BOTH]:
+            print("Tail (days from MP/External Test to Done) - Excluding Pause Time:")
+            print(f"{'':<25}", end="")
+            for quarter in quarters:
+                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10}", end="")
+            print()
+            
+            for group in all_groups:
+                line = f"{group:<25}"
+                for quarter in quarters:
+                    quarter_report = self.report.quarter_reports.get(quarter)
+                    group_metrics = quarter_report.groups.get(group) if quarter_report else None
+                    if group_metrics:
+                        tail_avg = group_metrics.tail_metrics.mean or 0
+                        tail_p85 = group_metrics.tail_metrics.p85 or 0
+                        tasks = group_metrics.tail_metrics.count
+                        pause_avg = group_metrics.tail_metrics.pause_mean or 0
+                        pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
+                        line += f"{tail_avg:>8.1f}{tail_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
                     else:
                         line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
                 print(line)

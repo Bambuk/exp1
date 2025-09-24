@@ -87,6 +87,7 @@ class GroupMetrics:
     group_name: str
     ttd_metrics: TimeMetrics
     ttm_metrics: TimeMetrics
+    tail_metrics: TimeMetrics
     total_tasks: int
 
 

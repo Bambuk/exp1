@@ -59,23 +59,30 @@ class TableRenderer(BaseRenderer):
             show_ttd = report_type in [ReportType.TTD, ReportType.BOTH]
             show_ttm = report_type in [ReportType.TTM, ReportType.BOTH]
             
+            # Calculate layout based on what we're showing
+            if report_type == ReportType.BOTH:
+                # Show TTD, TTM+Tail in two sections
+                ax1 = fig.add_axes([0.05, 0.55, 0.9, 0.35])  # TTD
+                ax2 = fig.add_axes([0.05, 0.1, 0.9, 0.35])   # TTM+Tail
+                ax3 = None
+            elif report_type == ReportType.TTD:
+                ax1 = fig.add_axes([0.05, 0.1, 0.9, 0.8])
+                ax2 = None
+                ax3 = None
+            elif report_type == ReportType.TTM:
+                ax1 = None
+                ax2 = fig.add_axes([0.05, 0.1, 0.9, 0.8])   # TTM+Tail
+                ax3 = None
+            
             # TTD section
-            if show_ttd:
-                if report_type == ReportType.BOTH:
-                    ax1 = fig.add_axes([0.05, 0.55, 0.9, 0.4])
-                else:
-                    ax1 = fig.add_axes([0.05, 0.1, 0.9, 0.8])
+            if show_ttd and ax1:
                 ax1.axis('off')
                 self._render_ttd_table(ax1, quarters, all_groups)
             
-            # TTM section
-            if show_ttm:
-                if report_type == ReportType.BOTH:
-                    ax2 = fig.add_axes([0.05, 0.05, 0.9, 0.4])
-                else:
-                    ax2 = fig.add_axes([0.05, 0.1, 0.9, 0.8])
+            # TTM section (now includes Tail columns)
+            if show_ttm and ax2:
                 ax2.axis('off')
-                self._render_ttm_table(ax2, quarters, all_groups)
+                self._render_ttm_with_tail_table(ax2, quarters, all_groups)
             
             # Main title
             title = self._get_title(report_type)
@@ -164,6 +171,101 @@ class TableRenderer(BaseRenderer):
         # Style TTM table
         self._style_table(ttm_table, len(ttm_headers), len(ttm_table_data), all_groups, '#2196F3')
         ax.set_title('Time To Market (days) - Excluding Pause Time', fontsize=12, fontweight='bold', pad=10)
+
+    def _render_ttm_with_tail_table(self, ax, quarters: list, all_groups: list):
+        """Render TTM table section with Tail columns."""
+        # Prepare data with proper structure
+        ttm_tail_table_data = []
+        for group in all_groups:
+            row = [group]
+            for quarter in quarters:
+                quarter_report = self.report.quarter_reports.get(quarter)
+                group_metrics = quarter_report.groups.get(group) if quarter_report else None
+                if group_metrics:
+                    # TTM columns
+                    if group_metrics.ttm_metrics.count > 0:
+                        ttm_avg = group_metrics.ttm_metrics.mean or 0
+                        ttm_p85 = group_metrics.ttm_metrics.p85 or 0
+                        ttm_tasks = group_metrics.ttm_metrics.count
+                        ttm_pause_avg = group_metrics.ttm_metrics.pause_mean or 0
+                        ttm_pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
+                        ttm_values = [f"{ttm_avg:.1f}", f"{ttm_p85:.1f}", str(ttm_tasks), f"{ttm_pause_avg:.1f}", f"{ttm_pause_p85:.1f}"]
+                    else:
+                        ttm_values = ["", "", "", "", ""]
+                    
+                    # Tail columns
+                    if group_metrics.tail_metrics.count > 0:
+                        tail_avg = group_metrics.tail_metrics.mean or 0
+                        tail_p85 = group_metrics.tail_metrics.p85 or 0
+                        tail_tasks = group_metrics.tail_metrics.count
+                        tail_pause_avg = group_metrics.tail_metrics.pause_mean or 0
+                        tail_pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
+                        tail_values = [f"{tail_avg:.1f}", f"{tail_p85:.1f}", str(tail_tasks), f"{tail_pause_avg:.1f}", f"{tail_pause_p85:.1f}"]
+                    else:
+                        tail_values = ["", "", "", "", ""]
+                    
+                    row.extend(ttm_values + tail_values)
+                else:
+                    row.extend(["", "", "", "", "", "", "", "", "", ""])
+            ttm_tail_table_data.append(row)
+        
+        # Create headers
+        ttm_tail_headers = ['Group']
+        for quarter in quarters:
+            ttm_tail_headers.extend([
+                f'{quarter}\nTTM Avg', f'{quarter}\nTTM 85%', f'{quarter}\nTTM Tasks', 
+                f'{quarter}\nTTM Pause Avg', f'{quarter}\nTTM Pause 85%',
+                f'{quarter}\nTail Avg', f'{quarter}\nTail 85%', f'{quarter}\nTail Tasks',
+                f'{quarter}\nTail Pause Avg', f'{quarter}\nTail Pause 85%'
+            ])
+        
+        # Create table
+        ttm_tail_table = ax.table(cellText=ttm_tail_table_data,
+                                 colLabels=ttm_tail_headers,
+                                 cellLoc='center',
+                                 loc='center',
+                                 colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 10))
+        
+        # Style TTM+Tail table
+        self._style_table(ttm_tail_table, len(ttm_tail_headers), len(ttm_tail_table_data), all_groups, '#4CAF50')
+        ax.set_title('Time To Market & Tail (TTM: Discovery to Done, Tail: MP/External Test to Done) - Excluding Pause Time', 
+                    fontsize=12, fontweight='bold', pad=10)
+    
+    def _render_tail_table(self, ax, quarters: list, all_groups: list):
+        """Render Tail table section."""
+        # Prepare data with proper structure
+        tail_table_data = []
+        for group in all_groups:
+            row = [group]
+            for quarter in quarters:
+                quarter_report = self.report.quarter_reports.get(quarter)
+                group_metrics = quarter_report.groups.get(group) if quarter_report else None
+                if group_metrics and group_metrics.tail_metrics.count > 0:
+                    tail_avg = group_metrics.tail_metrics.mean or 0
+                    tail_p85 = group_metrics.tail_metrics.p85 or 0
+                    tasks = group_metrics.tail_metrics.count
+                    pause_avg = group_metrics.tail_metrics.pause_mean or 0
+                    pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
+                    row.extend([f"{tail_avg:.1f}", f"{tail_p85:.1f}", str(tasks), f"{pause_avg:.1f}", f"{pause_p85:.1f}"])
+                else:
+                    row.extend(["N/A", "N/A", "0", "N/A", "N/A"])
+            tail_table_data.append(row)
+        
+        # Create headers
+        tail_headers = ['Group']
+        for quarter in quarters:
+            tail_headers.extend([f'{quarter}\nAvg', f'{quarter}\n85%', f'{quarter}\nTasks', f'{quarter}\nPause Avg', f'{quarter}\nPause 85%'])
+        
+        # Create table
+        tail_table = ax.table(cellText=tail_table_data,
+                             colLabels=tail_headers,
+                             cellLoc='center',
+                             loc='center',
+                             colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 5))
+        
+        # Style Tail table
+        self._style_table(tail_table, len(tail_headers), len(tail_table_data), all_groups, '#FF9800')
+        ax.set_title('Tail (days from MP/External Test to Done) - Excluding Pause Time', fontsize=12, fontweight='bold', pad=10)
     
     def _style_table(self, table, num_headers: int, num_rows: int, all_groups: list, header_color: str):
         """Style table with colors and formatting."""
@@ -249,6 +351,6 @@ class TableRenderer(BaseRenderer):
         if report_type == ReportType.TTD:
             return f'Time To Delivery Report - {group_name} Grouping'
         elif report_type == ReportType.TTM:
-            return f'Time To Market Report - {group_name} Grouping'
+            return f'Time To Market & Tail Report - {group_name} Grouping'
         else:
-            return f'Time To Delivery & Time To Market Report - {group_name} Grouping'
+            return f'Time To Delivery, Time To Market & Tail Report - {group_name} Grouping'

@@ -28,7 +28,8 @@ class DataService:
         start_date: datetime, 
         end_date: datetime, 
         group_by: GroupBy,
-        status_mapping: StatusMapping
+        status_mapping: StatusMapping,
+        metric_type: str = "both"
     ) -> List[TaskData]:
         """
         Get CPO tasks that reached target statuses within the specified period.
@@ -38,6 +39,7 @@ class DataService:
             end_date: Period end date
             group_by: Grouping type
             status_mapping: Status mapping configuration
+            metric_type: Type of metric - "ttd", "ttm", or "both"
             
         Returns:
             List of TaskData objects
@@ -50,9 +52,18 @@ class DataService:
                 group_field = TrackerTask.team
                 filter_condition = TrackerTask.team.isnot(None)
             
-            all_target_statuses = status_mapping.all_target_statuses
+            # Determine target statuses based on metric type
+            if metric_type == "ttd":
+                target_statuses = ["Готова к разработке"]  # Only this specific status for TTD
+                logger.info(f"Getting tasks for TTD (Готова к разработке) in period {start_date.date()} - {end_date.date()}")
+            elif metric_type == "ttm":
+                target_statuses = status_mapping.done_statuses  # Only done statuses for TTM
+                logger.info(f"Getting tasks for TTM (done statuses) in period {start_date.date()} - {end_date.date()}")
+            else:  # "both" - legacy behavior for backward compatibility
+                target_statuses = status_mapping.all_target_statuses
+                logger.info(f"Getting tasks for both TTD/TTM (all target statuses) in period {start_date.date()} - {end_date.date()}")
             
-            if not all_target_statuses:
+            if not target_statuses:
                 logger.warning("No target statuses found")
                 return []
             
@@ -67,13 +78,13 @@ class DataService:
             ).filter(
                 filter_condition,
                 TrackerTask.key.like('CPO-%'),
-                TrackerTaskHistory.status.in_(all_target_statuses),
+                TrackerTaskHistory.status.in_(target_statuses),
                 TrackerTaskHistory.start_date >= start_date,
                 TrackerTaskHistory.start_date <= end_date
             ).distinct()
             
             tasks = tasks_query.all()
-            logger.info(f"Found {len(tasks)} CPO tasks with target transitions in period {start_date.date()} - {end_date.date()}")
+            logger.info(f"Found {len(tasks)} CPO tasks with {metric_type} transitions in period {start_date.date()} - {end_date.date()}")
             
             result = []
             for task_id, key, group_value, created_at in tasks:

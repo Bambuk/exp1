@@ -57,7 +57,12 @@ class CSVRenderer(BaseRenderer):
                             f'{quarter}_ttm_p85',
                             f'{quarter}_ttm_tasks',
                             f'{quarter}_ttm_pause_mean',
-                            f'{quarter}_ttm_pause_p85'
+                            f'{quarter}_ttm_pause_p85',
+                            f'{quarter}_tail_mean',
+                            f'{quarter}_tail_p85',
+                            f'{quarter}_tail_tasks',
+                            f'{quarter}_tail_pause_mean',
+                            f'{quarter}_tail_pause_p85'
                         ])
                 
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -85,7 +90,12 @@ class CSVRenderer(BaseRenderer):
                                     f'{quarter}_ttm_p85': group_metrics.ttm_metrics.p85,
                                     f'{quarter}_ttm_tasks': group_metrics.ttm_metrics.count,
                                     f'{quarter}_ttm_pause_mean': group_metrics.ttm_metrics.pause_mean,
-                                    f'{quarter}_ttm_pause_p85': group_metrics.ttm_metrics.pause_p85
+                                    f'{quarter}_ttm_pause_p85': group_metrics.ttm_metrics.pause_p85,
+                                    f'{quarter}_tail_mean': group_metrics.tail_metrics.mean,
+                                    f'{quarter}_tail_p85': group_metrics.tail_metrics.p85,
+                                    f'{quarter}_tail_tasks': group_metrics.tail_metrics.count,
+                                    f'{quarter}_tail_pause_mean': group_metrics.tail_metrics.pause_mean,
+                                    f'{quarter}_tail_pause_p85': group_metrics.tail_metrics.pause_p85
                                 })
                         else:
                             if report_type in [ReportType.TTD, ReportType.BOTH]:
@@ -102,7 +112,12 @@ class CSVRenderer(BaseRenderer):
                                     f'{quarter}_ttm_p85': '',
                                     f'{quarter}_ttm_tasks': '',
                                     f'{quarter}_ttm_pause_mean': '',
-                                    f'{quarter}_ttm_pause_p85': ''
+                                    f'{quarter}_ttm_pause_p85': '',
+                                    f'{quarter}_tail_mean': '',
+                                    f'{quarter}_tail_p85': '',
+                                    f'{quarter}_tail_tasks': '',
+                                    f'{quarter}_tail_pause_mean': '',
+                                    f'{quarter}_tail_pause_p85': ''
                                 })
                     
                     writer.writerow(row)

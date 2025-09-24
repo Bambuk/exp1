@@ -169,6 +169,56 @@ class MetricsService:
             logger.warning(f"Failed to calculate pause time up to date: {e}")
             return 0
 
+    def calculate_pause_time_between_dates(self, history_data: List[StatusHistoryEntry], start_date: datetime, end_date: datetime) -> int:
+        """
+        Calculate time spent in pause status between two specific dates.
+        
+        Args:
+            history_data: List of status history entries
+            start_date: Start date for calculation
+            end_date: End date for calculation
+            
+        Returns:
+            Total days spent in pause status between start_date and end_date
+        """
+        if not history_data:
+            return 0
+        
+        try:
+            total_pause_time = 0
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            
+            for i, entry in enumerate(sorted_history):
+                if entry.status == self.pause_status:
+                    # Find the next status change to get actual pause end
+                    next_entry = None
+                    for j in range(i + 1, len(sorted_history)):
+                        if sorted_history[j].status != self.pause_status:
+                            next_entry = sorted_history[j]
+                            break
+                    
+                    # Determine the actual pause period
+                    pause_start = entry.start_date
+                    if next_entry:
+                        pause_end = next_entry.start_date
+                    else:
+                        # Pause continues to the end, use end_date as limit
+                        pause_end = end_date
+                    
+                    # Check if pause period overlaps with our date range
+                    overlap_start = max(pause_start, start_date)
+                    overlap_end = min(pause_end, end_date)
+                    
+                    if overlap_start < overlap_end:
+                        pause_duration = (overlap_end - overlap_start).days
+                        total_pause_time += max(0, pause_duration)
+            
+            return total_pause_time
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate pause time between dates: {e}")
+            return 0
+
     def calculate_time_to_delivery(
         self, 
         history_data: List[StatusHistoryEntry], 
@@ -255,6 +305,61 @@ class MetricsService:
             
         except Exception as e:
             logger.warning(f"Failed to calculate Time To Market: {e}")
+            return None
+    
+    def calculate_tail_metric(
+        self, 
+        history_data: List[StatusHistoryEntry], 
+        done_statuses: List[str]
+    ) -> Optional[int]:
+        """
+        Calculate Tail metric: days from exiting 'МП / Внешний тест' status to any done status.
+        
+        Args:
+            history_data: List of status history entries
+            done_statuses: List of done status names
+            
+        Returns:
+            Number of days or None if not found
+        """
+        try:
+            if not history_data:
+                return None
+            
+            # Sort history by date
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            
+            # Find the last occurrence of 'МП / Внешний тест' status
+            last_mp_entry = None
+            for entry in sorted_history:
+                if entry.status == 'МП / Внешний тест':
+                    last_mp_entry = entry
+            
+            if last_mp_entry is None:
+                return None
+            
+            # Find first done status after the MP/External Test status
+            done_entry = None
+            for entry in sorted_history:
+                if (entry.start_date > last_mp_entry.start_date and 
+                    entry.status in done_statuses):
+                    done_entry = entry
+                    break
+            
+            if not done_entry:
+                return None
+            
+            # Calculate pause time between MP/External Test start and done status
+            pause_time = self.calculate_pause_time_between_dates(
+                history_data, last_mp_entry.start_date, done_entry.start_date
+            )
+            
+            total_days = (done_entry.start_date - last_mp_entry.start_date).days
+            effective_days = total_days - pause_time
+            return max(0, effective_days)  # Ensure non-negative
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate Tail metric: {e}")
             return None
     
     def calculate_statistics(self, times: List[int]) -> TimeMetrics:
@@ -345,7 +450,8 @@ class MetricsService:
         self,
         group_name: str,
         ttd_times: List[int],
-        ttm_times: List[int]
+        ttm_times: List[int],
+        tail_times: List[int]
     ) -> GroupMetrics:
         """
         Calculate metrics for a specific group.
@@ -354,17 +460,20 @@ class MetricsService:
             group_name: Name of the group
             ttd_times: List of TTD times
             ttm_times: List of TTM times
+            tail_times: List of Tail times
             
         Returns:
             GroupMetrics object
         """
         ttd_metrics = self.calculate_statistics(ttd_times)
         ttm_metrics = self.calculate_statistics(ttm_times)
+        tail_metrics = self.calculate_statistics(tail_times)
         
         return GroupMetrics(
             group_name=group_name,
             ttd_metrics=ttd_metrics,
             ttm_metrics=ttm_metrics,
+            tail_metrics=tail_metrics,
             total_tasks=ttd_metrics.count + ttm_metrics.count
         )
 
@@ -374,7 +483,9 @@ class MetricsService:
         ttd_times: List[int],
         ttd_pause_times: List[int],
         ttm_times: List[int],
-        ttm_pause_times: List[int]
+        ttm_pause_times: List[int],
+        tail_times: List[int],
+        tail_pause_times: List[int]
     ) -> GroupMetrics:
         """
         Calculate enhanced metrics for a specific group including pause time.
@@ -385,16 +496,20 @@ class MetricsService:
             ttd_pause_times: List of TTD pause times
             ttm_times: List of TTM times
             ttm_pause_times: List of TTM pause times
+            tail_times: List of Tail times
+            tail_pause_times: List of Tail pause times
             
         Returns:
             GroupMetrics object with pause time data
         """
         ttd_metrics = self.calculate_enhanced_statistics(ttd_times, ttd_pause_times)
         ttm_metrics = self.calculate_enhanced_statistics(ttm_times, ttm_pause_times)
+        tail_metrics = self.calculate_enhanced_statistics(tail_times, tail_pause_times)
         
         return GroupMetrics(
             group_name=group_name,
             ttd_metrics=ttd_metrics,
             ttm_metrics=ttm_metrics,
+            tail_metrics=tail_metrics,
             total_tasks=ttd_metrics.count + ttm_metrics.count
         )

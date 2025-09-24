@@ -43,9 +43,9 @@ class TestInitialStatusTDD:
         assert result[0]["start_date"] == task_data["created_at"], "Should use created_at as start_date"
         assert result[0]["end_date"] is None, "Initial status should have no end_date"
 
-    def test_extract_status_history_should_not_add_initial_status_when_changelog_exists(self, mock_service):
-        """🔴 RED: This test should FAIL - we should not add initial status when changelog has entries."""
-        # Given: Task with changelog entries
+    def test_extract_status_history_should_add_initial_status_when_changelog_has_no_from_field(self, mock_service):
+        """✅ GREEN: This test should PASS - we should add initial status when changelog has no 'from' field."""
+        # Given: Task with changelog entries but no 'from' field
         task_data = {
             "tracker_id": "67890",
             "key": "TEST-456",
@@ -69,10 +69,13 @@ class TestInitialStatusTDD:
             changelog_with_entries, task_data, "TEST-456"
         )
         
-        # Then: We should get only changelog entries, no initial status
-        assert len(result) == 1, "Should have 1 status entry from changelog"
-        assert result[0]["status"] == "В работе", "Should use status from changelog"
-        assert result[0]["status_display"] == "В работе", "Should set status_display from changelog"
+        # Then: We should get 2 entries - initial status (current) and changelog entry
+        assert len(result) == 2, "Should have 2 status entries: initial + changelog"
+        assert result[0]["status"] == "Готово", "Should use current status as initial when no 'from' field"
+        assert result[0]["start_date"] == task_data["created_at"], "Should use created_at as start_date"
+        assert result[0]["end_date"] == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "Should end when change starts"
+        assert result[1]["status"] == "В работе", "Should use status from changelog"
+        assert result[1]["start_date"] == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "Should start when change occurred"
 
     def test_extract_status_history_should_use_task_updated_at_when_created_at_unavailable(self, mock_service):
         """🔴 RED: This test should FAIL - we should use task_updated_at when created_at is not available."""

@@ -270,7 +270,7 @@ class TrackerAPIService:
     
     def extract_status_history_with_initial_status(self, changelog: List[Dict[str, Any]], task_data: Dict[str, Any], task_key: str = None) -> List[Dict[str, Any]]:
         """
-        Extract status history from changelog, adding initial status if no changelog entries exist.
+        Extract status history from changelog, properly handling initial status from 'from' field.
         
         This method solves the problem where tasks created with an initial status but never changed
         would have no history entries, losing the initial status information.
@@ -281,17 +281,139 @@ class TrackerAPIService:
             task_key: Optional task key for logging purposes
             
         Returns:
-            List of status history entries, including initial status if no changelog entries exist
+            List of status history entries, including initial status from 'from' field
         """
-        # First, get status history from changelog (existing logic)
-        status_changes = self.extract_status_history(changelog, task_key)
+        # Extract status changes from changelog with proper initial status handling
+        status_changes = self._extract_status_history_with_from_field(changelog, task_data, task_key)
         
-        # If no status changes in changelog, add initial status
+        # If no status changes in changelog, add current status as initial
         if not status_changes and task_data.get("status"):
             initial_status = self._create_initial_status_entry(task_data)
             status_changes = [initial_status]
         
         return status_changes
+    
+    def _extract_status_history_with_from_field(self, changelog: List[Dict[str, Any]], task_data: Dict[str, Any], task_key: str = None) -> List[Dict[str, Any]]:
+        """
+        Extract status history from changelog, properly handling 'from' field for initial status.
+        
+        Args:
+            changelog: List of changelog entries from Tracker API
+            task_data: Task data containing status and date information
+            task_key: Optional task key for logging purposes
+            
+        Returns:
+            List of status history entries with proper initial status from 'from' field
+        """
+        status_changes = []
+        initial_status_added = False
+        
+        # Process each changelog entry
+        for entry in changelog:
+            if not entry.get("updatedAt"):
+                continue
+                
+            # Process each field change in the entry
+            for field in entry.get("fields", []):
+                if not self._is_status_field(field):
+                    continue
+                
+                # Extract status change information
+                status_change = self._extract_status_change_info(field, entry["updatedAt"])
+                if not status_change:
+                    continue
+                
+                # Handle initial status if this is the first change
+                if not initial_status_added:
+                    initial_entry = self._create_initial_status_entry_from_change(
+                        status_change, task_data
+                    )
+                    if initial_entry:
+                        status_changes.append(initial_entry)
+                        initial_status_added = True
+                
+                # Add the new status
+                status_changes.append(status_change)
+        
+        # Post-process the status changes
+        self._set_end_dates_for_status_changes(status_changes)
+        unique_changes = self._remove_duplicate_status_changes(status_changes)
+        
+        # Log results
+        self._log_status_extraction_results(task_key, len(unique_changes), len(changelog))
+        
+        return unique_changes
+    
+    def _is_status_field(self, field: Dict[str, Any]) -> bool:
+        """Check if field is a status field."""
+        return field.get("field", {}).get("id") == STATUS_FIELD_ID
+    
+    def _extract_status_change_info(self, field: Dict[str, Any], updated_at: str) -> Optional[Dict[str, Any]]:
+        """Extract status change information from field."""
+        to_status = field.get("to", {}).get("display") or field.get("to", {}).get("key")
+        if not to_status:
+            return None
+        
+        change_date = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        
+        return {
+            "status": to_status,
+            "status_display": to_status,
+            "start_date": change_date,
+            "end_date": None,  # Will be set later
+            "from_status": field.get("from", {}).get("display") if field.get("from") else None
+        }
+    
+    def _create_initial_status_entry_from_change(self, status_change: Dict[str, Any], task_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create initial status entry from the first status change."""
+        from_status = status_change.get("from_status")
+        change_date = status_change["start_date"]
+        
+        # Determine initial status
+        if from_status:
+            # Use 'from' field if available
+            initial_status = from_status
+        else:
+            # Fallback to current status
+            initial_status = task_data.get("status", "")
+            if not initial_status:
+                return None
+        
+        return {
+            "status": initial_status,
+            "status_display": initial_status,
+            "start_date": self._determine_initial_status_date(task_data),
+            "end_date": change_date
+        }
+    
+    def _set_end_dates_for_status_changes(self, status_changes: List[Dict[str, Any]]) -> None:
+        """Set end dates for all status changes except the last one."""
+        for i, change in enumerate(status_changes):
+            if i + 1 < len(status_changes):
+                change["end_date"] = status_changes[i + 1]["start_date"]
+    
+    def _remove_duplicate_status_changes(self, status_changes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove duplicate status changes based on status and start_date."""
+        unique_changes = []
+        seen = set()
+        
+        for change in status_changes:
+            # Remove 'from_status' from the change before adding to result
+            change_copy = {k: v for k, v in change.items() if k != "from_status"}
+            
+            key = (change_copy["status"], change_copy["start_date"])
+            if key not in seen:
+                seen.add(key)
+                unique_changes.append(change_copy)
+        
+        return unique_changes
+    
+    def _log_status_extraction_results(self, task_key: Optional[str], unique_count: int, total_entries: int) -> None:
+        """Log status extraction results."""
+        if task_key:
+            print(f"📊 {task_key}: {unique_count} изменений статуса (из {total_entries} записей)")
+        else:
+            print(f"📊 Найдено {unique_count} изменений статуса (из {total_entries} записей)")
     
     def _create_initial_status_entry(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create initial status entry for tasks with no changelog entries."""

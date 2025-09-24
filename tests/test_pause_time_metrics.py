@@ -114,9 +114,11 @@ class TestPauseTimeMetrics:
         ttd_pause_times = [0, 1, 2]
         ttm_times = [4, 5, 6]
         ttm_pause_times = [1, 0, 1]
+        tail_times = [1, 2, 3]
+        tail_pause_times = [0, 1, 0]
         
         result = self.service.calculate_enhanced_group_metrics(
-            "TestGroup", ttd_times, ttd_pause_times, ttm_times, ttm_pause_times
+            "TestGroup", ttd_times, ttd_pause_times, ttm_times, ttm_pause_times, tail_times, tail_pause_times
         )
         
         assert result.group_name == "TestGroup"
@@ -124,6 +126,8 @@ class TestPauseTimeMetrics:
         assert result.ttd_metrics.pause_times == ttd_pause_times
         assert result.ttm_metrics.times == ttm_times
         assert result.ttm_metrics.pause_times == ttm_pause_times
+        assert result.tail_metrics.times == tail_times
+        assert result.tail_metrics.pause_times == tail_pause_times
         assert result.total_tasks == 6
     
     def test_calculate_pause_time_empty_history(self):

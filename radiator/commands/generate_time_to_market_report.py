@@ -87,12 +87,22 @@ class GenerateTimeToMarketReportCommand:
             for quarter in quarters:
                 logger.info(f"Processing quarter: {quarter.name}")
                 
-                # Get tasks for this quarter
-                tasks = self.data_service.get_tasks_for_period(
+                # Get tasks for TTD (only "Готова к разработке" transitions)
+                ttd_tasks = self.data_service.get_tasks_for_period(
                     quarter.start_date, 
                     quarter.end_date, 
                     self.group_by, 
-                    status_mapping
+                    status_mapping,
+                    metric_type="ttd"
+                )
+                
+                # Get tasks for TTM (only done status transitions)
+                ttm_tasks = self.data_service.get_tasks_for_period(
+                    quarter.start_date, 
+                    quarter.end_date, 
+                    self.group_by, 
+                    status_mapping,
+                    metric_type="ttm"
                 )
                 
                 # Group tasks by author/team
@@ -100,10 +110,13 @@ class GenerateTimeToMarketReportCommand:
                     'ttd_times': [],
                     'ttd_pause_times': [],
                     'ttm_times': [],
-                    'ttm_pause_times': []
+                    'ttm_pause_times': [],
+                    'tail_times': [],
+                    'tail_pause_times': []
                 })
                 
-                for task in tasks:
+                # Process TTD tasks
+                for task in ttd_tasks:
                     group_value = task.group_value
                     task_id = task.id
                     
@@ -117,32 +130,80 @@ class GenerateTimeToMarketReportCommand:
                     # Calculate pause time for this task
                     pause_time = self.metrics_service.calculate_pause_time(history)
                     
-                    # Calculate Time To Delivery
+                    # Calculate Time To Delivery (only for TTD tasks)
                     ttd = self.metrics_service.calculate_time_to_delivery(
                         history, status_mapping.discovery_statuses
                     )
                     if ttd is not None:
                         group_data[group_value]['ttd_times'].append(ttd)
                         group_data[group_value]['ttd_pause_times'].append(pause_time)
+                
+                # Process TTM tasks
+                for task in ttm_tasks:
+                    group_value = task.group_value
+                    task_id = task.id
                     
-                    # Calculate Time To Market
+                    # Get task history
+                    history = self.data_service.get_task_history(task_id)
+                    
+                    if not history:
+                        logger.debug(f"No history found for task {task.key}")
+                        continue
+                    
+                    # Calculate pause time for this task
+                    pause_time = self.metrics_service.calculate_pause_time(history)
+                    
+                    # Calculate Time To Market (only for TTM tasks)
                     ttm = self.metrics_service.calculate_time_to_market(
                         history, status_mapping.done_statuses
                     )
                     if ttm is not None:
                         group_data[group_value]['ttm_times'].append(ttm)
                         group_data[group_value]['ttm_pause_times'].append(pause_time)
+                    
+                    # Calculate Tail metric (only for TTM tasks)
+                    tail = self.metrics_service.calculate_tail_metric(
+                        history, status_mapping.done_statuses
+                    )
+                    if tail is not None:
+                        # Calculate pause time specifically for Tail metric period
+                        # Find the last MP/External Test entry
+                        sorted_history = sorted(history, key=lambda x: x.start_date)
+                        last_mp_entry = None
+                        for entry in sorted_history:
+                            if entry.status == 'МП / Внешний тест':
+                                last_mp_entry = entry
+                        
+                        # Find the done entry after MP/External Test
+                        done_entry = None
+                        for entry in sorted_history:
+                            if (entry.start_date > last_mp_entry.start_date and 
+                                entry.status in status_mapping.done_statuses):
+                                done_entry = entry
+                                break
+                        
+                        # Calculate pause time between MP/External Test and done status
+                        tail_pause_time = 0
+                        if last_mp_entry and done_entry:
+                            tail_pause_time = self.metrics_service.calculate_pause_time_between_dates(
+                                history, last_mp_entry.start_date, done_entry.start_date
+                            )
+                        
+                        group_data[group_value]['tail_times'].append(tail)
+                        group_data[group_value]['tail_pause_times'].append(tail_pause_time)
                 
                 # Calculate metrics for each group
                 groups = {}
                 for group_value, data in group_data.items():
-                    if data['ttd_times'] or data['ttm_times']:
+                    if data['ttd_times'] or data['ttm_times'] or data['tail_times']:
                         groups[group_value] = self.metrics_service.calculate_enhanced_group_metrics(
                             group_value, 
                             data['ttd_times'], 
                             data['ttd_pause_times'],
                             data['ttm_times'], 
-                            data['ttm_pause_times']
+                            data['ttm_pause_times'],
+                            data['tail_times'],
+                            data['tail_pause_times']
                         )
                 
                 if groups:

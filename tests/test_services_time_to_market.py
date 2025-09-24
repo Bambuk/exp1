@@ -238,12 +238,14 @@ class TestMetricsServiceWithStrategies:
         """Test group metrics calculation."""
         ttd_times = [1, 2, 3]
         ttm_times = [4, 5, 6]
+        tail_times = [1, 2, 3]
         
-        result = self.service.calculate_group_metrics("TestGroup", ttd_times, ttm_times)
+        result = self.service.calculate_group_metrics("TestGroup", ttd_times, ttm_times, tail_times)
         
         assert result.group_name == "TestGroup"
         assert result.ttd_metrics.times == ttd_times
         assert result.ttm_metrics.times == ttm_times
+        assert result.tail_metrics.times == tail_times
         assert result.total_tasks == 6
 
 
