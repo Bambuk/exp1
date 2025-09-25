@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
 from radiator.core.logging import logger
-from radiator.crud.tracker import tracker_task, tracker_task_history
+# CRUD operations removed - using direct SQLAlchemy queries
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 from radiator.commands.models.time_to_market_models import (
     TaskData, StatusHistoryEntry, GroupBy, StatusMapping

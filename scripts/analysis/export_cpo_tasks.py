@@ -12,7 +12,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.core.database import SessionLocal
-from radiator.crud.tracker import tracker_task
+# CRUD operations removed - using direct SQLAlchemy queries
 
 def export_cpo_tasks():
     """Экспортируем существующие задачи CPO в файл."""

@@ -42,7 +42,7 @@ sys.path.insert(0, str(project_root))
 from radiator.core.database import SessionLocal
 from radiator.core.config import settings, with_default_limit
 from radiator.core.logging import logger
-from radiator.crud.tracker import tracker_task, tracker_task_history, tracker_sync_log
+# CRUD operations removed - using direct SQLAlchemy queries
 from radiator.services.tracker_service import tracker_service
 from radiator.models.tracker import TrackerSyncLog
 

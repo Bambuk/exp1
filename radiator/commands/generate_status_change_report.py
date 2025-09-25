@@ -17,7 +17,7 @@ sys.path.insert(0, str(project_root))
 from radiator.core.database import SessionLocal
 from radiator.core.config import settings
 from radiator.core.logging import logger
-from radiator.crud.tracker import tracker_task, tracker_task_history
+# CRUD operations removed - using direct SQLAlchemy queries
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 
 
