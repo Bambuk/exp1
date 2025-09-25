@@ -216,8 +216,8 @@ class GoogleSheetsService:
             # Auto-resize columns
             self._auto_resize_columns(sheet_name, len(df.columns))
             
-            # Add filter to first row (headers)
-            self._add_filter_to_first_row(sheet_name, len(df.columns))
+            # Add filter to all data (headers + data rows)
+            self._add_filter_to_all_data(sheet_name, len(df.columns), len(df) + 1)
             
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
             return True
@@ -265,13 +265,14 @@ class GoogleSheetsService:
         except Exception as e:
             logger.warning(f"Failed to auto-resize columns for sheet {sheet_name}: {e}")
     
-    def _add_filter_to_first_row(self, sheet_name: str, num_columns: int):
+    def _add_filter_to_all_data(self, sheet_name: str, num_columns: int, num_rows: int):
         """
-        Add filter to the first row (headers) of the sheet.
+        Add filter to all data in the sheet (headers + data rows).
         
         Args:
             sheet_name: Name of the sheet
             num_columns: Number of columns to include in filter
+            num_rows: Number of rows to include in filter (including header)
         """
         try:
             # Get sheet ID
@@ -282,7 +283,7 @@ class GoogleSheetsService:
             
             # Create column range (A to last column)
             end_column = chr(ord('A') + num_columns - 1)
-            range_name = f"{sheet_name}!A1:{end_column}1"
+            range_name = f"{sheet_name}!A1:{end_column}{num_rows}"
             
             request_body = {
                 'requests': [{
@@ -291,7 +292,7 @@ class GoogleSheetsService:
                             'range': {
                                 'sheetId': sheet_id,
                                 'startRowIndex': 0,
-                                'endRowIndex': 1,
+                                'endRowIndex': num_rows,
                                 'startColumnIndex': 0,
                                 'endColumnIndex': num_columns
                             }
@@ -305,10 +306,10 @@ class GoogleSheetsService:
                 body=request_body
             ).execute()
             
-            logger.debug(f"Added filter to first row for sheet {sheet_name}")
+            logger.debug(f"Added filter to all data ({num_rows} rows, {num_columns} columns) for sheet {sheet_name}")
             
         except Exception as e:
-            logger.warning(f"Failed to add filter to first row for sheet {sheet_name}: {e}")
+            logger.warning(f"Failed to add filter to all data for sheet {sheet_name}: {e}")
     
     def _get_sheet_id(self, sheet_name: str) -> Optional[int]:
         """
