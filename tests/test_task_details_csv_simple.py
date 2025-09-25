@@ -58,7 +58,8 @@ class TestTaskDetailsCSVSimple:
         
         # Mock data service
         self.command.data_service = Mock()
-        self.command.data_service.get_tasks_for_period.return_value = [
+        # Mock tasks for both TTD and TTM calls
+        mock_tasks = [
             TaskData(
                 id=1,
                 key="CPO-1001",
@@ -78,12 +79,15 @@ class TestTaskDetailsCSVSimple:
                 summary="Test Task 2"
             )
         ]
+        # Mock tasks for both TTD and TTM calls
+        self.command.data_service.get_tasks_for_period.side_effect = [mock_tasks, mock_tasks]
         
         # Mock metrics service
         self.command.metrics_service = Mock()
         self.command.metrics_service.calculate_time_to_delivery.return_value = 5
         self.command.metrics_service.calculate_time_to_market.return_value = 8
         self.command.metrics_service.calculate_tail_metric.return_value = 2
+        self.command.metrics_service.calculate_pause_time.return_value = 1
         
         # Mock task history
         self.command.data_service.get_task_history.return_value = [
@@ -110,7 +114,7 @@ class TestTaskDetailsCSVSimple:
                 rows = list(reader)
                 
                 # Verify headers
-                expected_headers = ["Автор", "Ключ задачи", "Название", "TTD", "TTM", "Tail", "Квартал"]
+                expected_headers = ["Автор", "Ключ задачи", "Название", "TTD", "TTM", "Tail", "Пауза", "Квартал"]
                 assert reader.fieldnames == expected_headers
                 
                 # Verify we have data
@@ -124,6 +128,7 @@ class TestTaskDetailsCSVSimple:
                 assert "TTD" in first_row
                 assert "TTM" in first_row
                 assert "Tail" in first_row
+                assert "Пауза" in first_row
                 assert "Квартал" in first_row
                 
         finally:
@@ -156,6 +161,7 @@ class TestTaskDetailsCSVSimple:
                 assert first_row["TTD"] == "5"
                 assert first_row["TTM"] == "8"
                 assert first_row["Tail"] == "2"
+                assert first_row["Пауза"] == "1"
                 assert first_row["Квартал"] == "Q1 2024"
                 
                 # Verify second task data
@@ -166,6 +172,7 @@ class TestTaskDetailsCSVSimple:
                 assert second_row["TTD"] == "5"
                 assert second_row["TTM"] == "8"
                 assert second_row["Tail"] == "2"
+                assert second_row["Пауза"] == "1"
                 assert second_row["Квартал"] == "Q1 2024"
                 
         finally:
@@ -197,6 +204,7 @@ class TestTaskDetailsCSVSimple:
                 assert first_row["TTD"] == ""  # None should be empty string
                 assert first_row["TTM"] == "8"
                 assert first_row["Tail"] == ""  # None should be empty string
+                assert first_row["Пауза"] == "1"  # Pause time should be calculated
                 
         finally:
             # Clean up

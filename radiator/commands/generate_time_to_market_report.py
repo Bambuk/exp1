@@ -311,6 +311,7 @@ class GenerateTimeToMarketReportCommand:
                     ttd = self.metrics_service.calculate_time_to_delivery(history, self.report.status_mapping.discovery_statuses)
                     ttm = self.metrics_service.calculate_time_to_market(history, self.report.status_mapping.done_statuses)
                     tail = self.metrics_service.calculate_tail_metric(history, self.report.status_mapping.done_statuses)
+                    pause_time = self.metrics_service.calculate_pause_time(history)
                     
                     task_details.append({
                         "Автор": task.author,
@@ -319,13 +320,14 @@ class GenerateTimeToMarketReportCommand:
                         "TTD": ttd if ttd is not None else '',
                         "TTM": ttm if ttm is not None else '',
                         "Tail": tail if tail is not None else '',
+                        "Пауза": pause_time if pause_time is not None else '',
                         "Квартал": quarter.name
                     })
             
             # Write to CSV
             if task_details:
                 with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                    fieldnames = ["Автор", "Ключ задачи", "Название", "TTD", "TTM", "Tail", "Квартал"]
+                    fieldnames = ["Автор", "Ключ задачи", "Название", "TTD", "TTM", "Tail", "Пауза", "Квартал"]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     
                     writer.writeheader()
