@@ -164,3 +164,4 @@ data/output/
 # Telegram bot state
 .telegram_bot_state.json
 .env.backup
+sheet-api-key.json

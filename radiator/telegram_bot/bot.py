@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 
 from .config import TelegramBotConfig
@@ -27,6 +27,7 @@ class ReportsTelegramBot:
         self.bot = Bot(token=TelegramBotConfig.BOT_TOKEN)
         self.file_monitor = FileMonitor()
         self.user_id = TelegramBotConfig.USER_ID
+        self.reports_dir = TelegramBotConfig.REPORTS_DIR
         
     async def send_file(self, file_path: Path, caption: str = None) -> bool:
         """
@@ -84,6 +85,75 @@ class ReportsTelegramBot:
             await self.send_message(f"❌ Неожиданная ошибка при отправке файла {file_path.name}: {e}")
             return False
     
+    async def send_file_with_upload_button(self, file_path: Path, caption: str = None) -> bool:
+        """
+        Send file to Telegram user with upload button for CSV files.
+        
+        Args:
+            file_path: Path to file to send
+            caption: Optional caption for the file
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            # Check file size
+            file_size = file_path.stat().st_size
+            if file_size > TelegramBotConfig.MAX_FILE_SIZE:
+                await self.send_message(
+                    f"⚠️ Файл {file_path.name} слишком большой ({file_size / (1024*1024):.1f}MB). "
+                    f"Максимальный размер: {TelegramBotConfig.MAX_FILE_SIZE / (1024*1024):.1f}MB"
+                )
+                return False
+            
+            # Create keyboard for CSV files
+            keyboard = None
+            if file_path.suffix.lower() == '.csv':
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton(
+                        "📊 Загрузить в Google Sheets", 
+                        callback_data=f"upload_csv:{file_path.name}"
+                    )]
+                ])
+            
+            # Send file based on type
+            if file_path.suffix.lower() in ['.png', '.jpg', '.jpeg']:
+                with open(file_path, 'rb') as photo_file:
+                    await self.bot.send_photo(
+                        chat_id=self.user_id,
+                        photo=photo_file,
+                        caption=caption,
+                        reply_markup=keyboard
+                    )
+            elif file_path.suffix.lower() == '.csv':
+                with open(file_path, 'rb') as doc_file:
+                    await self.bot.send_document(
+                        chat_id=self.user_id,
+                        document=doc_file,
+                        caption=caption,
+                        reply_markup=keyboard
+                    )
+            else:
+                with open(file_path, 'rb') as doc_file:
+                    await self.bot.send_document(
+                        chat_id=self.user_id,
+                        document=doc_file,
+                        caption=caption,
+                        reply_markup=keyboard
+                    )
+            
+            logger.info(f"File {file_path.name} sent successfully with upload button")
+            return True
+            
+        except TelegramError as e:
+            logger.error(f"Failed to send file {file_path.name}: {e}")
+            await self.send_message(f"❌ Ошибка отправки файла {file_path.name}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending file {file_path.name}: {e}")
+            await self.send_message(f"❌ Неожиданная ошибка при отправке файла {file_path.name}: {e}")
+            return False
+    
     async def send_message(self, text: str) -> bool:
         """
         Send text message to Telegram user.
@@ -100,6 +170,82 @@ class ReportsTelegramBot:
         except TelegramError as e:
             logger.error(f"Failed to send message: {e}")
             return False
+    
+    async def handle_callback_query(self, callback_query) -> None:
+        """
+        Handle callback query from inline keyboard buttons.
+        
+        Args:
+            callback_query: Callback query from Telegram
+        """
+        try:
+            query_data = callback_query.data
+            query_id = callback_query.id
+            
+            logger.info(f"Received callback query: {query_data} (ID: {query_id})")
+            
+            if query_data.startswith("upload_csv:"):
+                filename = query_data.split(":", 1)[1]
+                logger.info(f"Processing upload request for file: {filename}")
+                await self._handle_upload_csv_request(query_id, filename)
+            else:
+                # Answer unknown callback
+                logger.warning(f"Unknown callback query: {query_data}")
+                await self.bot.answer_callback_query(query_id, text="❌ Неизвестная команда")
+                
+        except Exception as e:
+            logger.error(f"Error handling callback query: {e}")
+            try:
+                await self.bot.answer_callback_query(callback_query.id, text="❌ Ошибка обработки запроса")
+            except:
+                pass
+    
+    async def _handle_upload_csv_request(self, query_id: str, filename: str) -> None:
+        """
+        Handle CSV upload request from button press.
+        
+        Args:
+            query_id: Callback query ID
+            filename: Name of the CSV file
+        """
+        try:
+            # Check if file exists
+            file_path = self.reports_dir / filename
+            if not file_path.exists():
+                await self.bot.answer_callback_query(
+                    query_id, 
+                    text=f"❌ Файл {filename} не найден"
+                )
+                return
+            
+            # Create marker file
+            marker_filename = f".upload_me_{filename}"
+            marker_path = self.reports_dir / marker_filename
+            
+            try:
+                with open(marker_path, 'w', encoding='utf-8') as f:
+                    f.write(f"Upload request for {filename}\n")
+                    f.write(f"Created at: {datetime.now().isoformat()}\n")
+                
+                await self.bot.answer_callback_query(
+                    query_id, 
+                    text=f"✅ Файл {filename} добавлен в очередь загрузки в Google Sheets"
+                )
+                logger.info(f"Upload marker created for {filename}")
+                
+            except Exception as e:
+                logger.error(f"Failed to create marker file for {filename}: {e}")
+                await self.bot.answer_callback_query(
+                    query_id, 
+                    text=f"❌ Ошибка создания маркера для {filename}"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error handling upload request for {filename}: {e}")
+            await self.bot.answer_callback_query(
+                query_id, 
+                text=f"❌ Ошибка обработки запроса для {filename}"
+            )
     
     async def send_new_files_notification(self, new_files: List[str]) -> None:
         """
@@ -133,8 +279,8 @@ class ReportsTelegramBot:
                 caption += f"📅 Создан: {file_info['modified'].strftime('%d.%m.%Y %H:%M')}\n"
                 caption += f"📏 Размер: {file_info['size'] / (1024*1024):.1f}MB"
                 
-                # Send file
-                success = await self.send_file(file_path, caption)
+                # Send file with upload button for CSV files
+                success = await self.send_file_with_upload_button(file_path, caption)
                 if success:
                     await asyncio.sleep(1)  # Small delay between files
     

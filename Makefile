@@ -27,6 +27,9 @@ help:  ## Show this help message
 	@echo '  generate-time-to-market-report - Generate TTD/TTM report by authors'
 	@echo '  generate-time-to-market-report-teams - Generate TTD/TTM report by teams'
 	@echo '  generate-time-to-market-report-all - Generate both author and team TTD/TTM reports'
+	@echo ''
+	@echo 'Google Sheets Commands:'
+	@echo '  google-sheets-monitor - Start Google Sheets CSV uploader monitoring'
 
 install:  ## Install dependencies
 	pip install -e ".[dev]"
@@ -251,6 +254,11 @@ telegram-get-chat-id: ## Get Chat ID from Telegram bot
 telegram-simple-chat-id: ## Get Chat ID using simple method
 	@echo "Getting Chat ID using simple method..."
 	@python3 scripts/simple_chat_id.py
+
+# Google Sheets CSV Uploader commands
+google-sheets-monitor: ## Start Google Sheets CSV uploader monitoring
+	@echo "Starting Google Sheets CSV uploader monitoring..."
+	@python3 scripts/google_sheets_csv_uploader.py --monitor
 
 # Status change report commands
 generate-status-report:  ## Generate CPO tasks status change report by authors (last 2 weeks)
