@@ -51,7 +51,7 @@ class GoogleSheetsService:
         
         Google Sheets sheet names:
         - Max 100 characters
-        - Cannot contain: [ ] * ? / \ :
+        - Cannot contain: [ ] * ? / \\ :
         - Cannot be empty or only spaces
         """
         # Remove file extension
@@ -216,6 +216,9 @@ class GoogleSheetsService:
             # Auto-resize columns
             self._auto_resize_columns(sheet_name, len(df.columns))
             
+            # Add filter to first row (headers)
+            self._add_filter_to_first_row(sheet_name, len(df.columns))
+            
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
             return True
             
@@ -261,6 +264,51 @@ class GoogleSheetsService:
             
         except Exception as e:
             logger.warning(f"Failed to auto-resize columns for sheet {sheet_name}: {e}")
+    
+    def _add_filter_to_first_row(self, sheet_name: str, num_columns: int):
+        """
+        Add filter to the first row (headers) of the sheet.
+        
+        Args:
+            sheet_name: Name of the sheet
+            num_columns: Number of columns to include in filter
+        """
+        try:
+            # Get sheet ID
+            sheet_id = self._get_sheet_id(sheet_name)
+            if sheet_id is None:
+                logger.warning(f"Cannot add filter: sheet {sheet_name} not found")
+                return
+            
+            # Create column range (A to last column)
+            end_column = chr(ord('A') + num_columns - 1)
+            range_name = f"{sheet_name}!A1:{end_column}1"
+            
+            request_body = {
+                'requests': [{
+                    'setBasicFilter': {
+                        'filter': {
+                            'range': {
+                                'sheetId': sheet_id,
+                                'startRowIndex': 0,
+                                'endRowIndex': 1,
+                                'startColumnIndex': 0,
+                                'endColumnIndex': num_columns
+                            }
+                        }
+                    }
+                }]
+            }
+            
+            self.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.document_id,
+                body=request_body
+            ).execute()
+            
+            logger.debug(f"Added filter to first row for sheet {sheet_name}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to add filter to first row for sheet {sheet_name}: {e}")
     
     def _get_sheet_id(self, sheet_name: str) -> Optional[int]:
         """
