@@ -30,11 +30,11 @@ class TestPauseTimeSimple:
         
         # Calculate TTD (should exclude pause time)
         ttd = service.calculate_time_to_delivery(history, ["Discovery"])
-        assert ttd == 4  # 10-3=7 days total, minus 3 days pause = 4 days
+        assert ttd == 6  # 10-1=9 days total, minus 3 days pause = 6 days
         
         # Calculate TTM (should exclude pause time)
         ttm = service.calculate_time_to_market(history, ["Done"])
-        assert ttm == 6  # 12-3=9 days total, minus 3 days pause = 6 days
+        assert ttm == 8  # 12-1=11 days total, minus 3 days pause = 8 days
     
     def test_enhanced_statistics_with_pause_time(self):
         """Test enhanced statistics calculation with pause time."""
@@ -69,7 +69,7 @@ class TestPauseTimeSimple:
         
         # Calculate TTM (should be normal)
         ttm = service.calculate_time_to_market(history, ["Done"])
-        assert ttm == 2  # 5-3 = 2 days, no pause time
+        assert ttm == 4  # 5-1 = 4 days, no pause time
 
 
 if __name__ == "__main__":

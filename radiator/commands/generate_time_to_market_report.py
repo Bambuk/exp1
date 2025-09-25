@@ -162,35 +162,16 @@ class GenerateTimeToMarketReportCommand:
                         group_data[group_value]['ttm_pause_times'].append(pause_time)
                     
                     # Calculate Tail metric (only for TTM tasks)
-                    tail = self.metrics_service.calculate_tail_metric(
-                        history, status_mapping.done_statuses
-                    )
-                    if tail is not None:
-                        # Calculate pause time specifically for Tail metric period
-                        # Find the last MP/External Test entry
-                        sorted_history = sorted(history, key=lambda x: x.start_date)
-                        last_mp_entry = None
-                        for entry in sorted_history:
-                            if entry.status == 'МП / Внешний тест':
-                                last_mp_entry = entry
-                        
-                        # Find the done entry after MP/External Test
-                        done_entry = None
-                        for entry in sorted_history:
-                            if (entry.start_date > last_mp_entry.start_date and 
-                                entry.status in status_mapping.done_statuses):
-                                done_entry = entry
-                                break
-                        
-                        # Calculate pause time between MP/External Test and done status
-                        tail_pause_time = 0
-                        if last_mp_entry and done_entry:
-                            tail_pause_time = self.metrics_service.calculate_pause_time_between_dates(
-                                history, last_mp_entry.start_date, done_entry.start_date
-                            )
-                        
-                        group_data[group_value]['tail_times'].append(tail)
-                        group_data[group_value]['tail_pause_times'].append(tail_pause_time)
+                    try:
+                        tail = self.metrics_service.calculate_tail_metric(
+                            history, status_mapping.done_statuses
+                        )
+                        if tail is not None:
+                            group_data[group_value]['tail_times'].append(tail)
+                            group_data[group_value]['tail_pause_times'].append(0)  # No pause time for tail
+                    except Exception as e:
+                        logger.warning(f"Error calculating tail metric for task {task.key}: {e}")
+                        # Continue without tail metric
                 
                 # Calculate metrics for each group
                 groups = {}
@@ -269,6 +250,97 @@ class GenerateTimeToMarketReportCommand:
         renderer = TableRenderer(self.report)
         return renderer.render(filepath, report_type)
     
+    def generate_task_details_csv(self, filepath: Optional[str] = None) -> str:
+        """
+        Generate detailed CSV with individual task metrics.
+        
+        Args:
+            filepath: Output file path (optional)
+            
+        Returns:
+            Path to generated CSV file
+        """
+        if not self.report:
+            logger.warning("No report data available. Run generate_report_data() first.")
+            return ""
+        
+        task_details = []
+        
+        try:
+            from datetime import datetime
+            import csv
+            
+            # Generate filename if not provided
+            if not filepath:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filepath = f"reports/task_details_{timestamp}.csv"
+            
+            # Ensure reports directory exists
+            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+            
+            # Process each quarter
+            for quarter in self.report.quarters:
+                logger.info(f"Processing task details for quarter: {quarter.name}")
+                
+                # Get tasks for TTD and TTM
+                ttd_tasks = self.data_service.get_tasks_for_period(
+                    quarter.start_date, 
+                    quarter.end_date, 
+                    self.group_by, 
+                    self.report.status_mapping,
+                    metric_type="ttd"
+                )
+                
+                ttm_tasks = self.data_service.get_tasks_for_period(
+                    quarter.start_date, 
+                    quarter.end_date, 
+                    self.group_by, 
+                    self.report.status_mapping,
+                    metric_type="ttm"
+                )
+                
+                # Combine tasks for processing
+                all_tasks_in_quarter = {task.key: task for task in ttd_tasks + ttm_tasks}
+                
+                for task_key, task in all_tasks_in_quarter.items():
+                    history = self.data_service.get_task_history(task.id)
+                    if not history:
+                        logger.debug(f"No history found for task {task.key}")
+                        continue
+                    
+                    ttd = self.metrics_service.calculate_time_to_delivery(history, self.report.status_mapping.discovery_statuses)
+                    ttm = self.metrics_service.calculate_time_to_market(history, self.report.status_mapping.done_statuses)
+                    tail = self.metrics_service.calculate_tail_metric(history, self.report.status_mapping.done_statuses)
+                    
+                    task_details.append({
+                        "Автор": task.author,
+                        "Ключ задачи": task.key,
+                        "Название": task.summary,
+                        "TTD": ttd if ttd is not None else '',
+                        "TTM": ttm if ttm is not None else '',
+                        "Tail": tail if tail is not None else '',
+                        "Квартал": quarter.name
+                    })
+            
+            # Write to CSV
+            if task_details:
+                with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                    fieldnames = ["Автор", "Ключ задачи", "Название", "TTD", "TTM", "Tail", "Квартал"]
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    
+                    writer.writeheader()
+                    writer.writerows(task_details)
+                
+                logger.info(f"Task details CSV generated: {filepath}")
+                logger.info(f"Total tasks processed: {len(task_details)}")
+                return filepath
+            else:
+                logger.info("No task details to write to CSV.")
+                return ""
+        except Exception as e:
+            logger.error(f"Error generating task details CSV: {e}", exc_info=True)
+            return ""
+
     def print_summary(self, report_type: ReportType = ReportType.BOTH) -> None:
         """
         Print summary of the report to console.
@@ -295,6 +367,7 @@ def main():
                        help='Report type: ttd (Time To Delivery), ttm (Time To Market), or both (default: both)')
     parser.add_argument('--csv', help='CSV output file path')
     parser.add_argument('--table', help='Table output file path')
+    parser.add_argument('--task-details', help='Task details CSV output file path')
     parser.add_argument('--config-dir', default='data/config',
                        help='Configuration directory path (default: data/config)')
     
@@ -314,6 +387,7 @@ def main():
             ttd_table_file = ""
             ttm_csv_file = ""
             ttm_table_file = ""
+            task_details_file = ""
             
             if report_type == ReportType.BOTH:
                 # Generate TTD files
@@ -332,6 +406,9 @@ def main():
                     ttm_csv_file = cmd.generate_csv(args.csv, ReportType.TTM)
                     ttm_table_file = cmd.generate_table(args.table, ReportType.TTM)
             
+            # Generate task details CSV (always generate, use provided path or default)
+            task_details_file = cmd.generate_task_details_csv(args.task_details)
+            
             # Print summary
             cmd.print_summary(report_type)
             
@@ -346,6 +423,8 @@ def main():
                 print(f"TTM CSV file: {ttm_csv_file}")
             if ttm_table_file:
                 print(f"TTM Table file: {ttm_table_file}")
+            if task_details_file:
+                print(f"Task details CSV file: {task_details_file}")
                 
     except Exception as e:
         logger.error(f"Failed to generate report: {e}")

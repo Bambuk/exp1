@@ -103,7 +103,7 @@ class ConsoleRenderer(BaseRenderer):
             print("Tail (days from MP/External Test to Done) - Excluding Pause Time:")
             print(f"{'':<25}", end="")
             for quarter in quarters:
-                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10}", end="")
+                print(f"{'Avg':>8} {'85%':>8} {'Tasks':>4}", end="")
             print()
             
             for group in all_groups:
@@ -115,11 +115,9 @@ class ConsoleRenderer(BaseRenderer):
                         tail_avg = group_metrics.tail_metrics.mean or 0
                         tail_p85 = group_metrics.tail_metrics.p85 or 0
                         tasks = group_metrics.tail_metrics.count
-                        pause_avg = group_metrics.tail_metrics.pause_mean or 0
-                        pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
-                        line += f"{tail_avg:>8.1f}{tail_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
+                        line += f"{tail_avg:>8.1f}{tail_p85:>8.1f}{tasks:>4}"
                     else:
-                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
+                        line += f"{'':>8}{'':>8}{'':>4}"
                 print(line)
         
         # Print totals

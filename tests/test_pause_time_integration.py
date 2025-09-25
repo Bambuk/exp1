@@ -100,25 +100,25 @@ class TestPauseTimeIntegration:
             author1_metrics = quarter_report.groups["Author1"]
             assert author1_metrics.ttd_metrics.count == 1
             assert author1_metrics.ttm_metrics.count == 1
-            assert author1_metrics.tail_metrics.count == 1
+            assert author1_metrics.tail_metrics.count == 0  # No MP/External Test status in mock history
             
-            # TTD should exclude pause time: 10-3=7 days total, minus 3 days pause = 4 days
-            assert author1_metrics.ttd_metrics.times[0] == 4
-            # TTM should exclude pause time: 12-3=9 days total, minus 3 days pause = 6 days  
-            assert author1_metrics.ttm_metrics.times[0] == 6
-            # Tail should be: 12-11=1 day (no pause time in this period)
-            assert author1_metrics.tail_metrics.times[0] == 1
+            # TTD should exclude pause time: 10-1=9 days total, minus 3 days pause = 6 days
+            assert author1_metrics.ttd_metrics.times[0] == 6
+            # TTM should exclude pause time: 12-1=11 days total, minus 3 days pause = 8 days  
+            assert author1_metrics.ttm_metrics.times[0] == 8
+            # Tail should be: 12-11=1 day (no pause time in this period) - but no MP/External Test status
+            # So tail_metrics should be empty
             
             # Check pause time metrics
             assert author1_metrics.ttd_metrics.pause_times[0] == 3
             assert author1_metrics.ttm_metrics.pause_times[0] == 3
-            assert author1_metrics.tail_metrics.pause_times[0] == 0
+            # No tail metrics since no MP/External Test status
             assert author1_metrics.ttd_metrics.pause_mean == 3.0
             assert author1_metrics.ttd_metrics.pause_p85 == 3.0
             assert author1_metrics.ttm_metrics.pause_mean == 3.0
             assert author1_metrics.ttm_metrics.pause_p85 == 3.0
-            assert author1_metrics.tail_metrics.pause_mean == 0.0
-            assert author1_metrics.tail_metrics.pause_p85 == 0.0
+            assert author1_metrics.tail_metrics.pause_mean is None
+            assert author1_metrics.tail_metrics.pause_p85 is None
             
             # Check Author2 metrics (no pause time)
             author2_metrics = quarter_report.groups["Author2"]
@@ -126,8 +126,8 @@ class TestPauseTimeIntegration:
             assert author2_metrics.ttm_metrics.count == 1
             assert author2_metrics.tail_metrics.count == 1
             
-            # TTM should be normal: 5-2=3 days, no pause time
-            assert author2_metrics.ttm_metrics.times[0] == 3
+            # TTM should be normal: 5-1=4 days, no pause time
+            assert author2_metrics.ttm_metrics.times[0] == 4
             # Tail should be: 5-4=1 day, no pause time
             assert author2_metrics.tail_metrics.times[0] == 1
             assert author2_metrics.ttm_metrics.pause_times[0] == 0

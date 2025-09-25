@@ -48,6 +48,7 @@ class TaskData:
     author: Optional[str]
     team: Optional[str]
     created_at: datetime
+    summary: Optional[str] = None
 
 
 @dataclass

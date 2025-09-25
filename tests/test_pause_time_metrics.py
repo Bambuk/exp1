@@ -74,10 +74,10 @@ class TestPauseTimeMetrics:
             StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 8), None),
             StatusHistoryEntry("Готова к разработке", "Готова к разработке", datetime(2024, 1, 10), None),
         ]
-        
+
         ttd = self.service.calculate_time_to_delivery(history, ["Discovery"])
-        # Total time: 10-3=7 days, but 3 days in pause, so effective time: 7-3=4 days
-        assert ttd == 4
+        # Total time: 10-1=9 days, but 3 days in pause, so effective time: 9-3=6 days
+        assert ttd == 6
     
     def test_calculate_time_to_market_excludes_pause_time(self):
         """Test that TTM calculation excludes pause time."""
@@ -88,10 +88,10 @@ class TestPauseTimeMetrics:
             StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 8), None),
             StatusHistoryEntry("Done", "Done", datetime(2024, 1, 10), None),
         ]
-        
+
         ttm = self.service.calculate_time_to_market(history, ["Done"])
-        # Total time: 10-3=7 days, but 3 days in pause, so effective time: 7-3=4 days
-        assert ttm == 4
+        # Total time: 10-1=9 days, but 3 days in pause, so effective time: 9-3=6 days
+        assert ttm == 6
     
     def test_calculate_enhanced_statistics_with_pause_time(self):
         """Test enhanced statistics calculation including pause time."""
@@ -171,13 +171,13 @@ class TestPauseTimeIntegration:
         
         # Calculate TTD (should exclude pause time)
         ttd = self.service.calculate_time_to_delivery(history, ["Discovery"])
-        # Total time to 'Готова к разработке': 10-3=7 days, minus 3 days pause (only up to 'Готова к разработке') = 4 days
-        assert ttd == 4
+        # Total time to 'Готова к разработке': 10-1=9 days, minus 3 days pause (only up to 'Готова к разработке') = 6 days
+        assert ttd == 6
         
         # Calculate TTM (should exclude pause time)
         ttm = self.service.calculate_time_to_market(history, ["Done"])
-        # Total time to 'Done': 15-3=12 days, minus 6 days pause = 6 days
-        assert ttm == 6
+        # Total time to 'Done': 15-1=14 days, minus 6 days pause = 8 days
+        assert ttm == 8
 
 
 if __name__ == "__main__":

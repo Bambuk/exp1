@@ -161,8 +161,8 @@ class TestTailMetricIntegration:
         ttm = self.service.calculate_time_to_market(history, ["Done"])
         tail = self.service.calculate_tail_metric(history, ["Done"])
         
-        assert ttd == 2  # 5-3 = 2 days
-        assert ttm == 9  # 12-3 = 9 days
+        assert ttd == 4  # 5-1 = 4 days
+        assert ttm == 11  # 12-1 = 11 days
         assert tail == 5  # 12-7 = 5 days (from start of MP/External Test to Done)
     
     def test_tail_metric_with_pause_time_integration(self):

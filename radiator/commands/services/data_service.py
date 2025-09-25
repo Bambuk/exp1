@@ -72,7 +72,8 @@ class DataService:
                 TrackerTask.id,
                 TrackerTask.key,
                 group_field,
-                TrackerTask.created_at
+                TrackerTask.created_at,
+                TrackerTask.summary
             ).join(
                 TrackerTaskHistory, TrackerTask.id == TrackerTaskHistory.task_id
             ).filter(
@@ -87,7 +88,7 @@ class DataService:
             logger.info(f"Found {len(tasks)} CPO tasks with {metric_type} transitions in period {start_date.date()} - {end_date.date()}")
             
             result = []
-            for task_id, key, group_value, created_at in tasks:
+            for task_id, key, group_value, created_at, summary in tasks:
                 if group_value:  # Double check group value is not None
                     try:
                         # Handle potential encoding issues
@@ -103,7 +104,8 @@ class DataService:
                             group_value=group_value,
                             author=group_value if group_by == GroupBy.AUTHOR else None,
                             team=group_value if group_by == GroupBy.TEAM else None,
-                            created_at=created_at
+                            created_at=created_at,
+                            summary=summary
                         ))
                         
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:

@@ -96,7 +96,7 @@ class TestMetricsService:
             StatusHistoryEntry("Done", "Done", datetime(2024, 1, 10), None),
         ]
         result = self.service.calculate_time_to_delivery(history_with_target, ["Discovery"])
-        assert result == 3  # 6 days - 3 days (first change) = 3 days
+        assert result == 5  # 6 days - 1 day (creation date) = 5 days
     
     def test_calculate_time_to_delivery_with_intermediate_status(self):
         """Test TTD calculation with intermediate status change."""
@@ -105,9 +105,9 @@ class TestMetricsService:
             StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 3), None),
             StatusHistoryEntry("Готова к разработке", "Готова к разработке", datetime(2024, 1, 5), None),
         ]
-        
+
         result = self.service.calculate_time_to_delivery(history, ["Discovery"])
-        assert result == 2  # 5 days - 3 days (first change) = 2 days
+        assert result == 4  # 5 days - 1 day (creation date) = 4 days
     
     def test_calculate_time_to_delivery_no_target_status(self):
         """Test TTD calculation when target status not found."""
@@ -122,7 +122,7 @@ class TestMetricsService:
     def test_calculate_time_to_market_success(self):
         """Test successful TTM calculation."""
         result = self.service.calculate_time_to_market(self.history, ["Done"])
-        assert result == 5  # 10 days - 5 days (first change) = 5 days
+        assert result == 9  # 10 days - 1 day (creation date) = 9 days
     
     def test_calculate_time_to_market_no_target_status(self):
         """Test TTM calculation when target status not found."""
@@ -167,9 +167,9 @@ class TestStartDateStrategies:
             StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 3), None),
             StatusHistoryEntry("Discovery", "Discovery", datetime(2024, 1, 5), None),
         ]
-        
+
         result = strategy.calculate_start_date(history)
-        assert result == datetime(2024, 1, 3)  # First change after creation
+        assert result == datetime(2024, 1, 1)  # Task creation date (first entry in history)
     
     def test_first_change_strategy_no_changes(self):
         """Test FirstChangeStrategy when no changes after creation."""
@@ -197,9 +197,9 @@ class TestMetricsServiceWithStrategies:
             StatusHistoryEntry("In Progress", "In Progress", datetime(2024, 1, 3), None),
             StatusHistoryEntry("Готова к разработке", "Готова к разработке", datetime(2024, 1, 5), None),
         ]
-        
+
         result = service.calculate_time_to_delivery(history, ["Discovery"])
-        assert result == 2  # 5 days - 3 days (first change) = 2 days
+        assert result == 4  # 5 days - 1 day (creation date) = 4 days
     
     def test_ttd_with_creation_date_strategy(self):
         """Test TTD calculation with CreationDateStrategy."""
@@ -263,22 +263,22 @@ class TestDataService:
     
     def test_get_tasks_for_period_author_grouping(self):
         """Test getting tasks for period with author grouping."""
-        # Mock database query
+        # Mock database query - now includes summary field
         mock_tasks = [
-            (1, "CPO-1", "Author1", datetime(2024, 1, 1)),
-            (2, "CPO-2", "Author2", datetime(2024, 1, 2))
+            (1, "CPO-1", "Author1", datetime(2024, 1, 1), "Task 1"),
+            (2, "CPO-2", "Author2", datetime(2024, 1, 2), "Task 2")
         ]
-        
+
         self.mock_db.query.return_value.join.return_value.filter.return_value.distinct.return_value.all.return_value = mock_tasks
-        
+
         status_mapping = StatusMapping(["Discovery"], ["Done"])
         result = self.service.get_tasks_for_period(
-            datetime(2024, 1, 1), 
-            datetime(2024, 1, 31), 
-            GroupBy.AUTHOR, 
+            datetime(2024, 1, 1),
+            datetime(2024, 1, 31),
+            GroupBy.AUTHOR,
             status_mapping
         )
-        
+
         assert len(result) == 2
         assert result[0].key == "CPO-1"
         assert result[0].author == "Author1"

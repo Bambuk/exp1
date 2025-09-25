@@ -198,15 +198,13 @@ class TableRenderer(BaseRenderer):
                         tail_avg = group_metrics.tail_metrics.mean or 0
                         tail_p85 = group_metrics.tail_metrics.p85 or 0
                         tail_tasks = group_metrics.tail_metrics.count
-                        tail_pause_avg = group_metrics.tail_metrics.pause_mean or 0
-                        tail_pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
-                        tail_values = [f"{tail_avg:.1f}", f"{tail_p85:.1f}", str(tail_tasks), f"{tail_pause_avg:.1f}", f"{tail_pause_p85:.1f}"]
+                        tail_values = [f"{tail_avg:.1f}", f"{tail_p85:.1f}", str(tail_tasks)]
                     else:
-                        tail_values = ["", "", "", "", ""]
+                        tail_values = ["", "", ""]
                     
                     row.extend(ttm_values + tail_values)
                 else:
-                    row.extend(["", "", "", "", "", "", "", "", "", ""])
+                    row.extend(["", "", "", "", "", "", "", ""])
             ttm_tail_table_data.append(row)
         
         # Create headers
@@ -215,8 +213,7 @@ class TableRenderer(BaseRenderer):
             ttm_tail_headers.extend([
                 f'{quarter}\nTTM Avg', f'{quarter}\nTTM 85%', f'{quarter}\nTTM Tasks', 
                 f'{quarter}\nTTM Pause Avg', f'{quarter}\nTTM Pause 85%',
-                f'{quarter}\nTail Avg', f'{quarter}\nTail 85%', f'{quarter}\nTail Tasks',
-                f'{quarter}\nTail Pause Avg', f'{quarter}\nTail Pause 85%'
+                f'{quarter}\nTail Avg', f'{quarter}\nTail 85%', f'{quarter}\nTail Tasks'
             ])
         
         # Create table
@@ -224,7 +221,7 @@ class TableRenderer(BaseRenderer):
                                  colLabels=ttm_tail_headers,
                                  cellLoc='center',
                                  loc='center',
-                                 colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 10))
+                                 colWidths=[0.15] + [0.14/len(quarters)] * (len(quarters) * 8))
         
         # Style TTM+Tail table
         self._style_table(ttm_tail_table, len(ttm_tail_headers), len(ttm_tail_table_data), all_groups, '#4CAF50')
