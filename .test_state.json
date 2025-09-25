@@ -1,0 +1,14 @@
+{
+  "known_files": [
+    "file1.csv",
+    "file2.csv"
+  ],
+  "file_timestamps": {
+    "file1.csv": 1234567890,
+    "file2.csv": 1234567891
+  },
+  "processed_files": [
+    "file1.csv"
+  ],
+  "last_updated": "2025-09-25T23:06:56.577737"
+}

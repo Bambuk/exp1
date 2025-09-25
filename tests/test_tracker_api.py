@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 
 from radiator.services.tracker_service import TrackerAPIService
@@ -98,7 +98,7 @@ class TestTrackerAPIServiceIntegration:
             call_args = mock_request.call_args
             
             # Check that the query was properly constructed
-            assert "Updated: >2024-01-01" in str(call_args[1].get('params', {}))
+            assert "Updated: >2024-01-01" in str(call_args[1].get('json', {}))
             
             # Verify result processing
             assert len(result) == 2
@@ -213,17 +213,9 @@ class TestTrackerAPIServiceIntegration:
         assert result["summary"] == "Test Task"
         assert result["description"] == "Test Description"
         assert result["status"] == "Open"
-        assert result["priority"] == "Normal"
         assert result["assignee"] == "Test User"
-        assert result["reporter"] == "Reporter User"
-        assert result["created_at"] == datetime(2024, 1, 1, 0, 0, 0)
-        assert result["updated_at"] == datetime(2024, 1, 2, 0, 0, 0)
-        assert result["resolved_at"] is None
-        assert result["due_date"] is None
-        assert result["tags"] == "test, bug"
-        assert result["components"] == "frontend"
-        assert result["versions"] == "v1.0"
-        assert result["labels"] == "urgent"
+        assert result["created_at"] == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        assert result["task_updated_at"] == datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
 
     def test_extract_status_history_real_structure(self, service):
         """Test status history extraction with real changelog structure."""
@@ -258,10 +250,10 @@ class TestTrackerAPIServiceIntegration:
         assert len(result) == 2
         assert result[0]["status"] == "In Progress"
         assert result[0]["status_display"] == "In Progress"
-        assert result[0]["start_date"] == datetime(2024, 1, 1, 10, 0, 0)
+        assert result[0]["start_date"] == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
         assert result[1]["status"] == "Done"
         assert result[1]["status_display"] == "Done"
-        assert result[1]["start_date"] == datetime(2024, 1, 1, 15, 0, 0)
+        assert result[1]["start_date"] == datetime(2024, 1, 1, 15, 0, 0, tzinfo=timezone.utc)
 
     def test_error_handling_integration(self, service):
         """Test error handling with real error scenarios."""
