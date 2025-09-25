@@ -89,7 +89,10 @@ class TestTaskDetailsCSV:
         self.command.metrics_service.calculate_tail_metric.return_value = 2
         
         # Mock task history
-        self.command.data_service.get_task_history.return_value = []
+        self.command.data_service.get_task_history.return_value = [
+            Mock(status="New", start_date=datetime(2024, 1, 1), end_date=None),
+            Mock(status="Done", start_date=datetime(2024, 1, 5), end_date=None)
+        ]
     
     def test_generate_task_details_csv_basic(self):
         """Test basic CSV generation functionality."""
@@ -230,7 +233,10 @@ class TestTaskDetailsCSV:
     def test_generate_task_details_csv_multiple_quarters(self):
         """Test CSV generation with multiple quarters."""
         # Add second quarter
-        quarter2 = Mock(name="Q2 2024", start_date=datetime(2024, 4, 1), end_date=datetime(2024, 6, 30))
+        quarter2 = Mock()
+        quarter2.name = "Q2 2024"
+        quarter2.start_date = datetime(2024, 4, 1)
+        quarter2.end_date = datetime(2024, 6, 30)
         self.report.quarters.append(quarter2)
         
         quarter_report2 = QuarterReport(
@@ -249,15 +255,30 @@ class TestTaskDetailsCSV:
         self.report.quarter_reports["Q2 2024"] = quarter_report2
         
         # Mock data service to return different tasks for Q2
+        # For TTD tasks
         self.command.data_service.get_tasks_for_period.side_effect = [
-            # Q1 tasks
+            # Q1 TTD tasks
             [
                 TaskData(id=1, key="CPO-1001", group_value="Author1", author="Author1", team=None, created_at=datetime(2024, 1, 15), summary="Q1 Task 1")
             ],
-            # Q2 tasks
+            # Q1 TTM tasks
+            [
+                TaskData(id=1, key="CPO-1001", group_value="Author1", author="Author1", team=None, created_at=datetime(2024, 1, 15), summary="Q1 Task 1")
+            ],
+            # Q2 TTD tasks
+            [
+                TaskData(id=3, key="CPO-1003", group_value="Author1", author="Author1", team=None, created_at=datetime(2024, 4, 20), summary="Q2 Task 1")
+            ],
+            # Q2 TTM tasks
             [
                 TaskData(id=3, key="CPO-1003", group_value="Author1", author="Author1", team=None, created_at=datetime(2024, 4, 20), summary="Q2 Task 1")
             ]
+        ]
+        
+        # Mock task history for both tasks
+        self.command.data_service.get_task_history.return_value = [
+            Mock(status="New", start_date=datetime(2024, 1, 1), end_date=None),
+            Mock(status="Done", start_date=datetime(2024, 1, 5), end_date=None)
         ]
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
@@ -265,7 +286,11 @@ class TestTaskDetailsCSV:
         
         try:
             # Generate CSV
-            self.command.generate_task_details_csv(temp_path)
+            result = self.command.generate_task_details_csv(temp_path)
+            
+            # Verify file was created
+            assert result == temp_path
+            assert os.path.exists(temp_path)
             
             # Read and verify content
             with open(temp_path, 'r', encoding='utf-8') as f:

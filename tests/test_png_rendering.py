@@ -115,6 +115,20 @@ class TestPNGRendering:
         mock_fig.add_axes.return_value = mock_ax
         mock_figure.return_value = mock_fig
         
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
+        mock_ax.table.return_value = mock_table
+        
         # Render TTM report
         self.renderer.render(report_type=ReportType.TTM)
         
@@ -136,6 +150,21 @@ class TestPNGRendering:
         mock_fig.add_axes.side_effect = [mock_ax1, mock_ax2]
         mock_figure.return_value = mock_fig
         
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
+        mock_ax1.table.return_value = mock_table
+        mock_ax2.table.return_value = mock_table
+        
         # Render BOTH report
         self.renderer.render(report_type=ReportType.BOTH)
         
@@ -153,7 +182,18 @@ class TestPNGRendering:
         """Test that TTM with Tail table has correct data structure."""
         # Mock axes with proper table mock
         mock_ax = Mock()
-        mock_table = Mock()
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
         mock_ax.table.return_value = mock_table
         
         # Call the method directly
@@ -170,19 +210,19 @@ class TestPNGRendering:
         # Verify we have data for both authors
         assert len(cell_text) == 2  # Two authors
         
-        # Verify we have TTM and Tail columns (10 columns per quarter: 5 TTM + 5 Tail)
-        assert len(col_labels) == 11  # 1 Group + 10 metric columns
+        # Verify we have TTM and Tail columns (8 columns per quarter: 5 TTM + 3 Tail)
+        assert len(col_labels) == 9  # 1 Group + 8 metric columns
         
         # Verify column headers include both TTM and Tail
         ttm_headers = [col for col in col_labels if 'TTM' in col]
         tail_headers = [col for col in col_labels if 'Tail' in col]
         
         assert len(ttm_headers) == 5  # TTM Avg, TTM 85%, TTM Tasks, TTM Pause Avg, TTM Pause 85%
-        assert len(tail_headers) == 5  # Tail Avg, Tail 85%, Tail Tasks, Tail Pause Avg, Tail Pause 85%
+        assert len(tail_headers) == 3  # Tail Avg, Tail 85%, Tail Tasks (no pause for tail)
         
         # Verify data structure for Author1 (has both TTM and Tail data)
         author1_row = cell_text[0]
-        assert len(author1_row) == 11  # Group + 10 metric columns
+        assert len(author1_row) == 9  # Group + 8 metric columns
         
         # Verify TTM data is present (first 5 metric columns)
         ttm_data = author1_row[1:6]  # Skip group name
@@ -192,19 +232,28 @@ class TestPNGRendering:
         assert ttm_data[3] == "1.0"  # TTM Pause Avg
         assert ttm_data[4] == "2.0"  # TTM Pause 85%
         
-        # Verify Tail data is present (last 5 metric columns)
-        tail_data = author1_row[6:11]
+        # Verify Tail data is present (last 3 metric columns)
+        tail_data = author1_row[6:9]
         assert tail_data[0] == "2.0"  # Tail Avg
         assert tail_data[1] == "3.0"  # Tail 85%
         assert tail_data[2] == "3"  # Tail Tasks
-        assert tail_data[3] == "0.3"  # Tail Pause Avg (0.33 rounded)
-        assert tail_data[4] == "1.0"  # Tail Pause 85%
     
     def test_tail_metrics_calculation(self):
         """Test that tail metrics are properly calculated and displayed."""
         # Mock axes with proper table mock
         mock_ax = Mock()
-        mock_table = Mock()
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
         mock_ax.table.return_value = mock_table
         
         # Call the method directly
@@ -222,25 +271,32 @@ class TestPNGRendering:
         assert tail_data[0] != ""  # Tail Avg
         assert tail_data[1] != ""  # Tail 85%
         assert tail_data[2] != "0"  # Tail Tasks (should be > 0)
-        assert tail_data[3] != ""  # Tail Pause Avg
-        assert tail_data[4] != ""  # Tail Pause 85%
         
         # Author2 should have empty tail data (no tail metrics)
         author2_row = cell_text[1]
-        tail_data_author2 = author2_row[6:11]
+        tail_data_author2 = author2_row[6:9]
         
         # Verify tail metrics are empty for Author2
         assert tail_data_author2[0] == ""  # Tail Avg
         assert tail_data_author2[1] == ""  # Tail 85%
         assert tail_data_author2[2] == ""  # Tail Tasks
-        assert tail_data_author2[3] == ""  # Tail Pause Avg
-        assert tail_data_author2[4] == ""  # Tail Pause 85%
     
     def test_pause_metrics_not_duplicated(self):
         """Test that pause metrics are not duplicated between TTM and Tail."""
         # Mock axes with proper table mock
         mock_ax = Mock()
-        mock_table = Mock()
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
         mock_ax.table.return_value = mock_table
         
         # Call the method directly
@@ -253,16 +309,16 @@ class TestPNGRendering:
         # Count pause-related columns
         pause_columns = [col for col in col_labels if 'Pause' in col]
         
-        # Should have exactly 10 pause columns: 5 for TTM + 5 for Tail
-        assert len(pause_columns) == 10
+        # Should have exactly 2 pause columns: 2 for TTM (no pause for Tail)
+        assert len(pause_columns) == 2
         
         # Verify TTM pause columns
         ttm_pause_columns = [col for col in col_labels if 'TTM' in col and 'Pause' in col]
-        assert len(ttm_pause_columns) == 5  # TTM Pause Avg, TTM Pause 85% (per quarter)
+        assert len(ttm_pause_columns) == 2  # TTM Pause Avg, TTM Pause 85% (per quarter)
         
-        # Verify Tail pause columns
+        # Verify Tail pause columns (should be 0 since we removed pause from Tail)
         tail_pause_columns = [col for col in col_labels if 'Tail' in col and 'Pause' in col]
-        assert len(tail_pause_columns) == 5  # Tail Pause Avg, Tail Pause 85% (per quarter)
+        assert len(tail_pause_columns) == 0  # No pause columns for Tail
     
     @patch('matplotlib.pyplot.savefig')
     @patch('matplotlib.pyplot.close')
@@ -274,6 +330,20 @@ class TestPNGRendering:
         mock_fig = Mock()
         mock_fig.add_axes.return_value = mock_ax
         mock_figure.return_value = mock_fig
+        
+        # Create a mock table that supports subscripting
+        class MockTable:
+            def __getitem__(self, key):
+                return Mock()
+            def auto_set_font_size(self, value):
+                pass
+            def set_fontsize(self, value):
+                pass
+            def scale(self, x, y):
+                pass
+        
+        mock_table = MockTable()
+        mock_ax.table.return_value = mock_table
         
         # Render report
         result = self.renderer.render(filepath="test_report.png", report_type=ReportType.TTM)

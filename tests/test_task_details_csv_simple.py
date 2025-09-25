@@ -86,7 +86,10 @@ class TestTaskDetailsCSVSimple:
         self.command.metrics_service.calculate_tail_metric.return_value = 2
         
         # Mock task history
-        self.command.data_service.get_task_history.return_value = []
+        self.command.data_service.get_task_history.return_value = [
+            Mock(status="New", start_date=datetime(2024, 1, 1), end_date=None),
+            Mock(status="Done", start_date=datetime(2024, 1, 5), end_date=None)
+        ]
     
     def test_generate_task_details_csv_basic(self):
         """Test basic CSV generation functionality."""
