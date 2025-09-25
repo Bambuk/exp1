@@ -96,7 +96,7 @@ class TestMetricsService:
             StatusHistoryEntry("Done", "Done", datetime(2024, 1, 10), None),
         ]
         result = self.service.calculate_time_to_delivery(history_with_target, ["Discovery"])
-        assert result == 5  # 6 days - 1 day (creation date) = 5 days
+        assert result == 5  # 6 days - 1 day (creation) = 5 days
     
     def test_calculate_time_to_delivery_with_intermediate_status(self):
         """Test TTD calculation with intermediate status change."""
@@ -107,7 +107,7 @@ class TestMetricsService:
         ]
 
         result = self.service.calculate_time_to_delivery(history, ["Discovery"])
-        assert result == 4  # 5 days - 1 day (creation date) = 4 days
+        assert result == 4  # 5 days - 1 day (creation) = 4 days
     
     def test_calculate_time_to_delivery_no_target_status(self):
         """Test TTD calculation when target status not found."""
@@ -122,7 +122,7 @@ class TestMetricsService:
     def test_calculate_time_to_market_success(self):
         """Test successful TTM calculation."""
         result = self.service.calculate_time_to_market(self.history, ["Done"])
-        assert result == 9  # 10 days - 1 day (creation date) = 9 days
+        assert result == 9  # 10 days - 1 day (creation) = 9 days
     
     def test_calculate_time_to_market_no_target_status(self):
         """Test TTM calculation when target status not found."""
@@ -169,7 +169,7 @@ class TestStartDateStrategies:
         ]
 
         result = strategy.calculate_start_date(history)
-        assert result == datetime(2024, 1, 1)  # Task creation date (first entry in history)
+        assert result == datetime(2024, 1, 1)  # Task creation date
     
     def test_first_change_strategy_no_changes(self):
         """Test FirstChangeStrategy when no changes after creation."""
@@ -199,7 +199,7 @@ class TestMetricsServiceWithStrategies:
         ]
 
         result = service.calculate_time_to_delivery(history, ["Discovery"])
-        assert result == 4  # 5 days - 1 day (creation date) = 4 days
+        assert result == 4  # 5 days - 1 day (creation) = 4 days
     
     def test_ttd_with_creation_date_strategy(self):
         """Test TTD calculation with CreationDateStrategy."""
