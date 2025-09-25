@@ -205,6 +205,16 @@ class TrackerAPIService:
             except (ValueError, TypeError) as e:
                 logger.warning(f"Failed to parse updatedAt '{task.get('updatedAt')}': {e}")
         
+        # Parse createdAt field if available
+        task_created_at = None
+        if task.get("createdAt"):
+            try:
+                # Handle both "Z" and "+00:00" timezone formats
+                created_at_str = task["createdAt"].replace("Z", "+00:00")
+                task_created_at = datetime.fromisoformat(created_at_str)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse createdAt '{task.get('createdAt')}': {e}")
+        
         return {
             "tracker_id": str(task.get("id", "")),
             "key": task.get("key", ""),  # Task code like TEST-123
@@ -217,7 +227,8 @@ class TrackerAPIService:
             "team": str(task.get("63515d47fe387b7ce7b9fc55--team", "")),
             "prodteam": str(task.get("63515d47fe387b7ce7b9fc55--prodteam", "")),
             "profit_forecast": str(task.get("63515d47fe387b7ce7b9fc55--profitForecast", "")),
-            "task_updated_at": task_updated_at
+            "task_updated_at": task_updated_at,
+            "created_at": task_created_at
         }
     
     def extract_status_history(self, changelog: List[Dict[str, Any]], task_key: str = None) -> List[Dict[str, Any]]:
@@ -293,7 +304,7 @@ class TrackerAPIService:
         
         return status_changes
     
-    def _extract_status_history_with_from_field(self, changelog: List[Dict[str, Any]], task_data: Dict[str, Any], task_key: str = None) -> List[Dict[str, Any]]:
+    def _extract_status_history_with_from_field(self, changelog: List[Dict[str, Any]], task_info: Dict[str, Any], task_key: str = None) -> List[Dict[str, Any]]:
         """
         Extract status history from changelog, properly handling 'from' field for initial status.
         
@@ -326,7 +337,7 @@ class TrackerAPIService:
                 # Handle initial status if this is the first change
                 if not initial_status_added:
                     initial_entry = self._create_initial_status_entry_from_change(
-                        status_change, task_data
+                        status_change, task_info
                     )
                     if initial_entry:
                         status_changes.append(initial_entry)
@@ -379,10 +390,14 @@ class TrackerAPIService:
             if not initial_status:
                 return None
         
+        # Use task creation date for initial status start date
+        # This ensures the initial status starts when the task was created
+        initial_start_date = self._determine_initial_status_date(task_data)
+        
         return {
             "status": initial_status,
             "status_display": initial_status,
-            "start_date": self._determine_initial_status_date(task_data),
+            "start_date": initial_start_date,  # Use task creation date
             "end_date": change_date
         }
     

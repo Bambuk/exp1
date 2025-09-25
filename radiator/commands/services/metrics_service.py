@@ -36,24 +36,18 @@ class CreationDateStrategy:
 
 
 class FirstChangeStrategy:
-    """Strategy: Use first status change after creation as start date."""
+    """Strategy: Use task creation date as start date (first entry in history)."""
     
     def calculate_start_date(self, history_data: List[StatusHistoryEntry]) -> Optional[datetime]:
-        """Use first status change after creation as start date."""
+        """Use task creation date as start date (first entry in history)."""
         if not history_data:
             return None
             
         # Sort history by date
         sorted_history = sorted(history_data, key=lambda x: x.start_date)
-        creation_date = sorted_history[0].start_date
         
-        # Find first status change after creation
-        for entry in sorted_history[1:]:  # Skip first entry (creation)
-            if entry.start_date > creation_date:
-                return entry.start_date
-        
-        # If no status change after creation, use creation date
-        return creation_date
+        # Use the earliest date in history as the start date (task creation)
+        return sorted_history[0].start_date
 
 
 class ReadyForDevelopmentStrategy:
