@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     TRACKER_API_TOKEN: str = Field(default="", env="TRACKER_API_TOKEN")
     TRACKER_ORG_ID: str = Field(default="", env="TRACKER_ORG_ID")
     TRACKER_BASE_URL: str = Field(default="https://api.tracker.yandex.net/v2/", env="TRACKER_BASE_URL")
-    TRACKER_MAX_WORKERS: int = Field(default=10, env="TRACKER_MAX_WORKERS")
+    TRACKER_MAX_WORKERS: int = Field(default=50, env="TRACKER_MAX_WORKERS")
     TRACKER_REQUEST_DELAY: float = Field(default=0.1, env="TRACKER_REQUEST_DELAY")
     TRACKER_SYNC_BATCH_SIZE: int = Field(default=100, env="TRACKER_SYNC_BATCH_SIZE")
     
