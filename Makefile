@@ -109,9 +109,9 @@ sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-histor
 	@echo "Example: make sync-tracker FILTER='key:CPO-*' SKIP_HISTORY=true"
 	@if [ -n "$(FILTER)" ]; then \
 		if [ "$(SKIP_HISTORY)" = "true" ]; then \
-			python3 -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
+			. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
 		else \
-			python3 -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
+			. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
 		fi; \
 	else \
 		echo "Please specify FILTER parameter"; \
@@ -129,11 +129,11 @@ test-tracker:  ## Run all tracker-related tests
 # Telegram Bot commands
 telegram-bot: ## Start Telegram bot for reports monitoring
 	@echo "Starting Telegram bot..."
-	@python3 -m radiator.telegram_bot.main
+	@. venv/bin/activate && python -m radiator.telegram_bot.main
 
 telegram-test: ## Test Telegram bot connection
 	@echo "Testing Telegram bot connection..."
-	@python3 -m radiator.telegram_bot.main --test
+	@. venv/bin/activate && python -m radiator.telegram_bot.main --test
 
 telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "Resetting Telegram bot file monitoring state..."
@@ -153,7 +153,7 @@ telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "   2. Generate new report       # Bot automatically finds and sends it"
 	@echo "   3. No need to reset anything!"
 	@echo ""
-	@python3 -m radiator.telegram_bot.main --reset
+	@. venv/bin/activate && python -m radiator.telegram_bot.main --reset
 
 telegram-get-chat-id: ## Get Chat ID from Telegram bot
 	@echo "Getting Chat ID from Telegram bot..."
@@ -167,11 +167,11 @@ google-sheets-monitor: ## Start Google Sheets CSV uploader monitoring
 # Status change report commands
 generate-status-report:  ## Generate CPO tasks status change report by authors (last 2 weeks)
 	@echo "Generating CPO tasks status change report by authors for last 2 weeks..."
-	@python3 -m radiator.commands.generate_status_change_report --group-by author
+	@. venv/bin/activate && python -m radiator.commands.generate_status_change_report --group-by author
 
 generate-status-report-teams:  ## Generate CPO tasks status change report by teams (last 2 weeks)
 	@echo "Generating CPO tasks status change report by teams for last 2 weeks..."
-	@python3 -m radiator.commands.generate_status_change_report --group-by team
+	@. venv/bin/activate && python -m radiator.commands.generate_status_change_report --group-by team
 
 sync-and-report:  ## Sync CPO tasks and generate status report (complete workflow)
 	@echo "🔄 Starting complete CPO workflow: sync + report generation..."

@@ -36,6 +36,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import func
 from tqdm import tqdm
 
 # Add project root to path
@@ -45,7 +46,7 @@ sys.path.insert(0, str(project_root))
 from radiator.core.config import settings, with_default_limit
 from radiator.core.database import SessionLocal
 from radiator.core.logging import logger
-from radiator.models.tracker import TrackerSyncLog
+from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHistory
 
 # CRUD operations removed - using direct SQLAlchemy queries
 from radiator.services.tracker_service import tracker_service
@@ -141,10 +142,42 @@ class TrackerSyncCommand:
 
         # Save tasks to database
         logger.info(f"💾 Сохраняем {len(valid_tasks)} задач в базу данных...")
-        result = tracker_task.bulk_create_or_update(self.db, valid_tasks)
+        result = self._bulk_create_or_update_tasks(valid_tasks)
         logger.info(f"✅ Задачи синхронизированы: {result}")
 
         return result
+
+    def _bulk_create_or_update_tasks(
+        self, tasks_data: List[Dict[str, Any]]
+    ) -> Dict[str, int]:
+        """Bulk create or update tasks in database."""
+        created = 0
+        updated = 0
+
+        for task_data in tasks_data:
+            # Check if task exists
+            existing_task = (
+                self.db.query(TrackerTask)
+                .filter(TrackerTask.tracker_id == task_data.get("tracker_id"))
+                .first()
+            )
+
+            if existing_task:
+                # Update existing task
+                for key, value in task_data.items():
+                    if hasattr(existing_task, key):
+                        setattr(existing_task, key, value)
+                existing_task.last_sync_at = datetime.now(timezone.utc)
+                updated += 1
+            else:
+                # Create new task
+                new_task = TrackerTask(**task_data)
+                new_task.last_sync_at = datetime.now(timezone.utc)
+                self.db.add(new_task)
+                created += 1
+
+        self.db.commit()
+        return {"created": created, "updated": updated}
 
     def sync_task_history(self, task_ids: List[str]) -> tuple[int, int]:
         """Sync task history data."""
@@ -191,7 +224,9 @@ class TrackerSyncCommand:
     ) -> tuple[int, bool]:
         """Process history for a single task. Returns (history_entries_count, has_history)."""
         # Get task from database
-        db_task = tracker_task.get_by_tracker_id(self.db, task_id)
+        db_task = (
+            self.db.query(TrackerTask).filter(TrackerTask.tracker_id == task_id).first()
+        )
         if not db_task:
             logger.warning(
                 f"⚠️ Задача {task_id} не найдена в базе данных, пропускаем историю"
@@ -216,14 +251,16 @@ class TrackerSyncCommand:
             return 0, False
 
         # Delete existing history for this task to ensure clean slate
-        tracker_task_history.delete_by_task_id(self.db, db_task.id)
+        self.db.query(TrackerTaskHistory).filter(
+            TrackerTaskHistory.task_id == db_task.id
+        ).delete()
 
         # Prepare history data with duplicate prevention
         history_data = self._prepare_history_data(status_history, db_task.id, task_id)
 
         # Save history
         if history_data:
-            created_count = tracker_task_history.bulk_create(self.db, history_data)
+            created_count = self._bulk_create_history(history_data)
             return created_count, True
 
         return 0, False
@@ -246,6 +283,41 @@ class TrackerSyncCommand:
                 }
                 history_data.append(history_entry)
         return history_data
+
+    def _bulk_create_history(self, history_data: List[Dict[str, Any]]) -> int:
+        """Bulk create history entries in database."""
+        created_count = 0
+        for entry in history_data:
+            history_entry = TrackerTaskHistory(**entry)
+            self.db.add(history_entry)
+            created_count += 1
+        self.db.commit()
+        return created_count
+
+    def _cleanup_duplicate_history(self) -> int:
+        """Clean up duplicate history entries."""
+        # Simple approach: find and remove exact duplicates
+        # This is safer than complex SQL queries
+        all_history = self.db.query(TrackerTaskHistory).all()
+
+        seen_combinations = set()
+        duplicates_to_remove = []
+
+        for entry in all_history:
+            key = (entry.task_id, entry.status, entry.start_date)
+            if key in seen_combinations:
+                duplicates_to_remove.append(entry)
+            else:
+                seen_combinations.add(key)
+
+        # Remove duplicates
+        for duplicate in duplicates_to_remove:
+            self.db.delete(duplicate)
+
+        if duplicates_to_remove:
+            self.db.commit()
+
+        return len(duplicates_to_remove)
 
     def run(
         self,
@@ -314,7 +386,7 @@ class TrackerSyncCommand:
                     # Clean up any duplicates that might have been created
                     if history_entries > 0:
                         logger.info("🧹 Очищаем возможные дубликаты в истории...")
-                        cleaned_count = tracker_task_history.cleanup_duplicates(self.db)
+                        cleaned_count = self._cleanup_duplicate_history()
                         if cleaned_count > 0:
                             logger.info(
                                 f"🧹 Очищено {cleaned_count} дублирующихся записей"
