@@ -507,7 +507,7 @@ class GenerateStatusChangeReportCommand:
         print(f"{group_header:<25} {week2_header:<35} {week1_header:<35} {'Discovery':<15} {'Delivery':<15}")
         print("-"*110)
         
-        for group_value, data in sorted(self.report_data.items(), key=lambda x: x[1]['week1_changes'] + x[1]['week2_changes'], reverse=True):
+        for group_value, data in sorted(self.report_data.items(), key=lambda x: x[0]):
             week2_str = f"{data['week2_changes']} изменений ({data['week2_tasks']} задач)"
             week1_str = f"{data['week1_changes']} изменений ({data['week1_tasks']} задач)"
             
