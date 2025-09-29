@@ -11,7 +11,6 @@ FastAPI-based REST API with PostgreSQL database, authentication, and Yandex Trac
 - **Yandex Tracker Integration**: Automatic synchronization of tasks and their history
 - **Database Migrations**: Alembic-based database schema management
 - **Testing**: Comprehensive test suite with pytest
-- **Docker Support**: Containerized deployment with docker-compose
 
 ## Quick Start
 
@@ -19,7 +18,6 @@ FastAPI-based REST API with PostgreSQL database, authentication, and Yandex Trac
 
 - Python 3.8+
 - PostgreSQL
-- Docker (optional)
 
 ### Installation
 
@@ -162,12 +160,6 @@ isort .
 ```bash
 pre-commit install
 pre-commit run --all-files
-```
-
-## Docker Deployment
-
-```bash
-docker-compose up -d
 ```
 
 ## License

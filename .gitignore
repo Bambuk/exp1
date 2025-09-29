@@ -139,8 +139,6 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
-# Docker
-.dockerignore
 
 # Logs
 *.log
