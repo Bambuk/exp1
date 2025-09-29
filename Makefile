@@ -13,7 +13,6 @@ help:  ## Show this help message
 	@echo 'Tracker Sync Commands:'
 	@echo '  sync-tracker       - Sync tracker tasks with custom filter and optional skip-history'
 	@echo '  sync-tracker-*     - Various sync modes (active, recent, filter, file)'
-	@echo '  sync-cpo*          - Sync CPO tasks (last 6 months, force, custom limit)'
 	@echo ''
 	@echo 'Tracker Test Commands:'
 	@echo '  test-tracker*      - Run tracker tests (all, unit, integration, crud, api)'
@@ -120,10 +119,6 @@ sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-histor
 		exit 1; \
 	fi
 
-# CPO sync commands
-sync-cpo:  ## Sync CPO tasks for last 6 months
-	@echo "Syncing CPO tasks for last 6 months..."
-	@python3 scripts/sync/sync_cpo_tasks.py
 
 
 # Tracker test commands

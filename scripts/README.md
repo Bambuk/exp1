@@ -5,9 +5,7 @@
 ## Структура
 
 ### `sync/` - Скрипты синхронизации
-- `sync_cpo_tasks.py` - Синхронизация задач CPO за последние полгода
-- `sync_cpo_tasks.ps1` - PowerShell версия синхронизации CPO задач
-- `sync_tracker.py` - Основной скрипт синхронизации с Yandex Tracker
+- Синхронизация с Yandex Tracker выполняется через модуль `radiator.commands.sync_tracker`
 
 ### `database/` - Скрипты для работы с базой данных
 - `check_db.py` - Проверка содержимого базы данных
@@ -35,5 +33,5 @@
 
 Пример:
 ```bash
-python scripts/sync/sync_cpo_tasks.py
+python -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit 1000
 ```
