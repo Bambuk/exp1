@@ -12,7 +12,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from radiator.core.database import SessionLocal
-# CRUD operations removed - using direct SQLAlchemy queries
+from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
 
 def check_database():
     """Проверяем содержимое базы данных."""
@@ -23,7 +23,7 @@ def check_database():
         
         # Проверяем задачи
         print("📋 Проверяем таблицу tracker_tasks...")
-        tasks = db.query(tracker_task.model).limit(5).all()
+        tasks = db.query(TrackerTask).limit(5).all()
         print(f"✅ Найдено задач в БД: {len(tasks)}")
         
         if tasks:
@@ -33,7 +33,7 @@ def check_database():
         
         # Проверяем историю
         print("\n📊 Проверяем таблицу tracker_task_history...")
-        history = db.query(tracker_task_history.model).limit(5).all()
+        history = db.query(TrackerTaskHistory).limit(5).all()
         print(f"✅ Найдено записей истории: {len(history)}")
         
         if history:
@@ -43,7 +43,6 @@ def check_database():
         
         # Проверяем логи синхронизации
         print("\n🔄 Проверяем логи синхронизации...")
-        from radiator.models.tracker import TrackerSyncLog
         sync_logs = db.query(TrackerSyncLog).limit(5).all()
         print(f"✅ Найдено логов синхронизации: {len(sync_logs)}")
         

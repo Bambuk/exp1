@@ -94,7 +94,7 @@ chmod +x setup_cron.sh
 ./setup_cron.sh
 
 # Windows
-.\setup_cron.ps1
+bash setup_cron.sh
 
 ## Status Change Reports
 

@@ -11,7 +11,7 @@ python sync_tracker.py
 
 # 3. Настроить автоматизацию
 ./setup_cron.sh          # Linux/macOS
-.\setup_cron.ps1         # Windows
+bash setup_cron.sh       # Windows (WSL/Git Bash)
 ```
 
 ## 🔑 **ОСНОВНЫЕ КОМАНДЫ**

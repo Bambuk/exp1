@@ -21,10 +21,10 @@
 #### Windows (PowerShell)
 ```powershell
 # Создать тестовую базу данных
-.\create_test_db.ps1
+python scripts/database/create_test_db.py
 
 # Удалить тестовую базу данных
-.\create_test_db.ps1 -Drop
+python scripts/database/create_test_db.py -Drop
 ```
 
 #### Linux/Mac (Python)

@@ -131,7 +131,7 @@ chmod +x setup_cron.sh
 ```powershell
 # Запуск PowerShell от имени администратора
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-.\setup_cron.ps1
+bash setup_cron.sh
 ```
 
 ## Режимы синхронизации

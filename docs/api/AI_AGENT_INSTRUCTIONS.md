@@ -115,7 +115,7 @@ chmod +x setup_cron.sh
 #### **Windows (Планировщик задач):**
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-.\setup_cron.ps1
+bash setup_cron.sh
 # Создает задачу: каждый час, задачи за последние 7 дней
 ```
 
@@ -202,7 +202,7 @@ ORDER BY start_date;
 ### **Дополнительно:**
 1. `TRACKER_SYNC_README.md` - подробная документация
 2. `test_tracker_sync.py` - примеры использования
-3. `setup_cron.sh` / `setup_cron.ps1` - автоматизация
+3. `setup_cron.sh` - автоматизация
 
 ---
 
