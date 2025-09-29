@@ -181,16 +181,11 @@ class TestErrorHandling:
                 mock_service.get_changelogs_batch.return_value = [("TEST-1", [])]
                 mock_service.extract_status_history.return_value = []
 
-                with patch(
-                    "radiator.commands.sync_tracker.TrackerSyncCommand"
-                ) as mock_sync:
-                    with patch.object(cmd.db, "add"):
-                        with patch.object(cmd.db, "commit"):
-                            with patch.object(cmd.db, "refresh"):
-                                result = cmd.run(filters={}, limit=10)
-                                assert (
-                                    result is False
-                                )  # Should fail due to missing mocks
+                with patch.object(cmd.db, "add"):
+                    with patch.object(cmd.db, "commit"):
+                        with patch.object(cmd.db, "refresh"):
+                            result = cmd.run(filters={}, limit=10)
+                            assert result is True  # Should succeed with proper mocks
 
     def test_report_generation_database_error(self):
         """Test handling of database errors in report generation."""

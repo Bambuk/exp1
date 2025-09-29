@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+from tqdm import tqdm
 
 from radiator.core.config import log_limit_info, settings, with_default_limit_method
 from radiator.core.logging import logger
@@ -154,67 +155,76 @@ class TrackerAPIService:
     def get_tasks_batch(
         self, task_ids: List[str]
     ) -> List[Tuple[str, Optional[Dict[str, Any]]]]:
-        """Get multiple tasks in parallel."""
+        """Get multiple tasks in parallel with progress bar."""
+
         results = []
+        total_tasks = len(task_ids)
+
+        # Pre-allocate results list to maintain order
+        results = [None] * total_tasks
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_to_id = {
-                executor.submit(self.get_task, task_id): task_id for task_id in task_ids
-            }
+            # Submit all tasks and store futures with their indices
+            future_to_index = {}
+            for i, task_id in enumerate(task_ids):
+                future = executor.submit(self.get_task, task_id)
+                future_to_index[future] = i
 
-            for future in as_completed(future_to_id):
-                task_id = future_to_id[future]
-                try:
-                    task_data = future.result()
-                    results.append((task_id, task_data))
-                except Exception as e:
-                    logger.error(f"Failed to get task {task_id}: {e}")
-                    results.append((task_id, None))
+            # Use tqdm for real-time progress indication
+            with tqdm(
+                total=total_tasks, desc="📥 Загрузка задач", unit="задача"
+            ) as pbar:
+                for future in as_completed(future_to_index):
+                    index = future_to_index[future]
+                    task_id = task_ids[index]
+
+                    try:
+                        task_data = future.result()
+                        results[index] = (task_id, task_data)
+                        pbar.set_postfix({"task": task_id[:8] + "..."})
+                    except Exception as e:
+                        logger.error(f"Failed to get task {task_id}: {e}")
+                        results[index] = (task_id, None)
+
+                    pbar.update(1)
 
         return results
 
     def get_changelogs_batch(
         self, task_ids: List[str]
     ) -> List[Tuple[str, List[Dict[str, Any]]]]:
-        """Get changelogs for multiple tasks in parallel with progress indication."""
-        results = []
+        """Get changelogs for multiple tasks in parallel with progress bar."""
+
         total_tasks = len(task_ids)
 
-        logger.info(
-            f"🔄 Загружаем историю для {total_tasks} задач (параллельно, {self.max_workers} потоков)"
-        )
-
-        # Use a callback-based approach to show real-time progress
-        completed = 0
-        results = [None] * len(task_ids)  # Pre-allocate results list
-
-        def task_done_callback(future):
-            nonlocal completed
-            completed += 1
-            # Show progress every 10 tasks or for the last task
-            if completed % 10 == 0 or completed == total_tasks:
-                logger.info(
-                    f"📥 Загружено истории: {completed}/{total_tasks} задач ({completed/total_tasks*100:.1f}%)"
-                )
+        # Pre-allocate results list to maintain order
+        results = [None] * total_tasks
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all tasks and store futures
-            futures = []
+            # Submit all tasks and store futures with their indices
+            future_to_index = {}
             for i, task_id in enumerate(task_ids):
                 future = executor.submit(self.get_task_changelog, task_id)
-                future.add_done_callback(task_done_callback)
-                futures.append((i, future, task_id))
+                future_to_index[future] = i
 
-            # Collect results as they complete
-            for i, future, task_id in futures:
-                try:
-                    changelog_data = future.result()
-                    results[i] = (task_id, changelog_data)
-                except Exception as e:
-                    logger.error(f"Failed to get changelog for task {task_id}: {e}")
-                    results[i] = (task_id, [])
+            # Use tqdm for real-time progress indication
+            with tqdm(
+                total=total_tasks, desc="📚 Загрузка истории", unit="задача"
+            ) as pbar:
+                for future in as_completed(future_to_index):
+                    index = future_to_index[future]
+                    task_id = task_ids[index]
 
-        logger.info(f"✅ История загружена для {len(results)} задач")
+                    try:
+                        changelog_data = future.result()
+                        results[index] = (task_id, changelog_data)
+                        pbar.set_postfix({"task": task_id[:8] + "..."})
+                    except Exception as e:
+                        logger.error(f"Failed to get changelog for task {task_id}: {e}")
+                        results[index] = (task_id, [])
+
+                    pbar.update(1)
+
         return results
 
     def extract_task_data(self, task: Dict[str, Any]) -> Dict[str, Any]:
@@ -307,15 +317,8 @@ class TrackerAPIService:
                 seen.add(key)
                 unique_changes.append(change)
 
-        # Выводим только итоговую информацию по задаче
-        if task_key:
-            print(
-                f"📊 {task_key}: {len(unique_changes)} изменений статуса (из {len(changelog)} записей)"
-            )
-        else:
-            print(
-                f"📊 Найдено {len(unique_changes)} изменений статуса (из {len(changelog)} записей)"
-            )
+        # Log status extraction results (removed detailed per-task output)
+        # Detailed progress is now shown via progress bar in sync_tracker.py
 
         return unique_changes
 
@@ -493,14 +496,8 @@ class TrackerAPIService:
         self, task_key: Optional[str], unique_count: int, total_entries: int
     ) -> None:
         """Log status extraction results."""
-        if task_key:
-            print(
-                f"📊 {task_key}: {unique_count} изменений статуса (из {total_entries} записей)"
-            )
-        else:
-            print(
-                f"📊 Найдено {unique_count} изменений статуса (из {total_entries} записей)"
-            )
+        # Detailed progress is now shown via progress bar in sync_tracker.py
+        pass
 
     def _create_initial_status_entry(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create initial status entry for tasks with no changelog entries."""

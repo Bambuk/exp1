@@ -69,7 +69,7 @@ class TestSyncTrackerIntegration:
             sync_log = db_session.query(TrackerSyncLog).first()
             assert sync_log is not None
             assert sync_log.status == "completed"
-            assert sync_log.tasks_processed == 1
+            assert sync_log.tasks_processed == 1  # Correct value for this test
             assert sync_log.tasks_created == 1
             assert sync_log.tasks_updated == 0
 
