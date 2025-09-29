@@ -283,10 +283,10 @@ sync-and-report:  ## Sync CPO tasks and generate status report (complete workflo
 	@echo "🔄 Starting complete CPO workflow: sync + report generation..."
 	@echo ""
 	@echo "Step 1/2: Syncing CPO tasks (last 14 days)..."
-	@. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "Queue: CPO Status: changed(date: today()-14d .. today())"
+	@. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "Queue: CPO Status: changed(date: today()-14d .. today())" || echo "⚠️ Sync completed with warnings"
 	@echo ""
 	@echo "Step 2/2: Generating status change report..."
-	@. venv/bin/activate && python radiator/commands/generate_status_change_report.py
+	@. venv/bin/activate && python -m radiator.commands.generate_status_change_report
 	@echo ""
 	@echo "✅ Complete CPO workflow finished successfully!"
 

@@ -8,7 +8,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from radiator.core.config import settings
 from radiator.core.logging import setup_logging
 from radiator.core.metrics import get_metrics, PrometheusMiddleware
-from radiator.api.v1.api import api_router
+# API router removed - using commands instead
 
 
 def create_application() -> FastAPI:
@@ -44,8 +44,8 @@ def create_application() -> FastAPI:
     # Prometheus metrics middleware
     app.add_middleware(PrometheusMiddleware)
 
-    # Include API router
-    app.include_router(api_router, prefix=settings.API_V1_STR)
+    # API router removed - using commands instead
+    # app.include_router(api_router, prefix=settings.API_V1_STR)
 
     @app.get("/")
     async def root():
