@@ -1,22 +1,6 @@
-"""Prometheus metrics for monitoring."""
+"""Metrics for CLI application monitoring."""
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-import time
-
-# Request metrics
-REQUEST_COUNT = Counter(
-    "http_requests_total",
-    "Total number of HTTP requests",
-    ["method", "endpoint", "status"]
-)
-
-REQUEST_DURATION = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request duration in seconds",
-    ["method", "endpoint"]
-)
+from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
 # Database metrics
 DB_CONNECTION_GAUGE = Gauge(
@@ -31,9 +15,9 @@ DB_QUERY_DURATION = Histogram(
 )
 
 # Business metrics
-USER_COUNT = Gauge(
-    "users_total",
-    "Total number of users"
+TASK_COUNT = Gauge(
+    "tasks_total",
+    "Total number of tasks"
 )
 
 # Custom metrics
@@ -43,32 +27,18 @@ CUSTOM_EVENTS = Counter(
     ["event_type"]
 )
 
+# CLI operation metrics
+CLI_OPERATION_DURATION = Histogram(
+    "cli_operation_duration_seconds",
+    "CLI operation duration in seconds",
+    ["operation"]
+)
 
-class PrometheusMiddleware(BaseHTTPMiddleware):
-    """Middleware to collect Prometheus metrics."""
-    
-    async def dispatch(self, request: Request, call_next):
-        start_time = time.time()
-        
-        # Process request
-        response = await call_next(request)
-        
-        # Calculate duration
-        duration = time.time() - start_time
-        
-        # Record metrics
-        REQUEST_COUNT.labels(
-            method=request.method,
-            endpoint=request.url.path,
-            status=response.status_code
-        ).inc()
-        
-        REQUEST_DURATION.labels(
-            method=request.method,
-            endpoint=request.url.path
-        ).observe(duration)
-        
-        return response
+CLI_OPERATION_COUNT = Counter(
+    "cli_operations_total",
+    "Total number of CLI operations",
+    ["operation", "status"]
+)
 
 
 def get_metrics():
@@ -76,9 +46,9 @@ def get_metrics():
     return generate_latest()
 
 
-def update_user_count(count: int):
-    """Update user count metric."""
-    USER_COUNT.set(count)
+def update_task_count(count: int):
+    """Update task count metric."""
+    TASK_COUNT.set(count)
 
 
 def increment_custom_event(event_type: str):
@@ -89,3 +59,9 @@ def increment_custom_event(event_type: str):
 def update_db_connection_count(count: int):
     """Update database connection count metric."""
     DB_CONNECTION_GAUGE.set(count)
+
+
+def record_cli_operation(operation: str, duration: float, status: str = "success"):
+    """Record CLI operation metrics."""
+    CLI_OPERATION_DURATION.labels(operation=operation).observe(duration)
+    CLI_OPERATION_COUNT.labels(operation=operation, status=status).inc()

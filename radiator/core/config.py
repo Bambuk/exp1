@@ -13,18 +13,10 @@ class Settings(BaseSettings):
     """Application settings."""
 
     # Application
-    APP_NAME: str = Field(default="Radiator API", env="APP_NAME")
+    APP_NAME: str = Field(default="Radiator CLI", env="APP_NAME")
     APP_VERSION: str = Field(default="0.1.0", env="APP_VERSION")
     DEBUG: bool = Field(default=True, env="DEBUG")
     ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
-
-    # Server
-    HOST: str = Field(default="0.0.0.0", env="HOST")
-    PORT: int = Field(default=8000, env="PORT")
-    RELOAD: bool = Field(default=True, env="RELOAD")
-
-    # API
-    API_V1_STR: str = "/api/v1"
 
     # Database
     DATABASE_URL: str = Field(
@@ -38,28 +30,6 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int = Field(default=20, env="DATABASE_POOL_SIZE")
     DATABASE_MAX_OVERFLOW: int = Field(default=30, env="DATABASE_MAX_OVERFLOW")
 
-    # Security
-    SECRET_KEY: str = Field(
-        default="your-super-secret-key-change-in-production",
-        env="SECRET_KEY",
-    )
-    ALGORITHM: str = Field(default="HS256", env="ALGORITHM")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
-    )
-    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
-        default=7, env="REFRESH_TOKEN_EXPIRE_DAYS"
-    )
-
-    # CORS
-    ALLOWED_HOSTS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
-        env="ALLOWED_HOSTS",
-    )
-    ALLOWED_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
-        env="ALLOWED_ORIGINS",
-    )
 
     # Logging
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")

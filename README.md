@@ -1,14 +1,15 @@
-# Radiator API
+# Radiator CLI
 
-FastAPI-based REST API with PostgreSQL database, authentication, and Yandex Tracker integration.
+Command-line tool for Yandex Tracker integration, task synchronization, and reporting.
 
 ## Features
 
-- **FastAPI Framework**: Modern, fast web framework for building APIs
-- **PostgreSQL Database**: Robust relational database with SQLAlchemy ORM
-- **Authentication**: JWT-based authentication system
-- **User Management**: User registration, login, and profile management
 - **Yandex Tracker Integration**: Automatic synchronization of tasks and their history
+- **PostgreSQL Database**: Robust relational database with SQLAlchemy ORM
+- **Status Change Reports**: Generate comprehensive reports on task status changes
+- **Time to Market Reports**: Analyze task completion timelines
+- **Google Sheets Integration**: Upload reports to Google Sheets
+- **Telegram Bot**: Automated file monitoring and processing
 - **Database Migrations**: Alembic-based database schema management
 - **Testing**: Comprehensive test suite with pytest
 
@@ -43,9 +44,16 @@ cp env.example .env
 alembic upgrade head
 ```
 
-5. Start the application:
+5. Run CLI commands:
 ```bash
-python run.py
+# Generate status change report
+python -m radiator.commands.generate_status_change_report
+
+# Generate time to market report  
+python -m radiator.commands.generate_time_to_market_report
+
+# Sync with Tracker
+python -m radiator.commands.sync_tracker
 ```
 
 ## Yandex Tracker Integration
@@ -132,13 +140,14 @@ See [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) for 
 
 For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md).
 
-## API Documentation
+## CLI Commands
 
-Once the application is running, you can access:
+The application provides several CLI commands for different operations:
 
-- **API Documentation**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI Schema**: http://localhost:8000/openapi.json
+- **Status Change Reports**: Generate reports on task status changes
+- **Time to Market Reports**: Analyze task completion timelines  
+- **Tracker Sync**: Synchronize data with Yandex Tracker
+- **Search Tasks**: Search and filter tasks from the database
 
 ## Development
 
