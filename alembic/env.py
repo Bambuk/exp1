@@ -58,7 +58,13 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Run migrations."""
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        transaction_per_migration=True,  # Each migration in its own transaction
+        compare_type=True,  # Compare column types
+        compare_server_default=True,  # Compare server defaults
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -93,10 +99,15 @@ def run_migrations_online() -> None:
 
     from radiator.core.config import settings
 
+    # Get database URL from environment-specific settings
     url = settings.DATABASE_URL_SYNC
-    engine = create_engine(url)
+    engine = create_engine(url, echo=False)
 
     with engine.connect() as connection:
+        # Ensure we're in the right database
+        from sqlalchemy import text
+
+        connection.execute(text("SET search_path TO public;"))
         do_run_migrations(connection)
 
 

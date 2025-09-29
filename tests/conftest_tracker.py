@@ -19,13 +19,13 @@ def test_db_engine():
     # Always use test database for tests, regardless of ENVIRONMENT
     import os
 
+    # Force test environment
     os.environ["ENVIRONMENT"] = "test"
-    from radiator.core.config import settings
 
-    database_url = settings.DATABASE_URL_SYNC or settings.DATABASE_URL.replace(
-        "+asyncpg", ""
-    )
+    # Import after setting environment
+    from radiator.core.database import get_test_database_url_sync
 
+    database_url = get_test_database_url_sync()
     engine = create_engine(database_url, echo=False)
 
     # Create all tables

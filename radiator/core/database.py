@@ -77,9 +77,17 @@ async def close_db() -> None:
 
 def get_test_database_url() -> str:
     """Get test database URL for testing purposes."""
-    return settings.DATABASE_URL
+    # Force test database URL regardless of current environment
+    if "radiator_test" in settings.DATABASE_URL:
+        return settings.DATABASE_URL
+    test_url = settings.DATABASE_URL.replace("radiator", "radiator_test")
+    return test_url
 
 
 def get_test_database_url_sync() -> str:
     """Get test database sync URL for testing purposes."""
-    return settings.DATABASE_URL_SYNC
+    # Force test database URL regardless of current environment
+    if "radiator_test" in settings.DATABASE_URL_SYNC:
+        return settings.DATABASE_URL_SYNC
+    test_url = settings.DATABASE_URL_SYNC.replace("radiator", "radiator_test")
+    return test_url

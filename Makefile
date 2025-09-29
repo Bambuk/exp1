@@ -62,7 +62,19 @@ deploy:  ## Deploy to Ubuntu server
 	@echo "bash deploy/deploy.sh"
 
 migrate:  ## Run database migrations
-	alembic upgrade head
+	python3 scripts/database/migrate_db.py --env development
+
+migrate-test:  ## Run database migrations for test environment
+	python3 scripts/database/migrate_db.py --env test
+
+migrate-check:  ## Check database tables without running migrations
+	python3 scripts/database/migrate_db.py --env development --check-only
+
+migrate-reset:  ## Reset database completely (WARNING: destroys all data)
+	python3 scripts/database/reset_db.py --env development --recreate --force
+
+migrate-reset-test:  ## Reset test database completely
+	python3 scripts/database/reset_db.py --env test --recreate --force
 
 migrate-create:  ## Create new migration
 	@read -p "Enter migration message: " message; \
