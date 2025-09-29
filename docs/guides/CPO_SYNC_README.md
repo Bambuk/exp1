@@ -114,10 +114,10 @@ python -m radiator.commands.sync_tracker --filter "key:CPO-* AND assignee:john.d
    ```bash
    # Отчет по авторам
    make generate-status-report
-   
+
    # Отчет по командам
    make generate-status-report-teams
-   
+
    # Оба отчета
    make generate-status-report-all
    ```

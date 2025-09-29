@@ -148,15 +148,15 @@ python test_tracker_sync.py
 ### **Мониторинг синхронизации:**
 ```sql
 -- Последняя успешная синхронизация
-SELECT * FROM tracker_sync_logs 
-WHERE status = 'completed' 
+SELECT * FROM tracker_sync_logs
+WHERE status = 'completed'
 ORDER BY sync_completed_at DESC LIMIT 1;
 
 -- Статистика по дням
 SELECT DATE(sync_started_at) as sync_date,
        COUNT(*) as sync_count,
        SUM(tasks_processed) as total_tasks
-FROM tracker_sync_logs 
+FROM tracker_sync_logs
 WHERE status = 'completed'
 GROUP BY DATE(sync_started_at);
 ```
@@ -164,12 +164,12 @@ GROUP BY DATE(sync_started_at);
 ### **Проверка данных:**
 ```sql
 -- Количество задач по статусам
-SELECT status, COUNT(*) as count 
+SELECT status, COUNT(*) as count
 FROM tracker_tasks GROUP BY status;
 
 -- История изменений для задачи
-SELECT * FROM tracker_task_history 
-WHERE tracker_id = 'task_id_here' 
+SELECT * FROM tracker_task_history
+WHERE tracker_id = 'task_id_here'
 ORDER BY start_date;
 ```
 
@@ -247,7 +247,7 @@ ORDER BY start_date;
 
 ---
 
-**📝 Последнее обновление:** 27 августа 2025  
-**🔧 Версия системы:** 1.0  
-**👨‍💻 Разработчик:** AI Assistant + User  
+**📝 Последнее обновление:** 27 августа 2025
+**🔧 Версия системы:** 1.0
+**👨‍💻 Разработчик:** AI Assistant + User
 **✅ Статус:** Полностью функциональна и готова к продакшену

@@ -1,11 +1,14 @@
 """Tests for GenerateTimeToMarketReportCommand (refactored version)."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from radiator.commands.generate_time_to_market_report import GenerateTimeToMarketReportCommand
+import pytest
+
+from radiator.commands.generate_time_to_market_report import (
+    GenerateTimeToMarketReportCommand,
+)
 from radiator.commands.models.time_to_market_models import GroupBy, ReportType
 
 
@@ -36,15 +39,19 @@ class TestGenerateTimeToMarketReportCommand:
             assert cmd.db is not None
         # db should be closed after context exit
 
-    @patch('radiator.commands.generate_time_to_market_report.ConfigService')
-    @patch('radiator.commands.generate_time_to_market_report.DataService')
-    @patch('radiator.commands.generate_time_to_market_report.MetricsService')
+    @patch("radiator.commands.generate_time_to_market_report.ConfigService")
+    @patch("radiator.commands.generate_time_to_market_report.DataService")
+    @patch("radiator.commands.generate_time_to_market_report.MetricsService")
     def test_generate_report_data_success(self, mock_metrics, mock_data, mock_config):
         """Test successful report data generation."""
         # Setup mocks
         mock_config_instance = Mock()
         mock_config_instance.load_quarters.return_value = [
-            Mock(name="Q1", start_date=datetime(2025, 1, 1), end_date=datetime(2025, 3, 31))
+            Mock(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            )
         ]
         mock_config_instance.load_status_mapping.return_value = Mock(
             discovery_statuses=["Discovery"], done_statuses=["Done"]
@@ -66,7 +73,7 @@ class TestGenerateTimeToMarketReportCommand:
         assert len(report.quarters) == 1
         assert len(report.quarter_reports) == 0  # No tasks, so no quarter reports
 
-    @patch('radiator.commands.generate_time_to_market_report.ConfigService')
+    @patch("radiator.commands.generate_time_to_market_report.ConfigService")
     def test_generate_report_data_no_quarters(self, mock_config):
         """Test report generation with no quarters."""
         mock_config_instance = Mock()
@@ -83,12 +90,16 @@ class TestGenerateTimeToMarketReportCommand:
         assert len(report.quarters) == 0
         assert len(report.quarter_reports) == 0
 
-    @patch('radiator.commands.generate_time_to_market_report.ConfigService')
+    @patch("radiator.commands.generate_time_to_market_report.ConfigService")
     def test_generate_report_data_no_statuses(self, mock_config):
         """Test report generation with no target statuses."""
         mock_config_instance = Mock()
         mock_config_instance.load_quarters.return_value = [
-            Mock(name="Q1", start_date=datetime(2025, 1, 1), end_date=datetime(2025, 3, 31))
+            Mock(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            )
         ]
         mock_config_instance.load_status_mapping.return_value = Mock(
             discovery_statuses=[], done_statuses=[]
@@ -118,11 +129,11 @@ class TestGenerateTimeToMarketReportCommand:
         """Test print summary with no report data."""
         cmd = GenerateTimeToMarketReportCommand()
         cmd.print_summary()
-        
+
         captured = capsys.readouterr()
         assert "No report data available" in captured.out
 
-    @patch('radiator.commands.generate_time_to_market_report.CSVRenderer')
+    @patch("radiator.commands.generate_time_to_market_report.CSVRenderer")
     def test_generate_csv_with_report_data(self, mock_renderer):
         """Test CSV generation with report data."""
         mock_renderer_instance = Mock()
@@ -136,7 +147,7 @@ class TestGenerateTimeToMarketReportCommand:
         assert result == "/path/to/file.csv"
         mock_renderer_instance.render.assert_called_once()
 
-    @patch('radiator.commands.generate_time_to_market_report.TableRenderer')
+    @patch("radiator.commands.generate_time_to_market_report.TableRenderer")
     def test_generate_table_with_report_data(self, mock_renderer):
         """Test table generation with report data."""
         mock_renderer_instance = Mock()
@@ -150,7 +161,7 @@ class TestGenerateTimeToMarketReportCommand:
         assert result == "/path/to/file.png"
         mock_renderer_instance.render.assert_called_once()
 
-    @patch('radiator.commands.generate_time_to_market_report.ConsoleRenderer')
+    @patch("radiator.commands.generate_time_to_market_report.ConsoleRenderer")
     def test_print_summary_with_report_data(self, mock_renderer):
         """Test print summary with report data."""
         mock_renderer_instance = Mock()
@@ -172,16 +183,18 @@ class TestGenerateTimeToMarketReportCommand:
 
         # Test TTD only
         cmd.print_summary(report_type=ReportType.TTD)
-        
+
         # Test TTM only
         cmd.print_summary(report_type=ReportType.TTM)
-        
+
         # Test both
         cmd.print_summary(report_type=ReportType.BOTH)
 
     def test_error_handling_in_generate_report_data(self):
         """Test error handling in generate_report_data."""
-        with patch('radiator.commands.generate_time_to_market_report.ConfigService') as mock_config:
+        with patch(
+            "radiator.commands.generate_time_to_market_report.ConfigService"
+        ) as mock_config:
             mock_config_instance = Mock()
             mock_config_instance.load_quarters.side_effect = Exception("Config error")
             mock_config.return_value = mock_config_instance

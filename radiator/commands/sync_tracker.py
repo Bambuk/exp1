@@ -8,12 +8,14 @@ import sys
 os.environ["SQLALCHEMY_WARN_20"] = "false"
 os.environ["SQLALCHEMY_SILENCE_UBER_WARNING"] = "1"
 
+import contextlib
+
 # Redirect stdout/stderr to suppress SQL logs
 import io
-import contextlib
 
 # Completely disable all logging
 import logging
+
 logging.disable(logging.CRITICAL)
 
 # Set all SQLAlchemy loggers to CRITICAL level
@@ -31,46 +33,48 @@ logging.getLogger("psycopg2").setLevel(logging.CRITICAL)
 logging.basicConfig(level=logging.CRITICAL)
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from tqdm import tqdm
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from radiator.core.database import SessionLocal
 from radiator.core.config import settings, with_default_limit
+from radiator.core.database import SessionLocal
 from radiator.core.logging import logger
+from radiator.models.tracker import TrackerSyncLog
+
 # CRUD operations removed - using direct SQLAlchemy queries
 from radiator.services.tracker_service import tracker_service
-from radiator.models.tracker import TrackerSyncLog
+
 
 class TrackerSyncCommand:
     """Command for syncing tracker data."""
-    
+
     def __init__(self):
         self.db = SessionLocal()
         self.sync_log: Optional[TrackerSyncLog] = None
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.db:
             self.db.close()
-    
+
     def create_sync_log(self) -> TrackerSyncLog:
         """Create new sync log entry."""
         sync_log = TrackerSyncLog(
-            sync_started_at=datetime.now(timezone.utc),
-            status="running"
+            sync_started_at=datetime.now(timezone.utc), status="running"
         )
         self.db.add(sync_log)
         self.db.commit()
         self.db.refresh(sync_log)
         return sync_log
-    
+
     def update_sync_log(self, **kwargs):
         """Update sync log with new data."""
         if self.sync_log:
@@ -78,43 +82,46 @@ class TrackerSyncCommand:
                 if hasattr(self.sync_log, key):
                     setattr(self.sync_log, key, value)
             self.db.commit()
-    
-    
-    def get_tasks_to_sync(self, filters: Dict[str, Any] = None, limit: int = None) -> List[str]:
+
+    def get_tasks_to_sync(
+        self, filters: Dict[str, Any] = None, limit: int = None
+    ) -> List[str]:
         """
         Get list of tasks to sync using filters.
-        
+
         Args:
             filters: Custom filters for getting tasks
             limit: Maximum number of tasks to sync (uses default from config if None)
-            
+
         Returns:
             List of task IDs to sync
         """
         try:
             # Use default limit from config if not provided
             if limit is None:
-                limit = settings.MAX_UNLIMITED_LIMIT  # Use unlimited for sync by default
-            
+                limit = (
+                    settings.MAX_UNLIMITED_LIMIT
+                )  # Use unlimited for sync by default
+
             logger.info(f"Getting tasks using filters: {filters}")
             task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
-            
+
             logger.info(f"Found {len(task_ids)} tasks to sync")
             return task_ids
-            
+
         except Exception as e:
             logger.error(f"Failed to get tasks to sync: {e}")
             return []
-    
+
     def sync_tasks(self, task_ids: List[str]) -> Dict[str, int]:
         """Sync tasks data from tracker."""
         logger.info(f"Starting sync for {len(task_ids)} tasks")
-        
+
         # Get tasks data with progress bar
         logger.info("📥 Получаем данные задач из Tracker...")
         tasks_data = tracker_service.get_tasks_batch(task_ids)
         valid_tasks = []
-        
+
         # Process tasks with progress bar
         with tqdm(total=len(task_ids), desc="🔄 Обработка задач", unit="задача") as pbar:
             for i, (task_id, task_data) in enumerate(tasks_data, 1):
@@ -123,41 +130,47 @@ class TrackerSyncCommand:
                     valid_tasks.append(task_info)
                     pbar.set_postfix({"task": task_id[:8] + "..."})
                 else:
-                    logger.warning(f"Failed to get data for task {task_id} ({i}/{len(task_ids)})")
+                    logger.warning(
+                        f"Failed to get data for task {task_id} ({i}/{len(task_ids)})"
+                    )
                 pbar.update(1)
-        
+
         if not valid_tasks:
             logger.warning("No valid tasks data received")
             return {"created": 0, "updated": 0}
-        
+
         # Save tasks to database
         logger.info(f"💾 Сохраняем {len(valid_tasks)} задач в базу данных...")
         result = tracker_task.bulk_create_or_update(self.db, valid_tasks)
         logger.info(f"✅ Задачи синхронизированы: {result}")
-        
+
         return result
-    
+
     def sync_task_history(self, task_ids: List[str]) -> tuple[int, int]:
         """Sync task history data."""
         logger.info(f"📚 Начинаем синхронизацию истории для {len(task_ids)} задач")
         logger.info(f"🔍 ID задач для истории: {task_ids}")
-        
+
         # Get changelogs with progress indication
         logger.info("📥 Получаем данные истории из Tracker...")
         start_time = datetime.now()
         changelogs_data = tracker_service.get_changelogs_batch(task_ids)
         load_time = datetime.now() - start_time
-        logger.info(f"⏱️ Загрузка истории завершена за {load_time.total_seconds():.1f} секунд")
+        logger.info(
+            f"⏱️ Загрузка истории завершена за {load_time.total_seconds():.1f} секунд"
+        )
         logger.info(f"🔍 Получено данных истории: {len(changelogs_data)} задач")
-        
+
         # Get task data for initial status handling
         logger.info("📥 Получаем данные задач для обработки начального статуса...")
         tasks_data = tracker_service.get_tasks_batch(task_ids)
-        tasks_dict = {task_id: task_data for task_id, task_data in tasks_data if task_data}
-        
+        tasks_dict = {
+            task_id: task_data for task_id, task_data in tasks_data if task_data
+        }
+
         total_history_entries = 0
         tasks_with_history = 0
-        
+
         # Process history with minimal logging
         logger.info("💾 Обрабатываем и сохраняем историю в базу данных...")
         for i, (task_id, changelog) in enumerate(changelogs_data, 1):
@@ -167,47 +180,57 @@ class TrackerSyncCommand:
             total_history_entries += history_entries
             if has_history:
                 tasks_with_history += 1
-        
-        logger.info(f"✅ История синхронизирована: {total_history_entries} записей создано для {tasks_with_history} задач")
+
+        logger.info(
+            f"✅ История синхронизирована: {total_history_entries} записей создано для {tasks_with_history} задач"
+        )
         return total_history_entries, tasks_with_history
-    
-    def _process_single_task_history(self, task_id: str, changelog: List[Dict[str, Any]], tasks_dict: Dict[str, Any]) -> tuple[int, bool]:
+
+    def _process_single_task_history(
+        self, task_id: str, changelog: List[Dict[str, Any]], tasks_dict: Dict[str, Any]
+    ) -> tuple[int, bool]:
         """Process history for a single task. Returns (history_entries_count, has_history)."""
         # Get task from database
         db_task = tracker_task.get_by_tracker_id(self.db, task_id)
         if not db_task:
-            logger.warning(f"⚠️ Задача {task_id} не найдена в базе данных, пропускаем историю")
+            logger.warning(
+                f"⚠️ Задача {task_id} не найдена в базе данных, пропускаем историю"
+            )
             return 0, False
-        
+
         # Get task data for initial status handling
         task_data = tasks_dict.get(task_id)
         if not task_data:
             logger.warning(f"⚠️ Данные задачи {task_id} не найдены, пропускаем историю")
             return 0, False
-        
+
         # Extract task data
         task_info = tracker_service.extract_task_data(task_data)
-        
+
         # Extract status history with initial status support
-        task_key = db_task.key if hasattr(db_task, 'key') and db_task.key else task_id
-        status_history = tracker_service.extract_status_history_with_initial_status(changelog, task_info, task_key)
+        task_key = db_task.key if hasattr(db_task, "key") and db_task.key else task_id
+        status_history = tracker_service.extract_status_history_with_initial_status(
+            changelog, task_info, task_key
+        )
         if not status_history:
             return 0, False
-        
+
         # Delete existing history for this task to ensure clean slate
         tracker_task_history.delete_by_task_id(self.db, db_task.id)
-        
+
         # Prepare history data with duplicate prevention
         history_data = self._prepare_history_data(status_history, db_task.id, task_id)
-        
+
         # Save history
         if history_data:
             created_count = tracker_task_history.bulk_create(self.db, history_data)
             return created_count, True
-        
+
         return 0, False
-    
-    def _prepare_history_data(self, status_history: List[Dict[str, Any]], db_task_id: int, task_id: str) -> List[Dict[str, Any]]:
+
+    def _prepare_history_data(
+        self, status_history: List[Dict[str, Any]], db_task_id: int, task_id: str
+    ) -> List[Dict[str, Any]]:
         """Prepare history data for database insertion."""
         history_data = []
         for entry in status_history:
@@ -219,12 +242,17 @@ class TrackerSyncCommand:
                     "status": entry["status"],
                     "status_display": entry["status_display"],
                     "start_date": entry["start_date"],
-                    "end_date": entry.get("end_date")
+                    "end_date": entry.get("end_date"),
                 }
                 history_data.append(history_entry)
         return history_data
-    
-    def run(self, filters: Dict[str, Any] = None, limit: int = None, skip_history: bool = False):
+
+    def run(
+        self,
+        filters: Dict[str, Any] = None,
+        limit: int = None,
+        skip_history: bool = False,
+    ):
         """Run the sync command."""
         try:
             # Debug: log all parameters
@@ -232,43 +260,42 @@ class TrackerSyncCommand:
             logger.debug(f"   filters: {filters}")
             logger.debug(f"   limit: {limit}")
             logger.debug(f"   skip_history: {skip_history}")
-            
+
             # Create sync log
             self.sync_log = self.create_sync_log()
             logger.info(f"Started sync operation: {self.sync_log.id}")
             logger.info("Sync mode: filters and limit")
             if skip_history:
                 logger.info("History sync disabled")
-            
+
             # Get tasks to sync
             logger.info(f"🚀 Начинаем синхронизацию...")
             logger.info(f"   📋 Фильтр: {filters}")
             logger.info(f"   🎯 Лимит: {limit} задач")
-            
+
             task_ids = self.get_tasks_to_sync(filters, limit)
             if not task_ids:
                 logger.error(f"❌ Не найдено задач для синхронизации")
                 self.update_sync_log(
                     status="failed",
                     sync_completed_at=datetime.now(timezone.utc),
-                    error_details="No tasks found to sync"
+                    error_details="No tasks found to sync",
                 )
                 return False
-            
+
             logger.info(f"✅ Найдено {len(task_ids)} задач для синхронизации")
-            
+
             self.update_sync_log(tasks_processed=len(task_ids))
-            
-            
+
             # Sync tasks
             logger.info("🔄 Начинаем синхронизацию задач...")
             tasks_result = self.sync_tasks(task_ids)
             logger.debug(f"✅ Синхронизация задач завершена: {tasks_result}")
             self.update_sync_log(
                 tasks_created=tasks_result["created"],
-                tasks_updated=tasks_result["updated"]
+                tasks_updated=tasks_result["updated"],
             )
-            
+
             # Sync history (if not skipped)
             history_entries = 0
             tasks_with_history = 0
@@ -277,51 +304,57 @@ class TrackerSyncCommand:
             else:
                 logger.info("📚 Синхронизация истории включена, начинаем...")
                 try:
-                    history_entries, tasks_with_history = self.sync_task_history(task_ids)
-                    logger.info(f"📚 Синхронизация истории завершена: {history_entries} записей")
-                    
+                    history_entries, tasks_with_history = self.sync_task_history(
+                        task_ids
+                    )
+                    logger.info(
+                        f"📚 Синхронизация истории завершена: {history_entries} записей"
+                    )
+
                     # Clean up any duplicates that might have been created
                     if history_entries > 0:
                         logger.info("🧹 Очищаем возможные дубликаты в истории...")
                         cleaned_count = tracker_task_history.cleanup_duplicates(self.db)
                         if cleaned_count > 0:
-                            logger.info(f"🧹 Очищено {cleaned_count} дублирующихся записей")
+                            logger.info(
+                                f"🧹 Очищено {cleaned_count} дублирующихся записей"
+                            )
                         else:
                             logger.info("✅ Дубликатов не найдено")
                 except Exception as e:
                     logger.error(f"❌ Ошибка при синхронизации истории: {e}")
                     import traceback
+
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     history_entries = 0
                     tasks_with_history = 0
-            
+
             # Mark sync as completed
             self.update_sync_log(
-                status="completed",
-                sync_completed_at=datetime.now(timezone.utc)
+                status="completed", sync_completed_at=datetime.now(timezone.utc)
             )
-            
+
             # Print final summary to stdout (works even with disabled logging)
             print(f"\n🎉 Синхронизация завершена успешно!")
             print(f"   📝 Создано: {tasks_result['created']} задач")
             print(f"   🔄 Обновлено: {tasks_result['updated']} задач")
             print(f"   📚 Записей истории: {history_entries}")
             print(f"   📋 Задач с историей: {tasks_with_history}")
-            
+
             logger.info(f"🎉 Синхронизация завершена успешно!")
             logger.info(f"   📝 Создано: {tasks_result['created']} задач")
             logger.info(f"   🔄 Обновлено: {tasks_result['updated']} задач")
             logger.info(f"   📚 Записей истории: {history_entries}")
             logger.info(f"   📋 Задач с историей: {tasks_with_history}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Sync failed: {e}")
             if self.sync_log:
                 self.update_sync_log(
                     status="failed",
                     sync_completed_at=datetime.now(timezone.utc),
-                    error_details=str(e)
+                    error_details=str(e),
                 )
             return False
 
@@ -329,68 +362,64 @@ class TrackerSyncCommand:
 def main():
     """Main entry point for the sync command."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Sync data from Yandex Tracker with pagination support",
         epilog="""
-Note: Yandex Tracker API returns maximum 50 records per page. 
+Note: Yandex Tracker API returns maximum 50 records per page.
 The command automatically handles pagination to retrieve the requested number of tasks.
 Maximum limit is 10000 tasks per sync operation.
-        """
+        """,
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help=f"Maximum number of tasks to sync (default: {settings.DEFAULT_LARGE_LIMIT})"
+        help=f"Maximum number of tasks to sync (default: {settings.DEFAULT_LARGE_LIMIT})",
     )
     parser.add_argument(
         "--filter",
         type=str,
-        help="Filter string for task selection (passed directly to tracker)"
+        help="Filter string for task selection (passed directly to tracker)",
     )
 
     parser.add_argument(
         "--skip-history",
         action="store_true",
-        help="Skip syncing task history (faster sync for testing)"
+        help="Skip syncing task history (faster sync for testing)",
     )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging"
-    )
-    
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logger.setLevel("DEBUG")
-    
+
     # Check required environment variables
     if not settings.TRACKER_API_TOKEN:
         logger.error("TRACKER_API_TOKEN environment variable is required")
         sys.exit(1)
-    
+
     if not settings.TRACKER_ORG_ID:
         logger.error("TRACKER_ORG_ID environment variable is required")
         sys.exit(1)
-    
+
     # Build filters
     filters = {}
     if args.filter:
         # Pass the filter string directly as a query
         filters["query"] = args.filter
-    
+
     # Run sync
     logger.info("🚀 Запускаем синхронизацию...")
-    logger.debug(f"🔍 Параметры: filters={filters}, limit={args.limit}, skip_history={args.skip_history}")
-    
+    logger.debug(
+        f"🔍 Параметры: filters={filters}, limit={args.limit}, skip_history={args.skip_history}"
+    )
+
     with TrackerSyncCommand() as sync_cmd:
         logger.debug(f"✅ TrackerSyncCommand создан успешно")
         success = sync_cmd.run(
-            filters=filters,
-            limit=args.limit,
-            skip_history=args.skip_history
+            filters=filters, limit=args.limit, skip_history=args.skip_history
         )
         logger.debug(f"🔍 Результат run(): {success}")
         sys.exit(0 if success else 1)

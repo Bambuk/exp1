@@ -1,15 +1,16 @@
 """Pytest configuration for tracker tests."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock
-from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime, timezone
+from typing import Generator
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from radiator.core.database import Base
-from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
+from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHistory
 
 
 @pytest.fixture(scope="session")
@@ -17,15 +18,18 @@ def test_db_engine():
     """Create test database engine."""
     # Use sync database for tests
     from radiator.core.config import settings
-    database_url = settings.DATABASE_URL_SYNC or settings.DATABASE_URL.replace("+asyncpg", "")
-    
+
+    database_url = settings.DATABASE_URL_SYNC or settings.DATABASE_URL.replace(
+        "+asyncpg", ""
+    )
+
     engine = create_engine(database_url, echo=False)
-    
+
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    
+
     yield engine
-    
+
     # Cleanup - drop all tables
     Base.metadata.drop_all(bind=engine)
     engine.dispose()
@@ -36,7 +40,7 @@ def db_session(test_db_engine):
     """Create database session for tests."""
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
     session = SessionLocal()
-    
+
     try:
         yield session
     finally:
@@ -64,7 +68,7 @@ def sample_task_data():
         "business_client": "Test Client",
         "team": "frontend",
         "prodteam": "development",
-        "profit_forecast": "high"
+        "profit_forecast": "high",
     }
 
 
@@ -76,7 +80,7 @@ def sample_history_data():
         "status": "Open",
         "status_display": "Open",
         "start_date": datetime.now(timezone.utc),
-        "end_date": datetime.now(timezone.utc)
+        "end_date": datetime.now(timezone.utc),
     }
 
 
@@ -91,7 +95,7 @@ def sample_sync_log_data():
         "tasks_updated": 0,
         "history_entries_processed": 0,
         "error_message": None,
-        "sync_completed_at": None
+        "sync_completed_at": None,
     }
 
 
@@ -99,7 +103,7 @@ def sample_sync_log_data():
 def mock_tracker_service():
     """Create mock TrackerAPIService."""
     from radiator.services.tracker_service import TrackerAPIService
-    
+
     service = Mock(spec=TrackerAPIService)
     service.get_recent_tasks.return_value = ["12345", "67890"]
     service.get_active_tasks.return_value = ["11111", "22222"]
@@ -107,7 +111,7 @@ def mock_tracker_service():
     service.get_task.return_value = {
         "id": "12345",
         "key": "TEST-123",
-        "summary": "Test Task"
+        "summary": "Test Task",
     }
     service.get_task_changelog.return_value = []
     service.get_tasks_by_filter.return_value = ["33333"]
@@ -118,7 +122,7 @@ def mock_tracker_service():
 def mock_sync_command():
     """Create mock TrackerSyncCommand."""
     from radiator.commands.sync_tracker import TrackerSyncCommand
-    
+
     command = TrackerSyncCommand()
     command.db = Mock()
     return command

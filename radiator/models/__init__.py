@@ -1,5 +1,5 @@
 """Database models."""
 
-from radiator.models.tracker import TrackerTask, TrackerTaskHistory, TrackerSyncLog
+from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHistory
 
 __all__ = ["TrackerTask", "TrackerTaskHistory", "TrackerSyncLog"]

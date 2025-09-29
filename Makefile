@@ -196,4 +196,3 @@ generate-time-to-market-report-teams:  ## Generate Time To Delivery and Time To 
 	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both
 	@echo ""
 	@echo "✅ Time To Market report by teams generated successfully!"
-

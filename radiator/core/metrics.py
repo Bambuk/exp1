@@ -1,43 +1,33 @@
 """Metrics for CLI application monitoring."""
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
 # Database metrics
 DB_CONNECTION_GAUGE = Gauge(
-    "database_connections_active",
-    "Number of active database connections"
+    "database_connections_active", "Number of active database connections"
 )
 
 DB_QUERY_DURATION = Histogram(
     "database_query_duration_seconds",
     "Database query duration in seconds",
-    ["operation"]
+    ["operation"],
 )
 
 # Business metrics
-TASK_COUNT = Gauge(
-    "tasks_total",
-    "Total number of tasks"
-)
+TASK_COUNT = Gauge("tasks_total", "Total number of tasks")
 
 # Custom metrics
 CUSTOM_EVENTS = Counter(
-    "custom_events_total",
-    "Total number of custom events",
-    ["event_type"]
+    "custom_events_total", "Total number of custom events", ["event_type"]
 )
 
 # CLI operation metrics
 CLI_OPERATION_DURATION = Histogram(
-    "cli_operation_duration_seconds",
-    "CLI operation duration in seconds",
-    ["operation"]
+    "cli_operation_duration_seconds", "CLI operation duration in seconds", ["operation"]
 )
 
 CLI_OPERATION_COUNT = Counter(
-    "cli_operations_total",
-    "Total number of CLI operations",
-    ["operation", "status"]
+    "cli_operations_total", "Total number of CLI operations", ["operation", "status"]
 )
 
 

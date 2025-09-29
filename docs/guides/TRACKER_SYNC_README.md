@@ -236,19 +236,19 @@ python sync_tracker.py --sync-mode recent --days 7 >> logs/sync.log 2>&1
 
 ```sql
 -- Последняя успешная синхронизация
-SELECT * FROM tracker_sync_logs 
-WHERE status = 'completed' 
-ORDER BY sync_completed_at DESC 
+SELECT * FROM tracker_sync_logs
+WHERE status = 'completed'
+ORDER BY sync_completed_at DESC
 LIMIT 1;
 
 -- Статистика по дням
-SELECT 
+SELECT
     DATE(sync_started_at) as sync_date,
     COUNT(*) as sync_count,
     SUM(tasks_processed) as total_tasks,
     SUM(tasks_created) as total_created,
     SUM(tasks_updated) as total_updated
-FROM tracker_sync_logs 
+FROM tracker_sync_logs
 WHERE status = 'completed'
 GROUP BY DATE(sync_started_at)
 ORDER BY sync_date DESC;
@@ -258,13 +258,13 @@ ORDER BY sync_date DESC;
 
 ```sql
 -- Количество задач по статусам
-SELECT status, COUNT(*) as count 
-FROM tracker_tasks 
+SELECT status, COUNT(*) as count
+FROM tracker_tasks
 GROUP BY status;
 
 -- История изменений для конкретной задачи
-SELECT * FROM tracker_task_history 
-WHERE tracker_id = '12345' 
+SELECT * FROM tracker_task_history
+WHERE tracker_id = '12345'
 ORDER BY start_date;
 ```
 

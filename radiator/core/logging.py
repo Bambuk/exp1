@@ -4,18 +4,18 @@ import logging
 import logging.config
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 from radiator.core.config import settings
 
 
 def setup_logging() -> None:
     """Setup logging configuration."""
-    
+
     # Create logs directory if it doesn't exist
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    
+
     # Logging configuration
     logging_config: Dict[str, Any] = {
         "version": 1,
@@ -91,20 +91,20 @@ def setup_logging() -> None:
             },
         },
     }
-    
+
     # Use JSON formatter if configured
     if settings.LOG_FORMAT.lower() == "json":
         logging_config["handlers"]["console"]["formatter"] = "json"
         logging_config["handlers"]["file"]["formatter"] = "json"
         logging_config["handlers"]["error_file"]["formatter"] = "json"
-    
+
     # Apply configuration
     logging.config.dictConfig(logging_config)
-    
+
     # Set log level from settings
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
-    
+
     # Log startup message
     logger = logging.getLogger(__name__)
     logger.info("Logging configured successfully")

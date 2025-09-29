@@ -90,11 +90,12 @@ def run_migrations_online() -> None:
     """
     # Use synchronous connection for migrations
     from sqlalchemy import create_engine
+
     from radiator.core.config import settings
-    
+
     url = settings.DATABASE_URL_SYNC
     engine = create_engine(url)
-    
+
     with engine.connect() as connection:
         do_run_migrations(connection)
 

@@ -3,11 +3,7 @@
 from typing import AsyncGenerator, Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from radiator.core.config import settings
@@ -68,7 +64,8 @@ async def init_db() -> None:
     """Initialize database tables."""
     async with async_engine.begin() as conn:
         # Import all models here to ensure they are registered
-        from radiator.models import user, tracker  # noqa: F401
+        from radiator.models import tracker, user  # noqa: F401
+
         await conn.run_sync(Base.metadata.create_all)
 
 

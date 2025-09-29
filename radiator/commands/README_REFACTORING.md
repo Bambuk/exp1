@@ -78,13 +78,13 @@ from radiator.commands.models.time_to_market_models import GroupBy, ReportType
 with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
     # Генерация данных отчета
     report = cmd.generate_report_data()
-    
+
     # Генерация CSV
     csv_file = cmd.generate_csv(report_type=ReportType.BOTH)
-    
+
     # Генерация таблицы
     table_file = cmd.generate_table(report_type=ReportType.TTD)
-    
+
     # Вывод в консоль
     cmd.print_summary(report_type=ReportType.TTM)
 ```

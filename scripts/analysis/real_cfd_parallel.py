@@ -1,13 +1,15 @@
-import requests
-import json
 import csv
-import time
+import json
 import os
-import pandas as pd
+import time
 from datetime import datetime, timedelta
+
+import pandas as pd
+import requests
+
 # Конфигурация из переменных окружения
-API_TOKEN = os.getenv('TRACKER_API_TOKEN', '')
-ORG_ID = os.getenv('TRACKER_ORG_ID', '')
+API_TOKEN = os.getenv("TRACKER_API_TOKEN", "")
+ORG_ID = os.getenv("TRACKER_ORG_ID", "")
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # === КОНФИГ ===
@@ -35,7 +37,7 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 HEADERS = {
     "Authorization": f"OAuth {API_TOKEN}",
     "X-Org-ID": ORG_ID,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 BASE_URL = "https://api.tracker.yandex.net/v2/"
 ISSUE_URL = f"{BASE_URL}issues"
@@ -55,7 +57,9 @@ except FileNotFoundError:
 # Проверяем существование файла с задачами
 try:
     with open(TASK_LIST_FILE, "r", encoding="utf-8") as f:
-        TASK_IDS = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+        TASK_IDS = [
+            line.strip() for line in f if line.strip() and not line.startswith("#")
+        ]
     print(f"Loaded {len(TASK_IDS)} task IDs from {TASK_LIST_FILE}")
 except FileNotFoundError:
     print(f"Error: Task list file not found: {TASK_LIST_FILE}")
@@ -71,16 +75,20 @@ else:
 STATUS_ORDER = RAW_STATUS_ORDER
 STATUS_INDEX = {name: i for i, name in enumerate(STATUS_ORDER)}
 
+
 def get_task(task_id):
     url = f"{ISSUE_URL}/{task_id}"
     r = requests.get(url, headers=HEADERS)
     if r.status_code == 200:
         data = r.json()
-        with open(os.path.join(DEBUG_DIR, f"{task_id}_issue_{TS}.json"), "w", encoding="utf-8") as f:
+        with open(
+            os.path.join(DEBUG_DIR, f"{task_id}_issue_{TS}.json"), "w", encoding="utf-8"
+        ) as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return data
     else:
         raise RuntimeError(f"get_task {task_id} failed: {r.status_code} - {r.text}")
+
 
 def get_changelog(task_id):
     url = f"{ISSUE_URL}/{task_id}/changelog"
@@ -89,10 +97,16 @@ def get_changelog(task_id):
     while url:
         r = requests.get(url, headers=HEADERS)
         if r.status_code != 200:
-            raise RuntimeError(f"get_changelog {task_id} failed: {r.status_code} - {r.text}")
+            raise RuntimeError(
+                f"get_changelog {task_id} failed: {r.status_code} - {r.text}"
+            )
         page_data = r.json()
         all_data.extend(page_data)
-        with open(os.path.join(DEBUG_DIR, f"{task_id}_changelog_{index}_{TS}.json"), "w", encoding="utf-8") as f:
+        with open(
+            os.path.join(DEBUG_DIR, f"{task_id}_changelog_{index}_{TS}.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
             json.dump(page_data, f, ensure_ascii=False, indent=2)
         index += 1
         next_url = None
@@ -104,13 +118,17 @@ def get_changelog(task_id):
         time.sleep(0.1)
     return all_data
 
+
 def extract_teams_and_forecast(issue, changelog):
     result = {
         "team": str(issue.get("63515d47fe387b7ce7b9fc55--team", "")),
         "prodteam": str(issue.get("63515d47fe387b7ce7b9fc55--prodteam", "")),
-        "profitForecast": str(issue.get("63515d47fe387b7ce7b9fc55--profitForecast", ""))
+        "profitForecast": str(
+            issue.get("63515d47fe387b7ce7b9fc55--profitForecast", "")
+        ),
     }
     return result
+
 
 def format_user_list(value):
     """Возвращает строку имён из списка/словаря пользователей Яндекс Трекера."""
@@ -118,7 +136,12 @@ def format_user_list(value):
         names = []
         for v in value:
             if isinstance(v, dict):
-                names.append(v.get("display") or str(v.get("id") or v.get("passportUid") or v.get("cloudUid") or ""))
+                names.append(
+                    v.get("display")
+                    or str(
+                        v.get("id") or v.get("passportUid") or v.get("cloudUid") or ""
+                    )
+                )
             else:
                 names.append(str(v))
         return ", ".join([n for n in names if n])
@@ -127,6 +150,7 @@ def format_user_list(value):
     else:
         return ""
 
+
 def extract_status_dates(changelog):
     status_dates = {}
     for entry in changelog:
@@ -134,12 +158,15 @@ def extract_status_dates(changelog):
         for field in entry.get("fields", []):
             if field.get("field", {}).get("id") != "status":
                 continue
-            status_name = field.get("to", {}).get("display") or field.get("to", {}).get("key")
+            status_name = field.get("to", {}).get("display") or field.get("to", {}).get(
+                "key"
+            )
             if status_name not in STATUS_INDEX:
                 return None, status_name
             if status_name not in status_dates:
                 status_dates[status_name] = date
     return status_dates, None
+
 
 def process_task(task_id):
     try:
@@ -166,15 +193,39 @@ def process_task(task_id):
     except Exception as e:
         return {"error": (task_id, str(e))}
 
+
 def main():
     if os.path.exists(PREVIOUS_STAGE_FILE):
         df = pd.read_csv(PREVIOUS_STAGE_FILE, encoding="utf-8")
-        for col in ["author", "assignee", "status", "team", "prodteam", "profitForecast", "businessClient"]:
+        for col in [
+            "author",
+            "assignee",
+            "status",
+            "team",
+            "prodteam",
+            "profitForecast",
+            "businessClient",
+        ]:
             if col not in df.columns:
                 df[col] = ""
-        df = df[["task_id", "summary", "author", "assignee", "status", "team", "prodteam", "profitForecast", "businessClient"] + STATUS_ORDER]
+        df = df[
+            [
+                "task_id",
+                "summary",
+                "author",
+                "assignee",
+                "status",
+                "team",
+                "prodteam",
+                "profitForecast",
+                "businessClient",
+            ]
+            + STATUS_ORDER
+        ]
         rows = df.to_dict(orient="records")
-        max_date = pd.to_datetime(time.ctime(os.path.getmtime(PREVIOUS_STAGE_FILE))).normalize()
+        max_date = pd.to_datetime(
+            time.ctime(os.path.getmtime(PREVIOUS_STAGE_FILE))
+        ).normalize()
     else:
         with open(TASK_LIST_FILE, "r", encoding="utf-8") as f:
             task_ids = [line.strip() for line in f if line.strip()]
@@ -186,7 +237,9 @@ def main():
         rows = []
 
         with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(process_task, task_id): task_id for task_id in task_ids}
+            futures = {
+                executor.submit(process_task, task_id): task_id for task_id in task_ids
+            }
             for i, future in enumerate(as_completed(futures), 1):
                 task_id = futures[future]
                 print(f"{i}/{len(task_ids)}: {task_id}")
@@ -219,13 +272,17 @@ def main():
             "author": row.get("author", ""),
             "assignee": row.get("assignee", ""),
             "team": row.get("team", ""),
-            "prodteam": row.get("prodteam")
+            "prodteam": row.get("prodteam"),
         }
-        
+
         status_dates = {
-            s: row[s] for s in STATUS_ORDER if s in row and pd.notna(row[s]) and str(row[s]).strip()
+            s: row[s]
+            for s in STATUS_ORDER
+            if s in row and pd.notna(row[s]) and str(row[s]).strip()
         }
-        sorted_statuses = [(s, status_dates[s]) for s in STATUS_ORDER if s in status_dates]
+        sorted_statuses = [
+            (s, status_dates[s]) for s in STATUS_ORDER if s in status_dates
+        ]
         sorted_statuses.sort(key=lambda x: pd.to_datetime(x[1], errors="coerce"))
 
         if ONLY_LAST_PER_DAY:
@@ -233,7 +290,11 @@ def main():
             for i, (stage, start_date) in enumerate(sorted_statuses):
                 display_stage = DISPLAY_ORDER[STATUS_INDEX[stage]]
                 is_last = i + 1 == len(sorted_statuses)
-                end_dt = pd.to_datetime(sorted_statuses[i + 1][1], errors="coerce") if not is_last else max_date
+                end_dt = (
+                    pd.to_datetime(sorted_statuses[i + 1][1], errors="coerce")
+                    if not is_last
+                    else max_date
+                )
                 start_dt = pd.to_datetime(start_date, errors="coerce")
                 if pd.isna(start_dt) or pd.isna(end_dt):
                     continue
@@ -247,19 +308,31 @@ def main():
             for i, (stage, start_date) in enumerate(sorted_statuses):
                 display_stage = DISPLAY_ORDER[STATUS_INDEX[stage]]
                 is_last = i + 1 == len(sorted_statuses)
-                end_dt = pd.to_datetime(sorted_statuses[i + 1][1], errors="coerce") if not is_last else max_date
+                end_dt = (
+                    pd.to_datetime(sorted_statuses[i + 1][1], errors="coerce")
+                    if not is_last
+                    else max_date
+                )
                 start_dt = pd.to_datetime(start_date, errors="coerce")
                 if pd.isna(start_dt) or pd.isna(end_dt):
                     continue
-                for day in pd.date_range(start=start_dt, end=end_dt, freq="D", inclusive="left" if not is_last else "both"):
+                for day in pd.date_range(
+                    start=start_dt,
+                    end=end_dt,
+                    freq="D",
+                    inclusive="left" if not is_last else "both",
+                ):
                     if day >= FROM_DATE:
-                        long_rows.append({**base, "stage": display_stage, "date": day.date()})
+                        long_rows.append(
+                            {**base, "stage": display_stage, "date": day.date()}
+                        )
 
     pd.DataFrame(rows).to_csv(CSV_STAGE_FILE, index=False)
     print(f"📦 Стадии сохранены: {CSV_STAGE_FILE}")
 
     pd.DataFrame(long_rows).to_csv(CSV_LONG_FILE, index=False)
     print(f"✅ Long-формат сохранён: {CSV_LONG_FILE}")
+
 
 if __name__ == "__main__":
     main()

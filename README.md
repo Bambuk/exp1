@@ -49,7 +49,7 @@ alembic upgrade head
 # Generate status change report
 python -m radiator.commands.generate_status_change_report
 
-# Generate time to market report  
+# Generate time to market report
 python -m radiator.commands.generate_time_to_market_report
 
 # Sync with Tracker
@@ -145,7 +145,7 @@ For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md)
 The application provides several CLI commands for different operations:
 
 - **Status Change Reports**: Generate reports on task status changes
-- **Time to Market Reports**: Analyze task completion timelines  
+- **Time to Market Reports**: Analyze task completion timelines
 - **Tracker Sync**: Synchronize data with Yandex Tracker
 - **Search Tasks**: Search and filter tasks from the database
 
