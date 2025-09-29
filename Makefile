@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean docker-build docker-run deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams generate-status-report-all sync-and-report generate-time-to-market-report generate-time-to-market-report-teams generate-time-to-market-report-all
+.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-time-to-market-report generate-time-to-market-report-teams
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -41,12 +41,6 @@ dev:  ## Run development server
 test:  ## Run tests
 	pytest tests/ -v --cov=radiator --cov-report=html
 
-test-unit:  ## Run unit tests only
-	pytest tests/ -v -m unit --cov=radiator --cov-report=html
-
-test-integration:  ## Run integration tests only
-	pytest tests/ -v -m integration --cov=radiator --cov-report=html
-
 lint:  ## Run linting
 	flake8 radiator/ tests/
 	mypy radiator/
@@ -54,10 +48,6 @@ lint:  ## Run linting
 format:  ## Format code
 	black radiator/ tests/
 	isort radiator/ tests/
-
-check-format:  ## Check code formatting
-	black --check radiator/ tests/
-	isort --check-only radiator/ tests/
 
 clean:  ## Clean up generated files
 	find . -type f -name "*.pyc" -delete
@@ -67,18 +57,6 @@ clean:  ## Clean up generated files
 	rm -rf htmlcov/
 	rm -rf .coverage
 	rm -rf .mypy_cache/
-
-docker-build:  ## Build Docker image
-	docker build -t radiator-api .
-
-docker-run:  ## Run with Docker Compose
-	docker-compose up -d
-
-docker-stop:  ## Stop Docker Compose
-	docker-compose down
-
-docker-logs:  ## Show Docker logs
-	docker-compose logs -f
 
 deploy:  ## Deploy to Ubuntu server
 	@echo "Make sure you have access to the server and run:"
@@ -124,22 +102,7 @@ test-env:  ## Verify test environment configuration
 	@echo "Test Database URL: $$(python -c "from radiator.core.config import settings; print(settings.test_database_url)")"
 	@echo "Is Test Environment: $$(python -c "from radiator.core.config import settings; print(settings.is_test_environment)")"
 
-pre-commit-run:  ## Run pre-commit hooks on all files
-	pre-commit run --all-files
-
 # Tracker sync commands
-
-sync-tracker-active:
-	@echo "Syncing active tracker tasks..."
-	@python3 scripts/sync/sync_tracker.py --sync-mode active
-
-sync-tracker-recent:
-	@echo "Syncing recent tracker tasks (last 7 days)..."
-	@python3 scripts/sync/sync_tracker.py --days 7
-
-sync-tracker-filter:
-	@echo "Syncing tracker tasks with custom filters..."
-	@python3 scripts/sync/sync_tracker.py --sync-mode filter --status "In Progress" --limit 50
 
 sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-history
 	@echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true]"
@@ -157,58 +120,16 @@ sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-histor
 		exit 1; \
 	fi
 
-
-sync-tracker-debug:
-	@echo "Syncing tracker data with debug..."
-	@python3 scripts/sync/sync_tracker.py --debug
-
-
 # CPO sync commands
 sync-cpo:  ## Sync CPO tasks for last 6 months
 	@echo "Syncing CPO tasks for last 6 months..."
 	@python3 scripts/sync/sync_cpo_tasks.py
 
 
-sync-cpo-limit:  ## Sync CPO tasks with custom limit
-	@echo "Usage: make sync-cpo-limit LIMIT=<number>"
-	@echo "Example: make sync-cpo-limit LIMIT=500"
-	@if [ -n "$(LIMIT)" ]; then \
-		python3 -m radiator.commands.sync_tracker --filter "key:CPO-*" --limit $(LIMIT); \
-	else \
-		echo "Please specify LIMIT parameter"; \
-		exit 1; \
-	fi
-
-
 # Tracker test commands
 test-tracker:  ## Run all tracker-related tests
 	@echo "Running all tracker tests..."
 	pytest tests/test_tracker_sync.py tests/test_tracker_crud.py tests/test_tracker_api.py -v
-
-test-tracker-unit:  ## Run tracker unit tests only
-	@echo "Running tracker unit tests..."
-	pytest tests/test_tracker_crud.py tests/test_tracker_api.py -v
-
-test-tracker-integration:  ## Run tracker integration tests only
-	@echo "Running tracker integration tests..."
-	pytest tests/test_tracker_sync.py -v
-
-test-tracker-crud:  ## Run tracker CRUD tests only
-	@echo "Running tracker CRUD tests..."
-	pytest tests/test_tracker_crud.py -v
-
-test-tracker-api:  ## Run tracker API tests only
-	@echo "Running tracker API tests..."
-	pytest tests/test_tracker_api.py -v
-
-test-tracker-coverage:  ## Run tracker tests with coverage report
-	@echo "Running tracker tests with coverage..."
-	pytest tests/test_tracker_sync.py tests/test_tracker_crud.py tests/test_tracker_api.py -v --cov=radiator.crud.tracker --cov=radiator.services.tracker_service --cov=radiator.commands.sync_tracker --cov-report=html
-
-test-tracker-simple:  ## Run simple tracker tests (basic functionality)
-	@echo "Running simple tracker tests..."
-	pytest tests/test_tracker_simple.py -v
-
 
 # Telegram Bot commands
 telegram-bot: ## Start Telegram bot for reports monitoring
@@ -218,10 +139,6 @@ telegram-bot: ## Start Telegram bot for reports monitoring
 telegram-test: ## Test Telegram bot connection
 	@echo "Testing Telegram bot connection..."
 	@python3 -m radiator.telegram_bot.main --test
-
-telegram-config: ## Show Telegram bot configuration
-	@echo "Telegram bot configuration:"
-	@python3 -m radiator.telegram_bot.main --config
 
 telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo "Resetting Telegram bot file monitoring state..."
@@ -243,17 +160,9 @@ telegram-reset: ## Reset Telegram bot file monitoring state
 	@echo ""
 	@python3 -m radiator.telegram_bot.main --reset
 
-telegram-cleanup: ## Clean up old files from Telegram bot state
-	@echo "Cleaning up old files from Telegram bot state..."
-	@python3 -m radiator.telegram_bot.main --cleanup
-
 telegram-get-chat-id: ## Get Chat ID from Telegram bot
 	@echo "Getting Chat ID from Telegram bot..."
 	@python3 scripts/get_chat_id.py
-
-telegram-simple-chat-id: ## Get Chat ID using simple method
-	@echo "Getting Chat ID using simple method..."
-	@python3 scripts/simple_chat_id.py
 
 # Google Sheets CSV Uploader commands
 google-sheets-monitor: ## Start Google Sheets CSV uploader monitoring
@@ -268,16 +177,6 @@ generate-status-report:  ## Generate CPO tasks status change report by authors (
 generate-status-report-teams:  ## Generate CPO tasks status change report by teams (last 2 weeks)
 	@echo "Generating CPO tasks status change report by teams for last 2 weeks..."
 	@python3 -m radiator.commands.generate_status_change_report --group-by team
-
-generate-status-report-all:  ## Generate both author and team reports (last 2 weeks)
-	@echo "Generating CPO tasks status change reports for last 2 weeks..."
-	@echo "Generating report by authors..."
-	@python3 -m radiator.commands.generate_status_change_report --group-by author
-	@echo ""
-	@echo "Generating report by teams..."
-	@python3 -m radiator.commands.generate_status_change_report --group-by team
-	@echo ""
-	@echo "✅ Both reports generated successfully!"
 
 sync-and-report:  ## Sync CPO tasks and generate status report (complete workflow)
 	@echo "🔄 Starting complete CPO workflow: sync + report generation..."
@@ -303,13 +202,3 @@ generate-time-to-market-report-teams:  ## Generate Time To Delivery and Time To 
 	@echo ""
 	@echo "✅ Time To Market report by teams generated successfully!"
 
-generate-time-to-market-report-all:  ## Generate both author and team Time To Market reports
-	@echo "📊 Generating Time To Market reports for both authors and teams..."
-	@echo ""
-	@echo "Step 1/2: Generating report by authors..."
-	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by author --report-type both
-	@echo ""
-	@echo "Step 2/2: Generating report by teams..."
-	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both
-	@echo ""
-	@echo "✅ Both Time To Market reports generated successfully!"
