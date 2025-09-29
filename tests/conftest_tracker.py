@@ -16,7 +16,10 @@ from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHist
 @pytest.fixture(scope="session")
 def test_db_engine():
     """Create test database engine."""
-    # Use sync database for tests
+    # Always use test database for tests, regardless of ENVIRONMENT
+    import os
+
+    os.environ["ENVIRONMENT"] = "test"
     from radiator.core.config import settings
 
     database_url = settings.DATABASE_URL_SYNC or settings.DATABASE_URL.replace(

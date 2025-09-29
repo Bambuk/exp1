@@ -513,11 +513,9 @@ Maximum limit is 10000 tasks per sync operation.
     )
 
     with TrackerSyncCommand() as sync_cmd:
-        logger.debug(f"✅ TrackerSyncCommand создан успешно")
         success = sync_cmd.run(
             filters=filters, limit=args.limit, skip_history=args.skip_history
         )
-        logger.debug(f"🔍 Результат run(): {success}")
         sys.exit(0 if success else 1)
 
 
