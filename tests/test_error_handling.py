@@ -145,7 +145,9 @@ class TestErrorHandling:
             with patch(
                 "radiator.commands.sync_tracker.tracker_service"
             ) as mock_service:
-                mock_service.get_tasks_by_filter.side_effect = Exception("API Error")
+                mock_service.get_tasks_by_filter_with_data.side_effect = Exception(
+                    "API Error"
+                )
 
                 result = cmd.run(filters={}, limit=10)
                 assert result is False

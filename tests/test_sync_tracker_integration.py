@@ -25,23 +25,21 @@ class TestSyncTrackerIntegration:
 
         # Mock tracker service to return test data
         with patch("radiator.commands.sync_tracker.tracker_service") as mock_service:
-            mock_service.get_tasks_by_filter.return_value = ["test_sync_001"]
-            mock_service.get_tasks_batch.return_value = [
-                (
-                    "test_sync_001",
-                    {
-                        "id": "test_sync_001",
-                        "key": "TEST-SYNC-001",
-                        "summary": "Test Task",
-                        "status": "open",
-                        "author": "user1",
-                        "assignee": "Test User",
-                        "business_client": "Test Client",
-                        "team": "frontend",
-                        "prodteam": "development",
-                        "profit_forecast": "high",
-                    },
-                )
+            mock_service.get_tasks_by_filter_with_data.return_value = [
+                {
+                    "id": "test_sync_001",
+                    "key": "TEST-SYNC-001",
+                    "summary": "Test Task",
+                    "status": {"key": "open", "display": "open"},
+                    "createdBy": {"display": "user1"},
+                    "assignee": {"display": "Test User"},
+                    "businessClient": [{"display": "Test Client"}],
+                    "63515d47fe387b7ce7b9fc55--team": "frontend",
+                    "63515d47fe387b7ce7b9fc55--prodteam": "development",
+                    "63515d47fe387b7ce7b9fc55--profitForecast": "high",
+                    "updatedAt": "2024-01-01T00:00:00Z",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                }
             ]
             mock_service.extract_task_data.return_value = test_data
             mock_service.get_changelogs_batch.return_value = [("test_sync_001", [])]

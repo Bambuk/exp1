@@ -691,6 +691,98 @@ class TrackerAPIService:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
 
+    def search_tasks_with_data(
+        self, query: str, limit: int = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for tasks using a query and return full task data.
+
+        Args:
+            query: Yandex Tracker search query
+            limit: Maximum number of tasks to return (uses default from config if None)
+
+        Returns:
+            List of full task data dictionaries
+        """
+        try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SEARCH_LIMIT
+
+            log_limit_info(f"Поиск задач с полными данными: {query}", limit)
+
+            url = f"{self.base_url}issues/_search"
+            all_tasks = []
+            page = 1
+            per_page = settings.API_PAGE_SIZE
+
+            while True:
+                # Prepare request data
+                post_data = {"query": query}
+                params = {"perPage": per_page, "page": page}
+
+                logger.debug(f"   Страница {page}: запрос {per_page} задач")
+                response = self._make_request(
+                    url, method="POST", json=post_data, params=params
+                )
+                data = response.json()
+
+                # Extract full task data from response
+                page_tasks = self._extract_tasks_from_response(data)
+
+                # Add tasks to collection
+                all_tasks.extend(page_tasks)
+                logger.debug(
+                    f"   Страница {page}: получено {len(page_tasks)} задач, всего: {len(all_tasks)}"
+                )
+
+                # Check if we should continue pagination
+                if not self._should_continue_pagination(
+                    all_tasks, limit, page, page_tasks, response
+                ):
+                    if len(all_tasks) >= limit:
+                        logger.info(f"   Достигнут лимит {limit} задач")
+                    elif not page_tasks:
+                        logger.info(f"   Больше задач нет")
+                    else:
+                        logger.info(f"   Получены все доступные задачи")
+                    break
+
+                page += 1
+
+            # Limit results if needed
+            if len(all_tasks) > limit:
+                all_tasks = all_tasks[:limit]
+
+            logger.info(f"Найдено {len(all_tasks)} задач с полными данными")
+            return all_tasks
+
+        except Exception as e:
+            logger.error(f"Failed to search tasks with data: {e}")
+            import traceback
+
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return []
+
+    def _extract_tasks_from_response(self, data: Any) -> List[Dict[str, Any]]:
+        """Extract full task data from API response data."""
+        tasks = []
+
+        if isinstance(data, list):
+            # API returned list of issues directly
+            for item in data:
+                if isinstance(item, dict) and item.get("id"):
+                    tasks.append(item)
+        elif isinstance(data, dict):
+            # API returned dict with issues key
+            issues = data.get("issues", [])
+            if isinstance(issues, list):
+                for item in issues:
+                    if isinstance(item, dict) and item.get("id"):
+                        tasks.append(item)
+
+        return tasks
+
     def _extract_task_ids_from_response(self, data: Any) -> List[str]:
         """Extract task IDs from API response data."""
         task_ids = []
@@ -819,6 +911,76 @@ class TrackerAPIService:
             search_query = " AND ".join(search_parts)
 
             return self.search_tasks(query=search_query, limit=limit)
+
+        except Exception as e:
+            logger.error(f"Failed to get tasks by filter: {e}")
+            return []
+
+    def get_tasks_by_filter_with_data(
+        self, filters: Dict[str, Any] = None, limit: int = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get tasks with full data using various filters.
+
+        Args:
+            filters: Dictionary of filters (status, assignee, team, etc.)
+            limit: Maximum number of tasks to return (uses default from config if None)
+
+        Returns:
+            List of full task data dictionaries
+        """
+        try:
+            # Use default limit from config if not provided
+            if limit is None:
+                limit = settings.DEFAULT_SEARCH_LIMIT
+
+            # Check if we have a direct query string
+            if filters and "query" in filters:
+                # Use the query string directly as provided
+                search_query = filters["query"]
+                logger.info(f"Using direct query: {search_query}")
+                return self.search_tasks_with_data(query=search_query, limit=limit)
+
+            # Build search query from filters using Tracker query syntax
+            search_parts = []
+
+            if filters:
+                for key, value in filters.items():
+                    if value:
+                        if key == "status":
+                            search_parts.append(f'Status: "{value}"')
+                        elif key == "assignee":
+                            search_parts.append(f'Assignee: "{value}"')
+                        elif key == "team":
+                            search_parts.append(f'Team: "{value}"')
+                        elif key == "author":
+                            search_parts.append(f'Author: "{value}"')
+                        elif key == "updated_since":
+                            if isinstance(value, datetime):
+                                search_parts.append(
+                                    f'Updated: >{value.strftime("%Y-%m-%d")}'
+                                )
+                            else:
+                                search_parts.append(f"Updated: >{value}")
+                        elif key == "created_since":
+                            if isinstance(value, datetime):
+                                search_parts.append(
+                                    f'Created: >{value.strftime("%Y-%m-%d")}'
+                                )
+                            else:
+                                search_parts.append(f"Created: >{value}")
+                        else:
+                            # For custom fields, use the key directly
+                            search_parts.append(f"{key}: {value}")
+
+            search_query = " AND ".join(search_parts) if search_parts else ""
+
+            if not search_query:
+                logger.warning("No filters provided, returning empty list")
+                return []
+
+            logger.info(f"Built search query: {search_query}")
+            return self.search_tasks_with_data(query=search_query, limit=limit)
 
         except Exception as e:
             logger.error(f"Failed to get tasks by filter: {e}")

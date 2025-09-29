@@ -87,7 +87,7 @@ class TrackerSyncCommand:
 
     def get_tasks_to_sync(
         self, filters: Dict[str, Any] = None, limit: int = None
-    ) -> List[str]:
+    ) -> List[Any]:
         """
         Get list of tasks to sync using filters.
 
@@ -96,7 +96,7 @@ class TrackerSyncCommand:
             limit: Maximum number of tasks to sync (uses default from config if None)
 
         Returns:
-            List of task IDs to sync
+            List of task data (either IDs or full task objects) to sync
         """
         try:
             # Use default limit from config if not provided
@@ -106,34 +106,51 @@ class TrackerSyncCommand:
                 )  # Use unlimited for sync by default
 
             logger.info(f"Getting tasks using filters: {filters}")
-            task_ids = tracker_service.get_tasks_by_filter(filters, limit=limit)
+            task_data = tracker_service.get_tasks_by_filter_with_data(
+                filters, limit=limit
+            )
 
-            logger.info(f"Found {len(task_ids)} tasks to sync")
-            return task_ids
+            logger.info(f"Found {len(task_data)} tasks to sync")
+            return task_data
 
         except Exception as e:
             logger.error(f"Failed to get tasks to sync: {e}")
             return []
 
     def sync_tasks(
-        self, task_ids: List[str]
+        self, task_data: List[Any]
     ) -> tuple[Dict[str, int], List[tuple[str, Optional[Dict[str, Any]]]]]:
         """Sync tasks data from tracker."""
-        logger.info(f"Starting sync for {len(task_ids)} tasks")
+        logger.info(f"Starting sync for {len(task_data)} tasks")
 
-        # Get tasks data with progress bar (already has tqdm in get_tasks_batch)
-        logger.info("📥 Получаем данные задач из Tracker...")
-        tasks_data = tracker_service.get_tasks_batch(task_ids)
         valid_tasks = []
+        tasks_data = []
 
-        # Process tasks data
-        logger.info("🔄 Обрабатываем полученные данные...")
-        for task_id, task_data in tasks_data:
-            if task_data:
-                task_info = tracker_service.extract_task_data(task_data)
-                valid_tasks.append(task_info)
-            else:
-                logger.warning(f"Failed to get data for task {task_id}")
+        # Check if we have full task data or just IDs
+        if task_data and isinstance(task_data[0], dict) and "id" in task_data[0]:
+            # We have full task data from search - use it directly
+            logger.info("📥 Используем данные задач из поиска...")
+            for task_obj in task_data:
+                if task_obj:
+                    task_info = tracker_service.extract_task_data(task_obj)
+                    valid_tasks.append(task_info)
+                    tasks_data.append((task_obj["id"], task_obj))
+                else:
+                    logger.warning(f"Failed to process task data")
+        else:
+            # We have only IDs - use get_tasks_batch for backwards compatibility
+            logger.info("📥 Получаем данные задач из Tracker...")
+            task_ids = task_data
+            tasks_data = tracker_service.get_tasks_batch(task_ids)
+
+            # Process tasks data
+            logger.info("🔄 Обрабатываем полученные данные...")
+            for task_id, task_obj in tasks_data:
+                if task_obj:
+                    task_info = tracker_service.extract_task_data(task_obj)
+                    valid_tasks.append(task_info)
+                else:
+                    logger.warning(f"Failed to get data for task {task_id}")
 
         if not valid_tasks:
             logger.warning("No valid tasks data received")
@@ -180,10 +197,18 @@ class TrackerSyncCommand:
 
     def sync_task_history(
         self,
-        task_ids: List[str],
+        task_data: List[Any],
         tasks_data: List[tuple[str, Optional[Dict[str, Any]]]],
     ) -> tuple[int, int]:
         """Sync task history data."""
+        # Extract task IDs from task_data
+        if task_data and isinstance(task_data[0], dict) and "id" in task_data[0]:
+            # We have full task data - extract IDs
+            task_ids = [task["id"] for task in task_data if task and "id" in task]
+        else:
+            # We have only IDs
+            task_ids = task_data
+
         logger.info(f"📚 Начинаем синхронизацию истории для {len(task_ids)} задач")
         logger.info(f"🔍 ID задач для истории: {task_ids}")
 
@@ -355,8 +380,8 @@ class TrackerSyncCommand:
             logger.info(f"   📋 Фильтр: {filters}")
             logger.info(f"   🎯 Лимит: {limit} задач")
 
-            task_ids = self.get_tasks_to_sync(filters, limit)
-            if not task_ids:
+            task_data = self.get_tasks_to_sync(filters, limit)
+            if not task_data:
                 logger.error(f"❌ Не найдено задач для синхронизации")
                 self.update_sync_log(
                     status="failed",
@@ -365,9 +390,9 @@ class TrackerSyncCommand:
                 )
                 return False
 
-            logger.info(f"✅ Найдено {len(task_ids)} задач для синхронизации")
+            logger.info(f"✅ Найдено {len(task_data)} задач для синхронизации")
 
-            self.update_sync_log(tasks_processed=len(task_ids))
+            self.update_sync_log(tasks_processed=len(task_data))
 
             # Overall progress bar for the entire sync process
             total_steps = (
@@ -378,7 +403,7 @@ class TrackerSyncCommand:
             ) as main_pbar:
                 # Sync tasks with progress indication
                 logger.info("🔄 Начинаем синхронизацию задач...")
-                tasks_result, tasks_data = self.sync_tasks(task_ids)
+                tasks_result, tasks_data = self.sync_tasks(task_data)
                 main_pbar.update(1)
                 logger.debug(f"✅ Синхронизация задач завершена: {tasks_result}")
                 self.update_sync_log(
@@ -396,7 +421,7 @@ class TrackerSyncCommand:
                     logger.info("📚 Синхронизация истории включена, начинаем...")
                     try:
                         history_entries, tasks_with_history = self.sync_task_history(
-                            task_ids, tasks_data
+                            task_data, tasks_data
                         )
                         logger.info(
                             f"📚 Синхронизация истории завершена: {history_entries} записей"

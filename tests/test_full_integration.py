@@ -214,7 +214,10 @@ class TestFullIntegration:
             with patch(
                 "radiator.commands.sync_tracker.tracker_service"
             ) as mock_service:
-                mock_service.get_tasks_by_filter.return_value = ["TEST-1", "TEST-2"]
+                mock_service.get_tasks_by_filter_with_data.return_value = [
+                    "TEST-1",
+                    "TEST-2",
+                ]
                 mock_service.get_tasks_batch.return_value = [
                     (
                         "TEST-1",
@@ -256,7 +259,7 @@ class TestFullIntegration:
 
                             # Verify result
                             assert result is True  # Should succeed with proper mocks
-                            mock_service.get_tasks_by_filter.assert_called_once_with(
+                            mock_service.get_tasks_by_filter_with_data.assert_called_once_with(
                                 {}, limit=10
                             )
 
@@ -422,7 +425,9 @@ class TestFullIntegration:
             with patch(
                 "radiator.commands.sync_tracker.tracker_service"
             ) as mock_service:
-                mock_service.get_tasks_by_filter.side_effect = Exception("API Error")
+                mock_service.get_tasks_by_filter_with_data.side_effect = Exception(
+                    "API Error"
+                )
 
                 result = sync_cmd.run(filters={}, limit=10)
                 assert result is False
