@@ -521,38 +521,25 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
 
-            # Calculate dimensions with minimal padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
-            # Use appropriate cell height based on report type
+            # Use adaptive sizing based on content
+            # Calculate base dimensions
+            num_rows = len(groups) + 1  # +1 for header
+            num_cols = 5
+
+            # Set adaptive figure size based on content
             if self.group_by == "team":
-                cell_height = (
-                    0.18  # Larger height per row for team reports (increased by 20%)
-                )
-                header_height = (
-                    0.12  # Larger header row height for team reports (increased by 20%)
-                )
+                # For teams: larger cells, more readable
+                fig_width = 10
+                fig_height = max(6, num_rows * 0.4)  # Adaptive height, minimum 6
             else:
-                cell_height = (
-                    0.04  # Minimal height per row for author reports (compact)
-                )
-                header_height = 0.05  # Minimal header row height for author reports
-            table_height = len(groups) * cell_height + header_height
+                # For authors: compact cells, fit more data
+                fig_width = 10
+                fig_height = max(8, num_rows * 0.15)  # Adaptive height, minimum 8
 
-            # Add minimal padding around table (top, bottom, left, right)
-            padding = 0.02
-            total_height = table_height + 2 * padding
-
-            # Ensure minimum height for team reports to improve readability
-            if self.group_by == "team":
-                min_height = 2.0  # Minimum height for team reports (increased for better readability)
-                if total_height < min_height:
-                    total_height = min_height
-
-            # Create figure with proper size including padding
-            fig_width = 7 / 1.5  # Further reduced width for 5 columns
-            fig_height = (total_height / 2) / 1.5  # Further reduce height
             fig = plt.figure(figsize=(fig_width, fig_height))
 
             # Create axis with padding around table
+            padding = 0.05  # 5% padding around table
             ax = fig.add_axes([padding, padding, 1 - 2 * padding, 1 - 2 * padding])
             ax.axis("off")
 
@@ -607,19 +594,27 @@ class GenerateStatusChangeReportCommand:
                 colWidths=[0.25, 0.21, 0.21, 0.08, 0.08],
             )  # Adjusted widths for 5 columns (activity columns reduced by 30%)
 
-            # Style the table
+            # Style the table with adaptive settings
             table.auto_set_font_size(False)
-            table.set_fontsize(4)  # Further reduced font size for smaller image
 
-            # Remove cell padding by setting cell height and width to minimum
-            table.scale(1.0, 1.0)  # No scaling to maintain proper proportions
+            # Use appropriate font size and scaling based on report type
+            if self.group_by == "team":
+                table.set_fontsize(8)  # Larger font for teams
+                table.scale(1.0, 2.0)  # Scale up height for better readability
+                cell_height = 0.15
+                cell_padding = 0.15
+            else:
+                table.set_fontsize(6)  # Smaller font for authors
+                table.scale(1.0, 1.0)  # Normal scaling for compact view
+                cell_height = 0.08
+                cell_padding = 0.08
 
-            # Set minimum cell padding
+            # Set cell dimensions adaptively
             for i in range(len(table_data) + 1):
                 for j in range(5):
                     cell = table[(i, j)]
-                    cell.set_height(0.1)  # Minimal cell height
-                    cell.PAD = 0.1  # Minimal internal padding
+                    cell.set_height(cell_height)
+                    cell.PAD = cell_padding
 
             # Style header row
             for i in range(5):
