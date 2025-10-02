@@ -530,11 +530,11 @@ class GenerateStatusChangeReportCommand:
             if self.group_by == "team":
                 # For teams: larger cells, more readable
                 fig_width = 10
-                fig_height = max(6, num_rows * 0.4)  # Adaptive height, minimum 6
+                fig_height = max(3, num_rows * 0.18)  # Reduced by 10%
             else:
                 # For authors: compact cells, fit more data
                 fig_width = 10
-                fig_height = max(8, num_rows * 0.15)  # Adaptive height, minimum 8
+                fig_height = max(4, num_rows * 0.072)  # Reduced by 10%
 
             fig = plt.figure(figsize=(fig_width, fig_height))
 
@@ -600,14 +600,14 @@ class GenerateStatusChangeReportCommand:
             # Use appropriate font size and scaling based on report type
             if self.group_by == "team":
                 table.set_fontsize(8)  # Larger font for teams
-                table.scale(1.0, 2.0)  # Scale up height for better readability
-                cell_height = 0.15
-                cell_padding = 0.15
+                table.scale(1.0, 1.2)  # Slight scaling up (increased from 1.0)
+                cell_height = 0.08  # Increased from 0.05
+                cell_padding = 0.08  # Increased from 0.05
             else:
                 table.set_fontsize(6)  # Smaller font for authors
                 table.scale(1.0, 1.0)  # Normal scaling for compact view
-                cell_height = 0.08
-                cell_padding = 0.08
+                cell_height = 0.05  # Increased from 0.03
+                cell_padding = 0.05  # Increased from 0.03
 
             # Set cell dimensions adaptively
             for i in range(len(table_data) + 1):
