@@ -19,6 +19,9 @@ from radiator.commands.models.time_to_market_models import (
 from radiator.commands.renderers.console_renderer import ConsoleRenderer
 from radiator.commands.renderers.csv_renderer import CSVRenderer
 from radiator.commands.renderers.table_renderer import TableRenderer
+from radiator.commands.services.author_team_mapping_service import (
+    AuthorTeamMappingService,
+)
 from radiator.commands.services.config_service import ConfigService
 from radiator.commands.services.data_service import DataService
 from radiator.commands.services.metrics_service import MetricsService
@@ -45,7 +48,10 @@ class GenerateTimeToMarketReportCommand:
 
         # Initialize services
         self.config_service = ConfigService(config_dir)
-        self.data_service = DataService(self.db)
+        self.author_team_mapping_service = AuthorTeamMappingService(
+            f"{config_dir}/cpo_authors.txt"
+        )
+        self.data_service = DataService(self.db, self.author_team_mapping_service)
         self.metrics_service = MetricsService()
 
         # Report data

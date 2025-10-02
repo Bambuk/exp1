@@ -11,6 +11,9 @@ from radiator.commands.models.time_to_market_models import (
     StatusMapping,
     TaskData,
 )
+from radiator.commands.services.author_team_mapping_service import (
+    AuthorTeamMappingService,
+)
 from radiator.core.logging import logger
 
 # CRUD operations removed - using direct SQLAlchemy queries
@@ -20,14 +23,20 @@ from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 class DataService:
     """Service for data operations."""
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        author_team_mapping_service: Optional[AuthorTeamMappingService] = None,
+    ):
         """
         Initialize data service.
 
         Args:
             db: Database session
+            author_team_mapping_service: Service for author-team mapping
         """
         self.db = db
+        self.author_team_mapping_service = author_team_mapping_service
 
     def get_tasks_for_period(
         self,
@@ -54,9 +63,14 @@ class DataService:
             if group_by == GroupBy.AUTHOR:
                 group_field = TrackerTask.author
                 filter_condition = TrackerTask.author.isnot(None)
-            else:  # TEAM
-                group_field = TrackerTask.team
-                filter_condition = TrackerTask.team.isnot(None)
+            else:  # TEAM - use author field and map to team via AuthorTeamMappingService
+                if not self.author_team_mapping_service:
+                    logger.error(
+                        "AuthorTeamMappingService is required for team grouping"
+                    )
+                    return []
+                group_field = TrackerTask.author
+                filter_condition = TrackerTask.author.isnot(None)
 
             # Determine target statuses based on metric type
             if metric_type == "ttd":
@@ -119,15 +133,26 @@ class DataService:
                             # Ensure it's valid UTF-8
                             group_value.encode("utf-8").decode("utf-8")
 
+                        # Determine final group value based on grouping type
+                        if group_by == GroupBy.AUTHOR:
+                            final_group_value = group_value
+                            author = group_value
+                            team = None
+                        else:  # TEAM
+                            # Map author to team using AuthorTeamMappingService
+                            team = self.author_team_mapping_service.get_team_by_author(
+                                group_value
+                            )
+                            final_group_value = team
+                            author = group_value
+
                         result.append(
                             TaskData(
                                 id=task_id,
                                 key=key,
-                                group_value=group_value,
-                                author=group_value
-                                if group_by == GroupBy.AUTHOR
-                                else None,
-                                team=group_value if group_by == GroupBy.TEAM else None,
+                                group_value=final_group_value,
+                                author=author,
+                                team=team,
                                 created_at=created_at,
                                 summary=summary,
                             )
