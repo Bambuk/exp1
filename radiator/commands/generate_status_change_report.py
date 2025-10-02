@@ -10,11 +10,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from sqlalchemy.orm import Session
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from radiator.commands.services.author_team_mapping_service import (
+    AuthorTeamMappingService,
+)
 from radiator.core.config import settings
 from radiator.core.database import SessionLocal
 from radiator.core.logging import logger
@@ -26,21 +30,37 @@ from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 class GenerateStatusChangeReportCommand:
     """Command for generating status change report for CPO tasks by authors or teams over last 2 weeks."""
 
-    def __init__(self, group_by: str = "author"):
+    def __init__(
+        self,
+        group_by: str = "author",
+        config_dir: str = "data/config",
+        db: Session = None,
+    ):
         """
         Initialize command with grouping preference.
 
         Args:
             group_by: Grouping field - "author" or "team"
+            config_dir: Configuration directory path
+            db: Database session (optional, creates new if not provided)
         """
         if group_by not in ["author", "team"]:
             raise ValueError("group_by must be 'author' or 'team'")
 
         self.group_by = group_by
-        self.db = SessionLocal()
+        self.config_dir = config_dir
+        self.db = db if db is not None else SessionLocal()
         self.report_data: Dict[str, Dict[str, int]] = {}
         self.week1_data: Dict[str, int] = {}
         self.week2_data: Dict[str, int] = {}
+
+        # Initialize AuthorTeamMappingService for team grouping
+        if group_by == "team":
+            self.author_team_mapping_service = AuthorTeamMappingService(
+                f"{config_dir}/cpo_authors.txt"
+            )
+        else:
+            self.author_team_mapping_service = None
 
     def __enter__(self):
         return self
@@ -68,9 +88,14 @@ class GenerateStatusChangeReportCommand:
             if self.group_by == "author":
                 group_field = TrackerTask.author
                 filter_condition = TrackerTask.author.isnot(None)
-            else:  # team
-                group_field = TrackerTask.team
-                filter_condition = TrackerTask.team.isnot(None)
+            else:  # team - use author field and map to team via AuthorTeamMappingService
+                if not self.author_team_mapping_service:
+                    logger.error(
+                        "AuthorTeamMappingService is required for team grouping"
+                    )
+                    return {}
+                group_field = TrackerTask.author
+                filter_condition = TrackerTask.author.isnot(None)
 
             query = (
                 self.db.query(
@@ -105,8 +130,22 @@ class GenerateStatusChangeReportCommand:
                             # Ensure it's valid UTF-8
                             group_value.encode("utf-8").decode("utf-8")
 
-                        group_data[group_value]["changes"] += 1
-                        group_data[group_value]["tasks"].add(task_id)
+                        # Determine final group value based on grouping type
+                        if self.group_by == "author":
+                            final_group_value = group_value
+                        else:  # team
+                            # Map author to team using AuthorTeamMappingService
+                            final_group_value = (
+                                self.author_team_mapping_service.get_team_by_author(
+                                    group_value
+                                )
+                            )
+                            logger.debug(
+                                f"Mapped author '{group_value}' to team '{final_group_value}'"
+                            )
+
+                        group_data[final_group_value]["changes"] += 1
+                        group_data[final_group_value]["tasks"].add(task_id)
                     except (UnicodeDecodeError, UnicodeEncodeError) as e:
                         logger.warning(
                             f"Skipping {self.group_by} with encoding issue at position {i}: {e}, value: {repr(group_value)}"
@@ -152,9 +191,14 @@ class GenerateStatusChangeReportCommand:
             if self.group_by == "author":
                 group_field = TrackerTask.author
                 filter_condition = TrackerTask.author.isnot(None)
-            else:  # team
-                group_field = TrackerTask.team
-                filter_condition = TrackerTask.team.isnot(None)
+            else:  # team - use author field and map to team via AuthorTeamMappingService
+                if not self.author_team_mapping_service:
+                    logger.error(
+                        "AuthorTeamMappingService is required for team grouping"
+                    )
+                    return {}
+                group_field = TrackerTask.author
+                filter_condition = TrackerTask.author.isnot(None)
 
             open_tasks_query = self.db.query(
                 group_field,
@@ -186,16 +230,27 @@ class GenerateStatusChangeReportCommand:
                             # Ensure it's valid UTF-8
                             group_value.encode("utf-8").decode("utf-8")
 
+                        # Determine final group value based on grouping type
+                        if self.group_by == "author":
+                            final_group_value = group_value
+                        else:  # team
+                            # Map author to team using AuthorTeamMappingService
+                            final_group_value = (
+                                self.author_team_mapping_service.get_team_by_author(
+                                    group_value
+                                )
+                            )
+
                         # Map status to block
                         block = status_mapping.get(
                             status, "discovery"
                         )  # Default to discovery if status not found
                         if block in ["discovery", "delivery"]:
-                            author_blocks[group_value][block]["count"] += 1
+                            author_blocks[final_group_value][block]["count"] += 1
 
                             # Update last update date if this task has a more recent update
                             if task_updated_at:
-                                current_last = author_blocks[group_value][block][
+                                current_last = author_blocks[final_group_value][block][
                                     "last_change"
                                 ]
                                 if (
@@ -308,12 +363,31 @@ class GenerateStatusChangeReportCommand:
         self.open_tasks_data = self.get_open_tasks_by_group()
 
         # Combine all unique authors/teams
-        all_groups = (
-            set(self.week1_data.keys())
-            | set(self.week2_data.keys())
-            | set(self.week3_data.keys())
-            | set(self.open_tasks_data.keys())
-        )
+        if self.group_by == "author":
+            # For author grouping, combine all authors
+            all_groups = (
+                set(self.week1_data.keys())
+                | set(self.week2_data.keys())
+                | set(self.week3_data.keys())
+                | set(self.open_tasks_data.keys())
+            )
+        else:  # team
+            # For team grouping, only show teams (not individual authors)
+            # Get all teams from the mapping service
+            if self.author_team_mapping_service:
+                all_teams = set(self.author_team_mapping_service.get_all_teams())
+                # Filter to only include teams that have data
+                all_groups = set()
+                for team in all_teams:
+                    if (
+                        team in self.week1_data
+                        or team in self.week2_data
+                        or team in self.week3_data
+                        or team in self.open_tasks_data
+                    ):
+                        all_groups.add(team)
+            else:
+                all_groups = set()
 
         # Build report data with changes, tasks counts, and open tasks by blocks
         # Note: week2 is earlier (left), week1 is later (right)
@@ -448,13 +522,30 @@ class GenerateStatusChangeReportCommand:
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
 
             # Calculate dimensions with minimal padding for table (5 columns: Author/Team, Week2_activity, Week1_activity, Discovery, Delivery)
-            cell_height = 0.04  # Minimal height per row for compact spacing
-            header_height = 0.05  # Minimal header row height
+            # Use appropriate cell height based on report type
+            if self.group_by == "team":
+                cell_height = (
+                    0.18  # Larger height per row for team reports (increased by 20%)
+                )
+                header_height = (
+                    0.12  # Larger header row height for team reports (increased by 20%)
+                )
+            else:
+                cell_height = (
+                    0.04  # Minimal height per row for author reports (compact)
+                )
+                header_height = 0.05  # Minimal header row height for author reports
             table_height = len(groups) * cell_height + header_height
 
             # Add minimal padding around table (top, bottom, left, right)
             padding = 0.02
             total_height = table_height + 2 * padding
+
+            # Ensure minimum height for team reports to improve readability
+            if self.group_by == "team":
+                min_height = 2.0  # Minimum height for team reports (increased for better readability)
+                if total_height < min_height:
+                    total_height = min_height
 
             # Create figure with proper size including padding
             fig_width = 7 / 1.5  # Further reduced width for 5 columns
@@ -696,10 +787,17 @@ def main():
         default="author",
         help="Group by author or team (default: author)",
     )
+    parser.add_argument(
+        "--config-dir",
+        default="data/config",
+        help="Configuration directory path (default: data/config)",
+    )
 
     args = parser.parse_args()
 
-    with GenerateStatusChangeReportCommand(group_by=args.group_by) as cmd:
+    with GenerateStatusChangeReportCommand(
+        group_by=args.group_by, config_dir=args.config_dir
+    ) as cmd:
         success = cmd.run()
         sys.exit(0 if success else 1)
 

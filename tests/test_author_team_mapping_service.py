@@ -214,6 +214,6 @@ class TestAuthorTeamMappingService:
         assert len(teams) > 0
 
         # Test specific entries
-        assert service.get_team_by_author("Александр Тихонов") == "Корзинка и заказ"
-        assert service.get_team_by_author("Александр Георгиевич Сизых") == "Без команды"
+        assert service.get_team_by_author("Author A") == "Team Alpha"
+        assert service.get_team_by_author("Author C") == "Без команды"
         assert "Без команды" in teams
