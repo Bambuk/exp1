@@ -521,20 +521,21 @@ class GenerateStatusChangeReportCommand:
             week2_header = f"{self.week2_start.strftime('%d.%m')}-{self.week2_end.strftime('%d.%m')}"
             week1_header = f"{self.week1_start.strftime('%d.%m')}-{self.week1_end.strftime('%d.%m')}"
 
-            # Use adaptive sizing based on content
+            # Use adaptive sizing based on content (inspired by TTM approach)
             # Calculate base dimensions
             num_rows = len(groups) + 1  # +1 for header
             num_cols = 5
 
-            # Set adaptive figure size based on content
+            # Set adaptive figure size with protection against extreme sizes
+            fig_width = max(8, num_cols * 0.9 + 2)  # Adaptive width based on columns
+            max_height = 20  # Protection against extremely tall images
+
             if self.group_by == "team":
                 # For teams: larger cells, more readable
-                fig_width = 10
-                fig_height = max(3, num_rows * 0.18)  # Reduced by 10%
+                fig_height = min(max_height, max(4, num_rows * 0.12 + 1))
             else:
                 # For authors: compact cells, fit more data
-                fig_width = 10
-                fig_height = max(4, num_rows * 0.072)  # Reduced by 10%
+                fig_height = min(max_height, max(6, num_rows * 0.04 + 1))
 
             fig = plt.figure(figsize=(fig_width, fig_height))
 
@@ -594,22 +595,23 @@ class GenerateStatusChangeReportCommand:
                 colWidths=[0.25, 0.21, 0.21, 0.08, 0.08],
             )  # Adjusted widths for 5 columns (activity columns reduced by 30%)
 
-            # Style the table with adaptive settings
+            # Style the table with adaptive settings (inspired by TTM approach)
             table.auto_set_font_size(False)
 
-            # Use appropriate font size and scaling based on report type
-            if self.group_by == "team":
-                table.set_fontsize(8)  # Larger font for teams
-                table.scale(1.0, 1.2)  # Slight scaling up (increased from 1.0)
-                cell_height = 0.08  # Increased from 0.05
-                cell_padding = 0.08  # Increased from 0.05
-            else:
-                table.set_fontsize(6)  # Smaller font for authors
-                table.scale(1.0, 1.0)  # Normal scaling for compact view
-                cell_height = 0.05  # Increased from 0.03
-                cell_padding = 0.05  # Increased from 0.03
+            # Adaptive font size and scaling based on data size
+            font_size = 5 if len(groups) > 30 else (8 if self.group_by == "team" else 6)
+            table.set_fontsize(font_size)
+
+            # Adaptive scaling for large datasets
+            scale_y = (
+                0.8 if len(groups) > 30 else (1.2 if self.group_by == "team" else 1.0)
+            )
+            table.scale(1.0, scale_y)
 
             # Set cell dimensions adaptively
+            cell_height = 0.05 if self.group_by == "team" else 0.03
+            cell_padding = 0.05 if self.group_by == "team" else 0.03
+
             for i in range(len(table_data) + 1):
                 for j in range(5):
                     cell = table[(i, j)]
