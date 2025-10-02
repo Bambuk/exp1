@@ -171,6 +171,29 @@ telegram-get-chat-id: ## Get Chat ID from Telegram bot
 	@echo "Getting Chat ID from Telegram bot..."
 	@python3 scripts/get_chat_id.py
 
+telegram-service-status: ## Check Telegram bot systemd service status
+	@echo "Checking Telegram bot service status..."
+	@systemctl --user status radiator-telegram-bot.service
+
+telegram-service-start: ## Start Telegram bot systemd service
+	@echo "Starting Telegram bot service..."
+	@systemctl --user start radiator-telegram-bot.service
+	@echo "✅ Telegram bot service started!"
+
+telegram-service-stop: ## Stop Telegram bot systemd service
+	@echo "Stopping Telegram bot service..."
+	@systemctl --user stop radiator-telegram-bot.service
+	@echo "✅ Telegram bot service stopped!"
+
+telegram-service-restart: ## Restart Telegram bot systemd service
+	@echo "Restarting Telegram bot service..."
+	@systemctl --user restart radiator-telegram-bot.service
+	@echo "✅ Telegram bot service restarted!"
+
+telegram-service-logs: ## View Telegram bot service logs
+	@echo "Viewing Telegram bot service logs (press Ctrl+C to exit)..."
+	@journalctl --user -u radiator-telegram-bot.service -f
+
 # Google Sheets CSV Uploader commands
 google-sheets-monitor: ## Start Google Sheets CSV uploader monitoring
 	@echo "Starting Google Sheets CSV uploader monitoring..."

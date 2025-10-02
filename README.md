@@ -140,6 +140,60 @@ See [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) for 
 
 For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md).
 
+## Telegram Bot Service
+
+The application includes a Telegram bot for automated file monitoring and processing. The bot is configured to run as a systemd service for automatic startup.
+
+### Service Management
+
+The Telegram bot runs as a systemd user service and can be managed with the following commands:
+
+```bash
+# Check service status
+systemctl --user status radiator-telegram-bot.service
+
+# Start the service
+systemctl --user start radiator-telegram-bot.service
+
+# Stop the service
+systemctl --user stop radiator-telegram-bot.service
+
+# Restart the service
+systemctl --user restart radiator-telegram-bot.service
+
+# Enable auto-start (runs automatically on login)
+systemctl --user enable radiator-telegram-bot.service
+
+# Disable auto-start
+systemctl --user disable radiator-telegram-bot.service
+
+# View logs
+journalctl --user -u radiator-telegram-bot.service -f
+```
+
+### Manual Bot Control
+
+You can also run the bot manually using Makefile commands:
+
+```bash
+# Start bot manually
+make telegram-bot
+
+# Test bot connection
+make telegram-test
+
+# Reset bot state (re-send all files)
+make telegram-reset
+```
+
+### Service Files
+
+- **Service file**: `~/.config/systemd/user/radiator-telegram-bot.service`
+- **Startup script**: `start-telegram-bot.sh`
+- **Service is enabled by default** and will start automatically on user login
+
+For detailed service management instructions, see [Telegram Bot Service Guide](docs/guides/TELEGRAM_BOT_SERVICE_GUIDE.md).
+
 ## CLI Commands
 
 The application provides several CLI commands for different operations:

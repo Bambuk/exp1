@@ -1,0 +1,16 @@
+[Unit]
+Description=Radiator Telegram Bot for Reports Monitoring
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/vm/dev/radiator
+ExecStart=/home/vm/dev/radiator/start-telegram-bot.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
