@@ -156,14 +156,28 @@ class GenerateTimeToMarketReportCommand:
                         logger.debug(f"No history found for task {task.key}")
                         continue
 
-                    # Calculate pause time for this task
-                    pause_time = self.metrics_service.calculate_pause_time(history)
-
                     # Calculate Time To Delivery (only for TTD tasks)
                     ttd = self.metrics_service.calculate_time_to_delivery(
                         history, status_mapping.discovery_statuses
                     )
                     if ttd is not None:
+                        # Find the date when task reached "Готова к разработке"
+                        sorted_history = sorted(history, key=lambda x: x.start_date)
+                        ttd_target_date = None
+                        for entry in sorted_history:
+                            if entry.status == "Готова к разработке":
+                                ttd_target_date = entry.start_date
+                                break
+
+                        # Calculate pause time only up to TTD target status
+                        pause_time = (
+                            self.metrics_service.calculate_pause_time_up_to_date(
+                                history, ttd_target_date
+                            )
+                            if ttd_target_date
+                            else 0
+                        )
+
                         group_data[group_value]["ttd_times"].append(ttd)
                         group_data[group_value]["ttd_pause_times"].append(pause_time)
 
@@ -179,14 +193,28 @@ class GenerateTimeToMarketReportCommand:
                         logger.debug(f"No history found for task {task.key}")
                         continue
 
-                    # Calculate pause time for this task
-                    pause_time = self.metrics_service.calculate_pause_time(history)
-
                     # Calculate Time To Market (only for TTM tasks)
                     ttm = self.metrics_service.calculate_time_to_market(
                         history, status_mapping.done_statuses
                     )
                     if ttm is not None:
+                        # Find the date when task reached first done status
+                        sorted_history = sorted(history, key=lambda x: x.start_date)
+                        ttm_target_date = None
+                        for entry in sorted_history:
+                            if entry.status in status_mapping.done_statuses:
+                                ttm_target_date = entry.start_date
+                                break
+
+                        # Calculate pause time only up to TTM target status
+                        pause_time = (
+                            self.metrics_service.calculate_pause_time_up_to_date(
+                                history, ttm_target_date
+                            )
+                            if ttm_target_date
+                            else 0
+                        )
+
                         group_data[group_value]["ttm_times"].append(ttm)
                         group_data[group_value]["ttm_pause_times"].append(pause_time)
 
@@ -314,7 +342,7 @@ class GenerateTimeToMarketReportCommand:
             # Generate filename if not provided
             if not filepath:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filepath = f"{self.output_dir}/task_details_{timestamp}.csv"
+                filepath = f"{self.output_dir}/details_{timestamp}.csv"
 
             # Ensure reports directory exists
             Path(filepath).parent.mkdir(parents=True, exist_ok=True)

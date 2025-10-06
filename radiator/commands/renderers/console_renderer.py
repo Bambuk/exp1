@@ -140,7 +140,6 @@ class ConsoleRenderer(BaseRenderer):
 
         # Print totals
         print("-" * 120)
-        print(f"Total tasks analyzed: {self.report.total_tasks}")
         print("=" * 120)
 
         return ""

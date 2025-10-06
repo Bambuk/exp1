@@ -237,6 +237,102 @@ class TestPauseTimeIntegration:
         # Total time to 'Done': 15-1=14 days, minus 6 days pause = 8 days
         assert ttm == 8
 
+    def test_pause_time_up_to_date_excludes_later_pauses(self):
+        """Test that pause time calculation up to a date excludes pauses after that date."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "In Progress", "In Progress", datetime(2024, 1, 3), None
+            ),
+            StatusHistoryEntry(
+                "Приостановлено", "Приостановлено", datetime(2024, 1, 5), None
+            ),
+            StatusHistoryEntry(
+                "In Progress", "In Progress", datetime(2024, 1, 8), None
+            ),
+            StatusHistoryEntry(
+                "Готова к разработке",
+                "Готова к разработке",
+                datetime(2024, 1, 10),
+                None,
+            ),
+            StatusHistoryEntry(
+                "Приостановлено", "Приостановлено", datetime(2024, 1, 12), None
+            ),
+            StatusHistoryEntry("Done", "Done", datetime(2024, 1, 15), None),
+        ]
+
+        # Calculate pause time up to "Готова к разработке"
+        ttd_target_date = datetime(2024, 1, 10)
+        pause_time_up_to_ttd = self.service.calculate_pause_time_up_to_date(
+            history, ttd_target_date
+        )
+        # Should only include pause from 5th to 8th = 3 days
+        # Should NOT include pause from 12th to 15th
+        assert pause_time_up_to_ttd == 3
+
+        # Calculate pause time up to "Done"
+        ttm_target_date = datetime(2024, 1, 15)
+        pause_time_up_to_ttm = self.service.calculate_pause_time_up_to_date(
+            history, ttm_target_date
+        )
+        # Should include BOTH pauses: (8-5) + (15-12) = 3 + 3 = 6 days
+        assert pause_time_up_to_ttm == 6
+
+        # Total pause time (without limit) should be the same as up to Done
+        total_pause_time = self.service.calculate_pause_time(history)
+        assert total_pause_time == 6
+
+    def test_pause_time_statistics_match_calculation(self):
+        """Test that pause time in statistics matches what was actually subtracted from TTD/TTM."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "Приостановлено", "Приостановлено", datetime(2024, 1, 3), None
+            ),
+            StatusHistoryEntry(
+                "In Progress", "In Progress", datetime(2024, 1, 6), None
+            ),  # 3 days pause
+            StatusHistoryEntry(
+                "Готова к разработке",
+                "Готова к разработке",
+                datetime(2024, 1, 8),
+                None,
+            ),
+            StatusHistoryEntry(
+                "Приостановлено", "Приостановлено", datetime(2024, 1, 10), None
+            ),
+            StatusHistoryEntry(
+                "Done", "Done", datetime(2024, 1, 13), None
+            ),  # 3 days pause
+        ]
+
+        # Calculate TTD
+        ttd = self.service.calculate_time_to_delivery(history, ["Готова к разработке"])
+        # Total: 8-1=7 days, minus 3 days pause before TTD = 4 days
+        assert ttd == 4
+
+        # Calculate pause time up to TTD target
+        ttd_target_date = datetime(2024, 1, 8)
+        pause_time_for_ttd = self.service.calculate_pause_time_up_to_date(
+            history, ttd_target_date
+        )
+        # Should be 3 days (the pause BEFORE TTD target)
+        assert pause_time_for_ttd == 3
+
+        # Calculate TTM
+        ttm = self.service.calculate_time_to_market(history, ["Done"])
+        # Total: 13-1=12 days, minus 6 days pause (both) = 6 days
+        assert ttm == 6
+
+        # Calculate pause time up to TTM target
+        ttm_target_date = datetime(2024, 1, 13)
+        pause_time_for_ttm = self.service.calculate_pause_time_up_to_date(
+            history, ttm_target_date
+        )
+        # Should be 6 days (both pauses)
+        assert pause_time_for_ttm == 6
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

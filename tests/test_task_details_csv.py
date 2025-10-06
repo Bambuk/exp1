@@ -320,7 +320,7 @@ class TestTaskDetailsCSV:
             result = self.command.generate_task_details_csv()
 
             # Should generate filename with timestamp
-            assert "task_details_" in result
+            assert "details_" in result
             assert "20240115_123045" in result
             assert result.endswith(".csv")
 
