@@ -117,11 +117,15 @@ class TestFullIntegration:
             "status_mapping": mock_status_mapping,
         }
 
-    def test_complete_time_to_market_report_generation(self, mock_database):
+    def test_complete_time_to_market_report_generation(
+        self, mock_database, test_reports_dir
+    ):
         """Test complete time to market report generation workflow."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
             # Create command
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = mock_database["db"]
 
             # Mock config service
@@ -156,11 +160,13 @@ class TestFullIntegration:
                     author1_metrics = quarter_report.groups["Author1"]
                     assert author1_metrics.ttm_metrics.times[0] == 9
 
-    def test_complete_status_change_report_generation(self, mock_database):
+    def test_complete_status_change_report_generation(
+        self, mock_database, test_reports_dir
+    ):
         """Test complete status change report generation workflow."""
         with patch("radiator.commands.generate_status_change_report.logger"):
             # Create command
-            cmd = GenerateStatusChangeReportCommand()
+            cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
             cmd.db = mock_database["db"]
 
             # Mock config service
@@ -305,7 +311,7 @@ class TestFullIntegration:
                 # We can verify the method was called by checking if tasks were found
                 assert len(cmd.search_tasks("status: Done", limit=10)) > 0
 
-    def test_end_to_end_workflow(self, mock_database):
+    def test_end_to_end_workflow(self, mock_database, test_reports_dir):
         """Test complete end-to-end workflow from sync to report generation."""
         with patch("radiator.commands.sync_tracker.logger"), patch(
             "radiator.commands.generate_time_to_market_report.logger"
@@ -359,7 +365,9 @@ class TestFullIntegration:
                             )  # Should succeed with proper mocks
 
             # Step 2: Generate time to market report
-            ttm_cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            ttm_cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             ttm_cmd.db = mock_database["db"]
 
             ttm_cmd.config_service = Mock()
@@ -385,7 +393,7 @@ class TestFullIntegration:
                 assert len(ttm_report.quarters) == 1
 
             # Step 3: Generate status change report
-            sc_cmd = GenerateStatusChangeReportCommand()
+            sc_cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
             sc_cmd.db = mock_database["db"]
 
             sc_cmd.config_service = Mock()
@@ -432,7 +440,7 @@ class TestFullIntegration:
                 result = sync_cmd.run(filters={}, limit=10)
                 assert result is False
 
-    def test_performance_integration(self, mock_database):
+    def test_performance_integration(self, mock_database, test_reports_dir):
         """Test performance with large datasets."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
             # Create large dataset
@@ -474,7 +482,9 @@ class TestFullIntegration:
                 ]
 
             # Create command
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = mock_database["db"]
 
             # Mock services
@@ -515,7 +525,7 @@ class TestFullIntegration:
                         author_metrics.total_tasks == 10
                     )  # 100 tasks / 10 authors = 10 tasks per author
 
-    def test_data_consistency_integration(self, mock_database):
+    def test_data_consistency_integration(self, mock_database, test_reports_dir):
         """Test data consistency across different commands."""
         with patch("radiator.commands.sync_tracker.logger"), patch(
             "radiator.commands.generate_time_to_market_report.logger"
@@ -569,7 +579,9 @@ class TestFullIntegration:
                             )  # Should succeed with proper mocks
 
             # Generate report with same data
-            ttm_cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            ttm_cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             ttm_cmd.db = mock_database["db"]
 
             ttm_cmd.config_service = Mock()

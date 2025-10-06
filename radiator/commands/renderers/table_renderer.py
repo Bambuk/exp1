@@ -34,11 +34,13 @@ class TableRenderer(BaseRenderer):
             if not filepath:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 if report_type == ReportType.TTD:
-                    filepath = f"reports/time_to_delivery_table_{timestamp}.png"
+                    filepath = (
+                        f"{self.output_dir}/time_to_delivery_table_{timestamp}.png"
+                    )
                 elif report_type == ReportType.TTM:
-                    filepath = f"reports/time_to_market_table_{timestamp}.png"
+                    filepath = f"{self.output_dir}/time_to_market_table_{timestamp}.png"
                 else:
-                    filepath = f"reports/time_to_market_table_{timestamp}.png"
+                    filepath = f"{self.output_dir}/time_to_market_table_{timestamp}.png"
 
             # Ensure reports directory exists
             Path(filepath).parent.mkdir(parents=True, exist_ok=True)

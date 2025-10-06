@@ -34,11 +34,11 @@ class TestTelegramSheetsIntegration:
             "radiator.services.google_sheets_service.build"
         ):
             # Configure mock configs
-            mock_telegram_config.REPORTS_DIR = temp_dir
+            mock_telegram_config.get_reports_dir.return_value = temp_dir
             mock_telegram_config.USER_ID = 12345
             mock_telegram_config.BOT_TOKEN = "test_token"
 
-            mock_sheets_config.REPORTS_DIR = temp_dir
+            mock_sheets_config.get_reports_dir.return_value = temp_dir
             mock_sheets_config.STATE_FILE = ".test_state.json"
             mock_sheets_config.CREDENTIALS_PATH = "test_credentials.json"
             mock_sheets_config.DOCUMENT_ID = "test_document_id"

@@ -33,11 +33,17 @@ class CSVRenderer(BaseRenderer):
             if not filepath:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 if report_type == ReportType.TTD:
-                    filepath = f"reports/time_to_delivery_report_{timestamp}.csv"
+                    filepath = (
+                        f"{self.output_dir}/time_to_delivery_report_{timestamp}.csv"
+                    )
                 elif report_type == ReportType.TTM:
-                    filepath = f"reports/time_to_market_report_{timestamp}.csv"
+                    filepath = (
+                        f"{self.output_dir}/time_to_market_report_{timestamp}.csv"
+                    )
                 else:
-                    filepath = f"reports/time_to_market_report_{timestamp}.csv"
+                    filepath = (
+                        f"{self.output_dir}/time_to_market_report_{timestamp}.csv"
+                    )
 
             # Ensure reports directory exists
             Path(filepath).parent.mkdir(parents=True, exist_ok=True)

@@ -156,6 +156,7 @@ logs/
 # Reports and generated files
 reports/
 data/output/
+tests/test_reports/
 *.png
 *.csv
 

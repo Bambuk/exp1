@@ -21,7 +21,7 @@ class CSVFileMonitor:
         Args:
             reports_dir: Directory to monitor (defaults to config value)
         """
-        self.reports_dir = reports_dir or GoogleSheetsConfig.REPORTS_DIR
+        self.reports_dir = reports_dir or GoogleSheetsConfig.get_reports_dir()
         self.state_file = Path(GoogleSheetsConfig.STATE_FILE)
         self.known_files: Set[str] = set()
         self.file_timestamps: Dict[str, float] = {}

@@ -11,7 +11,14 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Updater
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    Updater,
+    filters,
+)
 
 from radiator.telegram_bot.bot import ReportsTelegramBot
 from radiator.telegram_bot.config import TelegramBotConfig
@@ -43,6 +50,32 @@ class TelegramBotWithCallbacks:
         await query.answer()
         await self.bot_instance.handle_callback_query(query)
 
+    async def command_handler(self, update, context):
+        """Handle command messages."""
+        message = update.message
+        if not message:
+            return
+
+        # Check if user is authorized
+        if message.from_user.id != TelegramBotConfig.USER_ID:
+            await message.reply_text("❌ У вас нет прав для выполнения команд.")
+            return
+
+        command_text = message.text
+        logger.info(f"🔔 COMMAND RECEIVED: {command_text}")
+        logger.info(f"   From user: {message.from_user.username or 'Unknown'}")
+
+        # Parse command and arguments
+        parts = command_text.split()
+        if not parts:
+            return
+
+        command = parts[0].lstrip("/")
+        args = parts[1:] if len(parts) > 1 else []
+
+        # Handle command
+        await self.bot_instance.handle_command(command, args)
+
     def start_monitoring_with_callbacks(self):
         """Start monitoring with callback query support."""
         # Create application
@@ -53,6 +86,20 @@ class TelegramBotWithCallbacks:
         # Add callback query handler
         self.application.add_handler(CallbackQueryHandler(self.callback_query_handler))
         logger.info("Callback query handler registered")
+
+        # Add command handler for messages starting with /
+        self.application.add_handler(
+            MessageHandler(filters.Regex(r"^/"), self.command_handler)
+        )
+        logger.info("Command handler registered")
+
+        # Register bot commands
+        async def post_init(application):
+            # Create a new bot instance for command registration to avoid event loop issues
+            temp_bot = ReportsTelegramBot()
+            await temp_bot.set_bot_commands()
+
+        self.application.post_init = post_init
 
         # Start file monitoring in background
         def start_monitoring():
@@ -113,6 +160,13 @@ def main():
                 success = loop.run_until_complete(bot.test_connection())
                 if success:
                     print("✅ Bot connection test successful!")
+                    # Also register commands during test
+                    print("Registering bot commands...")
+                    cmd_success = loop.run_until_complete(bot.set_bot_commands())
+                    if cmd_success:
+                        print("✅ Bot commands registered successfully!")
+                    else:
+                        print("⚠️ Bot commands registration failed!")
                 else:
                     print("❌ Bot connection test failed!")
                     sys.exit(1)

@@ -189,10 +189,12 @@ class TestErrorHandling:
                             result = cmd.run(filters={}, limit=10)
                             assert result is True  # Should succeed with proper mocks
 
-    def test_report_generation_database_error(self):
+    def test_report_generation_database_error(self, test_reports_dir):
         """Test handling of database errors in report generation."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = Mock()
 
             # Mock database error
@@ -210,10 +212,12 @@ class TestErrorHandling:
                     assert result is not None
                     assert len(result.quarters) == 0
 
-    def test_report_generation_config_error(self):
+    def test_report_generation_config_error(self, test_reports_dir):
         """Test handling of configuration errors in report generation."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = Mock()
 
             # Mock config error
@@ -224,10 +228,12 @@ class TestErrorHandling:
             assert result is not None
             assert len(result.quarters) == 0
 
-    def test_report_generation_data_service_error(self):
+    def test_report_generation_data_service_error(self, test_reports_dir):
         """Test handling of data service errors in report generation."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = Mock()
 
             cmd.config_service = Mock()
@@ -442,10 +448,12 @@ class TestErrorHandling:
         assert result.tail_metrics.times == []
         assert result.total_tasks == 0
 
-    def test_file_operations_edge_cases(self):
+    def test_file_operations_edge_cases(self, test_reports_dir):
         """Test edge cases in file operations."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = Mock()
 
             # Mock config service
@@ -522,10 +530,12 @@ class TestErrorHandling:
             success_count = sum(1 for result in results if result is True)
             assert success_count >= 0  # Some may succeed due to race conditions
 
-    def test_memory_usage_edge_cases(self):
+    def test_memory_usage_edge_cases(self, test_reports_dir):
         """Test handling of memory usage edge cases."""
         with patch("radiator.commands.generate_time_to_market_report.logger"):
-            cmd = GenerateTimeToMarketReportCommand(group_by="author")
+            cmd = GenerateTimeToMarketReportCommand(
+                group_by="author", output_dir=test_reports_dir
+            )
             cmd.db = Mock()
 
             # Mock config service

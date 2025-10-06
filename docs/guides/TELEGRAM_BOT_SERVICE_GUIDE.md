@@ -220,7 +220,7 @@ systemctl --user show radiator-telegram-bot.service --property=ActiveEnterTimest
 
 ## Integration with Reports
 
-The bot automatically monitors the `reports/` directory and sends new files to Telegram. When you generate reports:
+The bot automatically monitors the `data/reports/` directory and sends new files to Telegram. When you generate reports:
 
 1. **Status Change Reports**: `make generate-status-report`
 2. **Time to Market Reports**: `make generate-time-to-market-report`

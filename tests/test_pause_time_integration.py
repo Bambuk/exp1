@@ -93,10 +93,12 @@ class TestPauseTimeIntegration:
             ],
         }
 
-    def test_full_report_generation_with_pause_time(self):
+    def test_full_report_generation_with_pause_time(self, test_reports_dir):
         """Test full report generation including pause time calculation."""
         # Create command with mocked config
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # Mock the database session
             cmd.db = self.mock_db
 
@@ -168,10 +170,12 @@ class TestPauseTimeIntegration:
             assert author2_metrics.tail_metrics.pause_mean == 0.0
             assert author2_metrics.tail_metrics.pause_p85 == 0.0
 
-    def test_csv_rendering_with_pause_time(self):
+    def test_csv_rendering_with_pause_time(self, test_reports_dir):
         """Test CSV rendering includes pause time columns."""
         # Create command and generate report
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             cmd.db = self.mock_db
 
             # Mock the config service
@@ -207,10 +211,12 @@ class TestPauseTimeIntegration:
             assert "Author1" in content
             assert "Author2" in content
 
-    def test_console_rendering_with_pause_time(self, capsys):
+    def test_console_rendering_with_pause_time(self, capsys, test_reports_dir):
         """Test console rendering includes pause time information."""
         # Create command and generate report
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             cmd.db = self.mock_db
 
             # Mock the config service

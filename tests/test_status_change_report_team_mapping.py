@@ -38,13 +38,15 @@ class TestStatusChangeReportTeamMapping:
             yield str(mapping_file)
 
     def test_command_init_with_team_grouping_and_mapping_file(
-        self, author_team_mapping_file
+        self, author_team_mapping_file, test_reports_dir
     ):
         """Test command initialization with team grouping and mapping file."""
         config_dir = str(Path(author_team_mapping_file).parent)
 
         # This should work - command should accept config_dir parameter
-        cmd = GenerateStatusChangeReportCommand(group_by="team", config_dir=config_dir)
+        cmd = GenerateStatusChangeReportCommand(
+            group_by="team", config_dir=config_dir, output_dir=test_reports_dir
+        )
 
         assert cmd.group_by == "team"
         assert cmd.config_dir == config_dir
@@ -53,7 +55,7 @@ class TestStatusChangeReportTeamMapping:
         assert cmd.author_team_mapping_service is not None
 
     def test_get_status_changes_by_group_with_team_mapping(
-        self, mock_db, author_team_mapping_file
+        self, mock_db, author_team_mapping_file, test_reports_dir
     ):
         """Test get_status_changes_by_group with team mapping from file."""
         config_dir = str(Path(author_team_mapping_file).parent)
@@ -77,7 +79,10 @@ class TestStatusChangeReportTeamMapping:
         mock_db.query.return_value = mock_query
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="team", config_dir=config_dir, db=mock_db
+            group_by="team",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         start_date = datetime.now() - timedelta(days=7)
@@ -100,7 +105,7 @@ class TestStatusChangeReportTeamMapping:
         )  # Алексей Никишанин + Неизвестный Автор
 
     def test_get_open_tasks_by_group_with_team_mapping(
-        self, mock_db, author_team_mapping_file
+        self, mock_db, author_team_mapping_file, test_reports_dir
     ):
         """Test get_open_tasks_by_group with team mapping from file."""
         config_dir = str(Path(author_team_mapping_file).parent)
@@ -132,7 +137,10 @@ class TestStatusChangeReportTeamMapping:
         mock_db.query.return_value = mock_query
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="team", config_dir=config_dir, db=mock_db
+            group_by="team",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         result = cmd.get_open_tasks_by_group()
@@ -153,7 +161,7 @@ class TestStatusChangeReportTeamMapping:
             result["Без команды"]["discovery"] == 2
         )  # Алексей Никишанин + Неизвестный Автор
 
-    def test_team_grouping_without_mapping_file(self, mock_db):
+    def test_team_grouping_without_mapping_file(self, mock_db, test_reports_dir):
         """Test team grouping when mapping file doesn't exist."""
         cmd = GenerateStatusChangeReportCommand(
             group_by="team", config_dir="nonexistent_dir", db=mock_db
@@ -181,7 +189,7 @@ class TestStatusChangeReportTeamMapping:
         assert "Без команды" in result
         assert result["Без команды"]["changes"] == 2
 
-    def test_team_grouping_with_empty_team_mapping(self, mock_db):
+    def test_team_grouping_with_empty_team_mapping(self, mock_db, test_reports_dir):
         """Test team grouping when author has empty team in mapping file."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
             f.write("Алексей Никишанин;\n")  # Empty team
@@ -216,12 +224,17 @@ class TestStatusChangeReportTeamMapping:
         finally:
             Path(temp_file).unlink(missing_ok=True)
 
-    def test_author_grouping_unchanged(self, mock_db, author_team_mapping_file):
+    def test_author_grouping_unchanged(
+        self, mock_db, author_team_mapping_file, test_reports_dir
+    ):
         """Test that author grouping still works as before."""
         config_dir = str(Path(author_team_mapping_file).parent)
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="author", config_dir=config_dir, db=mock_db
+            group_by="author",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         # Author grouping should not use team mapping
@@ -232,7 +245,9 @@ class TestStatusChangeReportTeamMapping:
             or cmd.author_team_mapping_service is None
         )
 
-    def test_cli_with_config_dir_argument(self, author_team_mapping_file):
+    def test_cli_with_config_dir_argument(
+        self, author_team_mapping_file, test_reports_dir
+    ):
         """Test CLI with --config-dir argument."""
         config_dir = str(Path(author_team_mapping_file).parent)
 
@@ -258,7 +273,7 @@ class TestStatusChangeReportTeamMapping:
 
                 main()
 
-    def test_integration_with_real_mapping_file(self, mock_db):
+    def test_integration_with_real_mapping_file(self, mock_db, test_reports_dir):
         """Test integration with real mapping file from fixtures."""
         # Use the test fixture file - copy it to cpo_authors.txt
         test_file = Path(__file__).parent / "fixtures" / "test_cpo_authors.txt"
@@ -271,7 +286,10 @@ class TestStatusChangeReportTeamMapping:
         shutil.copy2(test_file, cpo_authors_file)
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="team", config_dir=config_dir, db=mock_db
+            group_by="team",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         # Should load real mapping file
@@ -284,7 +302,7 @@ class TestStatusChangeReportTeamMapping:
         assert "Team Alpha" in teams
 
     def test_build_report_data_shows_only_teams_not_authors(
-        self, mock_db, author_team_mapping_file
+        self, mock_db, author_team_mapping_file, test_reports_dir
     ):
         """Test that build_report_data shows only teams, not individual authors."""
         config_dir = str(Path(author_team_mapping_file).parent)
@@ -304,7 +322,10 @@ class TestStatusChangeReportTeamMapping:
         mock_db.query.return_value = mock_query
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="team", config_dir=config_dir, db=mock_db
+            group_by="team",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         # Mock the methods to return data that includes individual authors
@@ -364,13 +385,16 @@ class TestStatusChangeReportTeamMapping:
             ), f"Group '{group}' should be a team from mapping service"
 
     def test_png_table_generation_has_readable_height(
-        self, mock_db, author_team_mapping_file
+        self, mock_db, author_team_mapping_file, test_reports_dir
     ):
         """Test that PNG table generation produces readable height for team reports."""
         config_dir = str(Path(author_team_mapping_file).parent)
 
         cmd = GenerateStatusChangeReportCommand(
-            group_by="team", config_dir=config_dir, db=mock_db
+            group_by="team",
+            config_dir=config_dir,
+            db=mock_db,
+            output_dir=test_reports_dir,
         )
 
         # Mock the methods to return team data (6 teams for better testing)

@@ -83,17 +83,8 @@ class TestTaskDetailsCSV:
 
         self.report.quarter_reports = {"Q1 2024": quarter_report}
 
-        # Create mock command
-        self.command = GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR)
-        self.command.report = self.report
-        self.command.group_by = GroupBy.AUTHOR
-        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
-
-        # Mock the report property
-        self.command.report = self.report
-
         # Mock data service
-        self.command.data_service = Mock()
+        self.data_service = Mock()
         # Mock tasks for both TTD and TTM calls
         mock_tasks = [
             TaskData(
@@ -116,26 +107,36 @@ class TestTaskDetailsCSV:
             ),
         ]
         # Mock tasks for both TTD and TTM calls
-        self.command.data_service.get_tasks_for_period.side_effect = [
+        self.data_service.get_tasks_for_period.side_effect = [
             mock_tasks,
             mock_tasks,
         ]
 
         # Mock metrics service
-        self.command.metrics_service = Mock()
-        self.command.metrics_service.calculate_time_to_delivery.return_value = 5
-        self.command.metrics_service.calculate_time_to_market.return_value = 8
-        self.command.metrics_service.calculate_tail_metric.return_value = 2
-        self.command.metrics_service.calculate_pause_time.return_value = 1
+        self.metrics_service = Mock()
+        self.metrics_service.calculate_time_to_delivery.return_value = 5
+        self.metrics_service.calculate_time_to_market.return_value = 8
+        self.metrics_service.calculate_tail_metric.return_value = 2
+        self.metrics_service.calculate_pause_time.return_value = 1
 
         # Mock task history
-        self.command.data_service.get_task_history.return_value = [
+        self.data_service.get_task_history.return_value = [
             Mock(status="New", start_date=datetime(2024, 1, 1), end_date=None),
             Mock(status="Done", start_date=datetime(2024, 1, 5), end_date=None),
         ]
 
-    def test_generate_task_details_csv_basic(self):
+    def test_generate_task_details_csv_basic(self, test_reports_dir):
         """Test basic CSV generation functionality."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".csv", delete=False
         ) as temp_file:
@@ -188,8 +189,18 @@ class TestTaskDetailsCSV:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_generate_task_details_csv_data_content(self):
+    def test_generate_task_details_csv_data_content(self, test_reports_dir):
         """Test that CSV contains correct data."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".csv", delete=False
         ) as temp_file:
@@ -234,8 +245,18 @@ class TestTaskDetailsCSV:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_generate_task_details_csv_empty_metrics(self):
+    def test_generate_task_details_csv_empty_metrics(self, test_reports_dir):
         """Test CSV generation with empty metrics."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         # Mock metrics service to return None for some metrics
         self.command.metrics_service.calculate_time_to_delivery.return_value = None
         self.command.metrics_service.calculate_time_to_market.return_value = 8
@@ -267,9 +288,11 @@ class TestTaskDetailsCSV:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_generate_task_details_csv_no_report_data(self):
+    def test_generate_task_details_csv_no_report_data(self, test_reports_dir):
         """Test CSV generation when no report data is available."""
-        command = GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR)
+        command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
         command.report = None
 
         result = command.generate_task_details_csv()
@@ -277,8 +300,18 @@ class TestTaskDetailsCSV:
         # Should return empty string when no report data
         assert result == ""
 
-    def test_generate_task_details_csv_default_filename(self):
+    def test_generate_task_details_csv_default_filename(self, test_reports_dir):
         """Test CSV generation with default filename."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         # Mock datetime to get predictable filename
         with patch("datetime.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 15, 12, 30, 45)
@@ -291,8 +324,18 @@ class TestTaskDetailsCSV:
             assert "20240115_123045" in result
             assert result.endswith(".csv")
 
-    def test_generate_task_details_csv_multiple_quarters(self):
+    def test_generate_task_details_csv_multiple_quarters(self, test_reports_dir):
         """Test CSV generation with multiple quarters."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         # Add second quarter
         quarter2 = Mock()
         quarter2.name = "Q2 2024"
@@ -429,8 +472,18 @@ class TestTaskDetailsCSV:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_generate_task_details_csv_error_handling(self):
+    def test_generate_task_details_csv_error_handling(self, test_reports_dir):
         """Test CSV generation error handling."""
+        # Create command with proper output_dir
+        self.command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        self.command.report = self.report
+        self.command.group_by = GroupBy.AUTHOR
+        self.command.status_mapping = StatusMapping(["Discovery"], ["Done"])
+        self.command.data_service = self.data_service
+        self.command.metrics_service = self.metrics_service
+
         # Mock data service to raise exception
         self.command.data_service.get_tasks_for_period.side_effect = Exception(
             "Database error"

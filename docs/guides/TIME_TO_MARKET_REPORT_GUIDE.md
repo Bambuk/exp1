@@ -98,7 +98,7 @@ radiator generate-time-to-market-report
 radiator generate-time-to-market-report --group-by team
 
 # С указанием файлов
-radiator generate-time-to-market-report --csv reports/time_to_market.csv --table reports/time_to_market.png
+radiator generate-time-to-market-report --csv data/reports/time_to_market.csv --table data/reports/time_to_market.png
 ```
 
 ## Параметры команды
@@ -106,8 +106,8 @@ radiator generate-time-to-market-report --csv reports/time_to_market.csv --table
 | Параметр | Описание | По умолчанию |
 |----------|----------|--------------|
 | `--group-by` | Группировка: `author` или `team` | `author` |
-| `--csv` | Путь к CSV файлу отчёта | `reports/time_to_market_report_{timestamp}.csv` |
-| `--table` | Путь к PNG файлу таблицы | `reports/time_to_market_table_{timestamp}.png` |
+| `--csv` | Путь к CSV файлу отчёта | `data/reports/time_to_market_report_{timestamp}.csv` |
+| `--table` | Путь к PNG файлу таблицы | `data/reports/time_to_market_table_{timestamp}.png` |
 
 ## Структура выходных файлов
 
@@ -172,7 +172,7 @@ python -m radiator.commands.generate_time_to_market_report --group-by team
 
 ### Генерация отчёта для презентации
 ```bash
-python -m radiator.commands.generate_time_to_market_report --csv reports/q1_2025_metrics.csv --table reports/q1_2025_table.png
+python -m radiator.commands.generate_time_to_market_report --csv data/reports/q1_2025_metrics.csv --table data/reports/q1_2025_table.png
 ```
 
 ## Интерпретация результатов

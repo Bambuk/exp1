@@ -9,6 +9,7 @@ from typing import List, Optional
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 
+from .command_executor import CommandExecutor
 from .config import TelegramBotConfig
 from .file_monitor import FileMonitor
 
@@ -26,7 +27,8 @@ class ReportsTelegramBot:
         self.bot = Bot(token=TelegramBotConfig.BOT_TOKEN)
         self.file_monitor = FileMonitor()
         self.user_id = TelegramBotConfig.USER_ID
-        self.reports_dir = TelegramBotConfig.REPORTS_DIR
+        self.reports_dir = TelegramBotConfig.get_reports_dir()
+        self.command_executor = CommandExecutor()
 
     async def send_file(self, file_path: Path, caption: str = None) -> bool:
         """
@@ -344,13 +346,304 @@ class ReportsTelegramBot:
                 f"✅ Бот успешно подключен!\n"
                 f"🤖 Имя: {me.first_name}\n"
                 f"👤 Username: @{me.username}\n"
-                f"📁 Мониторинг папки: {TelegramBotConfig.REPORTS_DIR}"
+                f"📁 Мониторинг папки: {TelegramBotConfig.get_reports_dir()}"
             )
             return True
 
         except Exception as e:
             logger.error(f"Bot connection test failed: {e}")
             return False
+
+    async def set_bot_commands(self) -> bool:
+        """Set bot commands in Telegram."""
+        try:
+            from telegram import BotCommand
+
+            commands = [
+                BotCommand("help", "Показать доступные команды"),
+                BotCommand(
+                    "generate_time_to_market_teams",
+                    "Сгенерировать отчет Time to Market по командам",
+                ),
+                BotCommand(
+                    "sync_and_report", "Синхронизировать трекер и сгенерировать отчет"
+                ),
+                BotCommand("sync_tracker", "Синхронизировать трекер с фильтром"),
+            ]
+
+            await self.bot.set_my_commands(commands)
+            logger.info("Bot commands registered successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to set bot commands: {e}")
+            return False
+
+    async def handle_command(self, command: str, args: List[str] = None) -> None:
+        """
+        Handle command from user.
+
+        Args:
+            command: Command name
+            args: Command arguments
+        """
+        try:
+            logger.info(f"Handling command: {command} with args: {args}")
+
+            if command == "help":
+                await self._handle_help_command()
+            elif command == "generate_time_to_market_teams":
+                await self._handle_generate_time_to_market_teams()
+            elif command == "sync_and_report":
+                await self._handle_sync_and_report()
+            elif command == "sync_tracker":
+                if not args:
+                    await self.send_message(
+                        "❌ Для команды /sync_tracker необходимо указать фильтр!\n\n"
+                        "📝 Примеры использования:\n"
+                        "• /sync_tracker Queue: CPO Status: In Progress\n"
+                        "• /sync_tracker key:CPO-*\n"
+                        "• /sync_tracker Queue: CPO Updated: >=01.01.2025\n\n"
+                        "💡 Фильтр определяет, какие задачи синхронизировать из трекера."
+                    )
+                    return
+                filter_str = " ".join(args)
+                await self._handle_sync_tracker(filter_str)
+            else:
+                await self.send_message(
+                    f"❌ Неизвестная команда: {command}\n\n{self.command_executor.format_command_help()}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error handling command {command}: {e}")
+            await self.send_message(f"❌ Ошибка выполнения команды {command}: {e}")
+
+    async def _handle_help_command(self) -> None:
+        """Handle help command."""
+        help_text = self.command_executor.format_command_help()
+        await self.send_message(help_text)
+
+    async def _handle_generate_time_to_market_teams(self) -> None:
+        """Handle generate time to market report by teams command."""
+        await self.send_message(
+            "🔄 Запускаю генерацию отчета Time to Market по командам..."
+        )
+
+        (
+            success,
+            stdout,
+            stderr,
+        ) = await self.command_executor.generate_time_to_market_report_teams()
+
+        if success:
+            await self.send_message(
+                "✅ Отчет Time to Market по командам успешно сгенерирован!"
+            )
+
+            # Send detailed output
+            if stdout.strip() or stderr.strip():
+                await self._send_command_output(
+                    stdout, stderr, "📋 Вывод команды генерации отчета:"
+                )
+        else:
+            error_msg = f"❌ Ошибка генерации отчета:\n```\n{stderr or stdout}\n```"
+            await self.send_message(error_msg)
+
+    async def _handle_sync_and_report(self) -> None:
+        """Handle sync and report command."""
+        await self.send_message(
+            "🔄 Запускаю полный процесс: синхронизация трекера + генерация отчета..."
+        )
+
+        success, stdout, stderr = await self.command_executor.sync_and_report()
+
+        if success:
+            await self.send_message("✅ Полный процесс завершен успешно!")
+
+            # Send detailed output
+            if stdout.strip() or stderr.strip():
+                await self._send_command_output(
+                    stdout, stderr, "📋 Вывод команды полного процесса:"
+                )
+        else:
+            error_msg = f"❌ Ошибка выполнения процесса:\n```\n{stderr or stdout}\n```"
+            await self.send_message(error_msg)
+
+    async def _handle_sync_tracker(self, filter_str: str) -> None:
+        """Handle sync tracker command."""
+        await self.send_message(
+            f"🔄 Запускаю синхронизацию трекера с фильтром: {filter_str}"
+        )
+
+        success, stdout, stderr = await self.command_executor.sync_tracker(filter_str)
+
+        if success:
+            await self.send_message("✅ Синхронизация трекера завершена успешно!")
+
+            # Send detailed output
+            if stdout.strip() or stderr.strip():
+                await self._send_command_output(
+                    stdout, stderr, "📋 Вывод команды синхронизации:"
+                )
+        else:
+            error_msg = f"❌ Ошибка синхронизации трекера:\n```\n{stderr or stdout}\n```"
+            await self.send_message(error_msg)
+
+    async def _send_command_output(self, stdout: str, stderr: str, title: str) -> None:
+        """
+        Send command output to user with proper formatting.
+
+        Args:
+            stdout: Standard output from command
+            stderr: Standard error from command
+            title: Title for the output message
+        """
+        try:
+            # Combine stdout and stderr
+            full_output = ""
+            if stdout.strip():
+                full_output += stdout.strip()
+            if stderr.strip():
+                if full_output:
+                    full_output += "\n" + stderr.strip()
+                else:
+                    full_output = stderr.strip()
+
+            if not full_output.strip():
+                return
+
+            # Filter out common warnings and noise
+            filtered_output = self._filter_command_output(full_output)
+
+            if not filtered_output.strip():
+                return
+
+            # Split output into chunks if too long
+            max_length = (
+                3000  # Telegram message limit is ~4000 chars, leave some margin
+            )
+            if len(filtered_output) <= max_length:
+                await self.send_message(f"{title}\n```\n{filtered_output}\n```")
+            else:
+                # Send in chunks
+                lines = filtered_output.split("\n")
+                current_chunk = ""
+
+                for line in lines:
+                    if len(current_chunk + line + "\n") > max_length:
+                        if current_chunk:
+                            await self.send_message(
+                                f"{title} (часть 1):\n```\n{current_chunk}\n```"
+                            )
+                            current_chunk = line + "\n"
+                        else:
+                            # Single line is too long, truncate it
+                            await self.send_message(
+                                f"{title} (часть 1):\n```\n{line[:max_length-100]}...\n```"
+                            )
+                    else:
+                        current_chunk += line + "\n"
+
+                # Send remaining chunk
+                if current_chunk.strip():
+                    await self.send_message(
+                        f"{title} (часть 2):\n```\n{current_chunk}\n```"
+                    )
+
+        except Exception as e:
+            logger.error(f"Error sending command output: {e}")
+            await self.send_message(f"❌ Ошибка отправки вывода команды: {e}")
+
+    def _filter_command_output(self, output: str) -> str:
+        """
+        Filter command output to remove noise and keep useful information.
+
+        Args:
+            output: Raw command output
+
+        Returns:
+            Filtered output
+        """
+        lines = output.split("\n")
+        filtered_lines = []
+
+        for line in lines:
+            # Skip common noise
+            if any(
+                noise in line
+                for noise in [
+                    "Makefile:93: предупреждение: переопределение способа",
+                    "Makefile:74: предупреждение: старый способ",
+                    "RuntimeWarning: 'radiator.commands.sync_tracker' found in sys.modules",
+                    "make: *** [Makefile:122: sync-tracker] Ошибка 1",
+                    "make: *** [Makefile:",
+                    "предупреждение:",
+                    "warning:",
+                    "RuntimeWarning:",
+                    "frozen runpy:",
+                ]
+            ):
+                continue
+
+            # Skip progress bars and intermediate output
+            if any(
+                progress in line
+                for progress in [
+                    "Общий прогресс:",
+                    "Загрузка истории:",
+                    "Обработка истории:",
+                    "Progress:",
+                    "Loading:",
+                    "Processing:",
+                    "|",  # Progress bar characters
+                    "[A",  # ANSI escape sequences
+                    "задача/s",
+                    "этап/s",
+                    "task=",
+                ]
+            ):
+                continue
+
+            # Keep only final results and important messages
+            if any(
+                useful in line
+                for useful in [
+                    "🎉",
+                    "✅",
+                    "❌",
+                    "📝",
+                    "🔄",
+                    "📋",
+                    "📚",
+                    "Синхронизация завершена",
+                    "Создано:",
+                    "Обновлено:",
+                    "Записей истории:",
+                    "Задач с историей:",
+                    "Generating",
+                    "Report",
+                    "Success",
+                    "Error",
+                    "Warning",
+                    "Completed",
+                    "отчет",
+                    "report",
+                    "успешно",
+                    "successfully",
+                    "завершена",
+                    "completed",
+                ]
+            ):
+                filtered_lines.append(line)
+            elif (
+                line.strip()
+                and not line.startswith(" ")
+                and not any(char in line for char in ["|", "[", "]", "%"])
+            ):
+                # Keep non-empty lines that don't start with spaces and don't contain progress indicators
+                filtered_lines.append(line)
+
+        return "\n".join(filtered_lines)
 
     def cleanup(self):
         """Cleanup resources."""

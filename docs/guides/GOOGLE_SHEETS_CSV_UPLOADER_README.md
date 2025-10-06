@@ -54,7 +54,7 @@ python scripts/google_sheets_csv_uploader.py --test
 python scripts/google_sheets_csv_uploader.py --process-all
 
 # Обработать конкретный файл
-python scripts/google_sheets_csv_uploader.py --process-file reports/example.csv
+python scripts/google_sheets_csv_uploader.py --process-file data/reports/example.csv
 
 # Показать статистику
 python scripts/google_sheets_csv_uploader.py --stats
@@ -145,7 +145,7 @@ python scripts/google_sheets_csv_uploader.py --process-all
 ### Обработка конкретного файла
 
 ```bash
-python scripts/google_sheets_csv_uploader.py --process-file reports/my_report.csv
+python scripts/google_sheets_csv_uploader.py --process-file data/reports/my_report.csv
 ```
 
 ### Запуск в фоновом режиме

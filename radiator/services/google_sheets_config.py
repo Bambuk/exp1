@@ -23,7 +23,13 @@ class GoogleSheetsConfig:
     SHEET_PREFIX: str = os.getenv("GOOGLE_SHEETS_SHEET_PREFIX", "Report_")
 
     # File monitoring settings
-    REPORTS_DIR: Path = Path(os.getenv("REPORTS_DIR", "reports"))
+    @classmethod
+    def get_reports_dir(cls) -> Path:
+        """Get reports directory from settings."""
+        from radiator.core.config import settings
+
+        return Path(settings.REPORTS_DIR)
+
     POLLING_INTERVAL: int = int(os.getenv("GOOGLE_SHEETS_POLLING_INTERVAL", "30"))
 
     # CSV processing settings

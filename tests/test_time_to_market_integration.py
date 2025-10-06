@@ -14,25 +14,31 @@ from radiator.commands.models.time_to_market_models import GroupBy, ReportType
 class TestTimeToMarketReportIntegration:
     """Integration tests for refactored Time To Market report."""
 
-    def test_full_workflow_author_grouping(self):
+    def test_full_workflow_author_grouping(self, test_reports_dir):
         """Test complete workflow with author grouping."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # This should not raise an exception
             report = cmd.generate_report_data()
             assert report is not None
             assert report.group_by == GroupBy.AUTHOR
 
-    def test_full_workflow_team_grouping(self):
+    def test_full_workflow_team_grouping(self, test_reports_dir):
         """Test complete workflow with team grouping."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.TEAM) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.TEAM, output_dir=test_reports_dir
+        ) as cmd:
             # This should not raise an exception
             report = cmd.generate_report_data()
             assert report is not None
             assert report.group_by == GroupBy.TEAM
 
-    def test_generate_csv_integration(self):
+    def test_generate_csv_integration(self, test_reports_dir):
         """Test CSV generation integration."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # Generate report data first
             cmd.generate_report_data()
 
@@ -40,9 +46,11 @@ class TestTimeToMarketReportIntegration:
             csv_file = cmd.generate_csv(report_type=ReportType.BOTH)
             assert csv_file != ""
 
-    def test_generate_table_integration(self):
+    def test_generate_table_integration(self, test_reports_dir):
         """Test table generation integration."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # Generate report data first
             cmd.generate_report_data()
 
@@ -51,18 +59,22 @@ class TestTimeToMarketReportIntegration:
             # Table file might be empty if no data, but should not crash
             assert isinstance(table_file, str)
 
-    def test_print_summary_integration(self):
+    def test_print_summary_integration(self, test_reports_dir):
         """Test console summary integration."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # Generate report data first
             cmd.generate_report_data()
 
             # Print summary - should not raise exception
             cmd.print_summary(report_type=ReportType.BOTH)
 
-    def test_different_report_types(self):
+    def test_different_report_types(self, test_reports_dir):
         """Test different report types."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             cmd.generate_report_data()
 
             # Test TTD only
@@ -74,9 +86,11 @@ class TestTimeToMarketReportIntegration:
             # Test both
             cmd.print_summary(report_type=ReportType.BOTH)
 
-    def test_context_manager_cleanup(self):
+    def test_context_manager_cleanup(self, test_reports_dir):
         """Test that context manager properly cleans up resources."""
-        cmd = GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR)
+        cmd = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
 
         with cmd:
             assert cmd.db is not None
@@ -85,9 +99,11 @@ class TestTimeToMarketReportIntegration:
         # After context exit, db should be closed
         # (We can't easily test this without mocking, but the structure is correct)
 
-    def test_error_handling_integration(self):
+    def test_error_handling_integration(self, test_reports_dir):
         """Test error handling in integration scenarios."""
-        with GenerateTimeToMarketReportCommand(group_by=GroupBy.AUTHOR) as cmd:
+        with GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        ) as cmd:
             # Test with invalid configuration directory
             cmd.config_dir = "/nonexistent/path"
 

@@ -33,7 +33,10 @@ class GenerateTimeToMarketReportCommand:
     """Refactored command for generating Time To Delivery and Time To Market report."""
 
     def __init__(
-        self, group_by: GroupBy = GroupBy.AUTHOR, config_dir: str = "data/config"
+        self,
+        group_by: GroupBy = GroupBy.AUTHOR,
+        config_dir: str = "data/config",
+        output_dir: str = None,
     ):
         """
         Initialize command with grouping preference.
@@ -41,10 +44,20 @@ class GenerateTimeToMarketReportCommand:
         Args:
             group_by: Grouping type - AUTHOR or TEAM
             config_dir: Configuration directory path
+            output_dir: Output directory for reports (optional, uses settings if not provided)
         """
         self.group_by = group_by
         self.config_dir = config_dir
         self.db = SessionLocal()
+
+        # Set output directory
+        if output_dir is not None:
+            self.output_dir = output_dir
+        else:
+            # Use settings to determine output directory
+            from radiator.core.config import settings
+
+            self.output_dir = settings.REPORTS_DIR
 
         # Initialize services
         self.config_service = ConfigService(config_dir)
@@ -256,7 +269,7 @@ class GenerateTimeToMarketReportCommand:
             )
             return ""
 
-        renderer = CSVRenderer(self.report)
+        renderer = CSVRenderer(self.report, self.output_dir)
         return renderer.render(filepath, report_type)
 
     def generate_table(
@@ -278,7 +291,7 @@ class GenerateTimeToMarketReportCommand:
             )
             return ""
 
-        renderer = TableRenderer(self.report)
+        renderer = TableRenderer(self.report, self.output_dir)
         return renderer.render(filepath, report_type)
 
     def generate_task_details_csv(self, filepath: Optional[str] = None) -> str:
@@ -306,7 +319,7 @@ class GenerateTimeToMarketReportCommand:
             # Generate filename if not provided
             if not filepath:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filepath = f"reports/task_details_{timestamp}.csv"
+                filepath = f"{self.output_dir}/task_details_{timestamp}.csv"
 
             # Ensure reports directory exists
             Path(filepath).parent.mkdir(parents=True, exist_ok=True)

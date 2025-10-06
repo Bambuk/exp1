@@ -35,6 +35,7 @@ class GenerateStatusChangeReportCommand:
         group_by: str = "author",
         config_dir: str = "data/config",
         db: Session = None,
+        output_dir: str = None,
     ):
         """
         Initialize command with grouping preference.
@@ -43,6 +44,7 @@ class GenerateStatusChangeReportCommand:
             group_by: Grouping field - "author" or "team"
             config_dir: Configuration directory path
             db: Database session (optional, creates new if not provided)
+            output_dir: Output directory for reports (optional, uses settings if not provided)
         """
         if group_by not in ["author", "team"]:
             raise ValueError("group_by must be 'author' or 'team'")
@@ -53,6 +55,15 @@ class GenerateStatusChangeReportCommand:
         self.report_data: Dict[str, Dict[str, int]] = {}
         self.week1_data: Dict[str, int] = {}
         self.week2_data: Dict[str, int] = {}
+
+        # Set output directory
+        if output_dir is not None:
+            self.output_dir = output_dir
+        else:
+            # Use settings to determine output directory
+            from radiator.core.config import settings
+
+            self.output_dir = settings.REPORTS_DIR
 
         # Initialize AuthorTeamMappingService for team grouping
         if group_by == "team":
@@ -446,8 +457,8 @@ class GenerateStatusChangeReportCommand:
         filename = f"status_change_report_{timestamp}.csv"
 
         # Ensure reports directory exists
-        reports_dir = Path("reports")
-        reports_dir.mkdir(exist_ok=True)
+        reports_dir = Path(self.output_dir)
+        reports_dir.mkdir(parents=True, exist_ok=True)
 
         filepath = reports_dir / filename
 
@@ -499,8 +510,8 @@ class GenerateStatusChangeReportCommand:
         filename = f"status_change_table_{timestamp}.png"
 
         # Ensure reports directory exists
-        reports_dir = Path("reports")
-        reports_dir.mkdir(exist_ok=True)
+        reports_dir = Path(self.output_dir)
+        reports_dir.mkdir(parents=True, exist_ok=True)
 
         filepath = reports_dir / filename
 
@@ -767,9 +778,6 @@ class GenerateStatusChangeReportCommand:
                 logger.warning("No data found for the specified time period")
                 return False
 
-            # Print summary to console
-            self.print_summary()
-
             # Save CSV report
             csv_path = self.save_csv_report()
             logger.info(f"CSV report saved: {csv_path}")
@@ -807,8 +815,17 @@ def main():
 
     args = parser.parse_args()
 
+    # Determine output directory based on environment
+    from radiator.core.config import settings
+
+    output_dir = (
+        settings.TEST_REPORTS_DIR
+        if os.environ.get("ENVIRONMENT") == "test"
+        else settings.REPORTS_DIR
+    )
+
     with GenerateStatusChangeReportCommand(
-        group_by=args.group_by, config_dir=args.config_dir
+        group_by=args.group_by, config_dir=args.config_dir, output_dir=output_dir
     ) as cmd:
         success = cmd.run()
         sys.exit(0 if success else 1)

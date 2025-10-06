@@ -26,7 +26,7 @@ class TestCSVFileMonitor:
         with patch(
             "radiator.services.csv_file_monitor.GoogleSheetsConfig"
         ) as mock_config:
-            mock_config.REPORTS_DIR = temp_dir
+            mock_config.get_reports_dir.return_value = temp_dir
             mock_config.STATE_FILE = ".test_state.json"
             monitor = CSVFileMonitor()
             # Clear any loaded state

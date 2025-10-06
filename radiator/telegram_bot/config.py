@@ -20,7 +20,12 @@ class TelegramBotConfig:
     USER_ID: Optional[int] = None
 
     # Reports directory to monitor
-    REPORTS_DIR: Path = Path("reports")
+    @classmethod
+    def get_reports_dir(cls) -> Path:
+        """Get reports directory from settings."""
+        from radiator.core.config import settings
+
+        return Path(settings.REPORTS_DIR)
 
     # File extensions to monitor
     MONITORED_EXTENSIONS: set = {".csv", ".png", ".jpg", ".jpeg", ".pdf"}

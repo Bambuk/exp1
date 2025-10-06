@@ -12,14 +12,24 @@ from radiator.commands.models.time_to_market_models import (
 class BaseRenderer(ABC):
     """Base class for report renderers."""
 
-    def __init__(self, report: TimeToMarketReport):
+    def __init__(self, report: TimeToMarketReport, output_dir: str = None):
         """
         Initialize renderer.
 
         Args:
             report: TimeToMarketReport object
+            output_dir: Output directory for reports (optional, uses settings if not provided)
         """
         self.report = report
+
+        # Set output directory
+        if output_dir is not None:
+            self.output_dir = output_dir
+        else:
+            # Use settings to determine output directory
+            from radiator.core.config import settings
+
+            self.output_dir = settings.REPORTS_DIR
 
     @abstractmethod
     def render(

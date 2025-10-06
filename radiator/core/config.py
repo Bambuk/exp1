@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
     API_PAGE_SIZE: int = Field(default=50, env="API_PAGE_SIZE")
 
+    # Reports Configuration
+    REPORTS_DIR: str = Field(default="data/reports", env="REPORTS_DIR")
+    TEST_REPORTS_DIR: str = Field(default="tests/test_reports", env="TEST_REPORTS_DIR")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

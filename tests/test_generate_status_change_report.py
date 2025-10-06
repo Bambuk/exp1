@@ -15,23 +15,24 @@ from radiator.models.tracker import TrackerTask, TrackerTaskHistory
 class TestGenerateStatusChangeReportCommand:
     """Test cases for GenerateStatusChangeReportCommand."""
 
-    def test_init(self):
+    def test_init(self, test_reports_dir):
         """Test command initialization."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
         assert cmd.db is not None
         assert cmd.report_data == {}
         assert cmd.week1_data == {}
         assert cmd.week2_data == {}
+        assert cmd.output_dir == test_reports_dir
 
-    def test_context_manager(self):
+    def test_context_manager(self, test_reports_dir):
         """Test context manager functionality."""
-        with GenerateStatusChangeReportCommand() as cmd:
+        with GenerateStatusChangeReportCommand(output_dir=test_reports_dir) as cmd:
             assert cmd.db is not None
         # db should be closed after context exit
 
-    def test_get_status_changes_by_author_success(self):
+    def test_get_status_changes_by_author_success(self, test_reports_dir):
         """Test successful retrieval of status changes by author."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock database query results (now includes task_id)
         mock_results = [
@@ -59,9 +60,9 @@ class TestGenerateStatusChangeReportCommand:
             }
             assert result == expected
 
-    def test_get_status_changes_by_author_no_data(self):
+    def test_get_status_changes_by_author_no_data(self, test_reports_dir):
         """Test retrieval when no data exists."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd.db, "query") as mock_query:
             mock_query.return_value.join.return_value.filter.return_value.all.return_value = (
@@ -75,9 +76,9 @@ class TestGenerateStatusChangeReportCommand:
 
             assert result == {}
 
-    def test_get_status_changes_by_author_exception(self):
+    def test_get_status_changes_by_author_exception(self, test_reports_dir):
         """Test handling of database exceptions."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd.db, "query") as mock_query:
             mock_query.side_effect = Exception("Database error")
@@ -89,9 +90,9 @@ class TestGenerateStatusChangeReportCommand:
 
             assert result == {}
 
-    def test_get_open_tasks_by_author_success(self):
+    def test_get_open_tasks_by_author_success(self, test_reports_dir):
         """Test successful retrieval of open tasks by author grouped by blocks."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock database query results (now includes status and task_updated_at)
         ref_datetime = datetime(2024, 8, 29, 10, 30, 0, tzinfo=timezone.utc)
@@ -141,9 +142,9 @@ class TestGenerateStatusChangeReportCommand:
                 }
                 assert result == expected
 
-    def test_get_open_tasks_by_author_no_data(self):
+    def test_get_open_tasks_by_author_no_data(self, test_reports_dir):
         """Test retrieval when no open tasks exist."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd, "_load_status_mapping") as mock_load_mapping:
             mock_load_mapping.return_value = {}
@@ -155,9 +156,9 @@ class TestGenerateStatusChangeReportCommand:
 
                 assert result == {}
 
-    def test_get_open_tasks_by_author_exception(self):
+    def test_get_open_tasks_by_author_exception(self, test_reports_dir):
         """Test handling of database exceptions."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd, "_load_status_mapping") as mock_load_mapping:
             mock_load_mapping.return_value = {}
@@ -169,9 +170,9 @@ class TestGenerateStatusChangeReportCommand:
 
                 assert result == {}
 
-    def test_load_status_mapping_success(self):
+    def test_load_status_mapping_success(self, test_reports_dir):
         """Test successful loading of status mapping from file."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock the file content
         mock_content = [
@@ -194,18 +195,18 @@ class TestGenerateStatusChangeReportCommand:
             }
             assert result == expected
 
-    def test_load_status_mapping_file_not_found(self):
+    def test_load_status_mapping_file_not_found(self, test_reports_dir):
         """Test handling when status mapping file is not found."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch("pathlib.Path.exists", return_value=False):
             result = cmd._load_status_mapping()
 
             assert result == {}
 
-    def test_load_status_mapping_parsing_error(self):
+    def test_load_status_mapping_parsing_error(self, test_reports_dir):
         """Test handling of malformed lines in status mapping file."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock the file content with malformed lines
         mock_content = [
@@ -226,9 +227,9 @@ class TestGenerateStatusChangeReportCommand:
             }
             assert result == expected
 
-    def test_generate_report_data(self):
+    def test_generate_report_data(self, test_reports_dir):
         """Test report data generation."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock the methods directly on the command instance
         with patch.object(
@@ -346,9 +347,9 @@ class TestGenerateStatusChangeReportCommand:
             }
             assert result == expected
 
-    def test_save_csv_report(self):
+    def test_save_csv_report(self, test_reports_dir):
         """Test CSV report saving."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -389,9 +390,9 @@ class TestGenerateStatusChangeReportCommand:
         assert result.endswith(".csv")
         assert "status_change_report" in result
 
-    def test_save_csv_report_default_filename(self):
+    def test_save_csv_report_default_filename(self, test_reports_dir):
         """Test CSV report saving with default filename."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -426,9 +427,9 @@ class TestGenerateStatusChangeReportCommand:
             assert "status_change_report" in result
             mock_open.assert_called_once()
 
-    def test_generate_table(self):
+    def test_generate_table(self, test_reports_dir):
         """Test table generation."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -467,9 +468,9 @@ class TestGenerateStatusChangeReportCommand:
             assert result == "test_table.png"
             mock_generate.assert_called_once()
 
-    def test_generate_table_default_filename(self):
+    def test_generate_table_default_filename(self, test_reports_dir):
         """Test table generation with default filename."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -496,9 +497,9 @@ class TestGenerateStatusChangeReportCommand:
             assert result == "test_table.png"
             mock_generate.assert_called_once()
 
-    def test_print_summary(self):
+    def test_print_summary(self, test_reports_dir):
         """Test console summary printing."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -540,9 +541,9 @@ class TestGenerateStatusChangeReportCommand:
             # Verify that print was called multiple times (header, data, footer)
             assert mock_print.call_count > 5
 
-    def test_print_summary_no_data(self):
+    def test_print_summary_no_data(self, test_reports_dir):
         """Test console summary printing when no data available."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch("radiator.core.logging.logger.warning") as mock_warning:
             cmd.print_summary()
@@ -551,15 +552,13 @@ class TestGenerateStatusChangeReportCommand:
                 "No report data available. Run generate_report_data() first."
             )
 
-    def test_run_success(self):
+    def test_run_success(self, test_reports_dir):
         """Test successful command execution."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd, "generate_report_data") as mock_generate, patch.object(
-            cmd, "print_summary"
-        ) as mock_print, patch.object(cmd, "save_csv_report") as mock_csv, patch.object(
-            cmd, "generate_table"
-        ) as mock_table:
+            cmd, "save_csv_report"
+        ) as mock_csv, patch.object(cmd, "generate_table") as mock_table:
             # Mock successful data generation
             cmd.report_data = {
                 "user1": {
@@ -585,13 +584,12 @@ class TestGenerateStatusChangeReportCommand:
 
             assert result is True
             mock_generate.assert_called_once()
-            mock_print.assert_called_once()
             mock_csv.assert_called_once()
             mock_table.assert_called_once()
 
-    def test_run_no_data(self):
+    def test_run_no_data(self, test_reports_dir):
         """Test command execution when no data is found."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd, "generate_report_data") as mock_generate:
             # Mock empty data
@@ -602,9 +600,9 @@ class TestGenerateStatusChangeReportCommand:
 
             assert result is False
 
-    def test_run_exception(self):
+    def test_run_exception(self, test_reports_dir):
         """Test command execution when exception occurs."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         with patch.object(cmd, "generate_report_data") as mock_generate:
             mock_generate.side_effect = Exception("Test error")
@@ -626,12 +624,12 @@ class TestGenerateStatusChangeReportIntegration:
         ):
             yield
 
-    def test_complete_report_generation_flow(self, mock_environment):
+    def test_complete_report_generation_flow(self, mock_environment, test_reports_dir):
         """Test complete report generation flow."""
 
         # Create command
         with patch("radiator.commands.generate_status_change_report.logger"):
-            cmd = GenerateStatusChangeReportCommand()
+            cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
             # Mock database session and query
             with patch.object(cmd, "db") as mock_db:
@@ -668,9 +666,11 @@ class TestGenerateStatusChangeReportIntegration:
 class TestDateFormattingAndColumnOrdering:
     """Tests for the new date formatting and column ordering requirements."""
 
-    def test_csv_headers_should_show_concrete_dates_not_week_labels(self):
+    def test_csv_headers_should_show_concrete_dates_not_week_labels(
+        self, test_reports_dir
+    ):
         """Test that CSV headers show concrete dates (e.g., '14.08-21.08') instead of 'Last Week'."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data with date attributes
         cmd.week2_start = datetime(2025, 8, 14)
@@ -702,9 +702,11 @@ class TestDateFormattingAndColumnOrdering:
             # This test will fail until we implement the date formatting
             assert True, "This test will guide the implementation of date formatting"
 
-    def test_table_headers_should_show_concrete_dates_not_week_labels(self):
+    def test_table_headers_should_show_concrete_dates_not_week_labels(
+        self, test_reports_dir
+    ):
         """Test that table headers show concrete dates instead of 'Last Week'."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data with date attributes
         cmd.week2_start = datetime(2025, 8, 14)
@@ -739,9 +741,11 @@ class TestDateFormattingAndColumnOrdering:
             # This test will guide the implementation of date formatting
             assert True, "This test will guide the implementation of date formatting"
 
-    def test_earlier_week_should_be_left_column_later_week_right_column(self):
+    def test_earlier_week_should_be_left_column_later_week_right_column(
+        self, test_reports_dir
+    ):
         """Test that the earlier week (week2) is in the left column, later week (week1) in the right."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data
         cmd.report_data = {
@@ -789,9 +793,9 @@ class TestDateFormattingAndColumnOrdering:
                 True
             ), "This test will guide the implementation of correct column ordering"
 
-    def test_console_output_should_show_dates_not_week_labels(self):
+    def test_console_output_should_show_dates_not_week_labels(self, test_reports_dir):
         """Test that console output shows concrete dates instead of 'Last Week'."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Set up test data with date attributes
         cmd.week2_start = datetime(2025, 8, 14)
@@ -824,9 +828,11 @@ class TestDateFormattingAndColumnOrdering:
 class TestExcludeDoneTasksAndFilterZeroRows:
     """Tests for excluding done tasks from discovery/delivery counts and filtering zero rows."""
 
-    def test_should_exclude_done_tasks_from_discovery_and_delivery_counts(self):
+    def test_should_exclude_done_tasks_from_discovery_and_delivery_counts(
+        self, test_reports_dir
+    ):
         """Test that tasks in done status are excluded from discovery and delivery counts."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock database query results with tasks in different statuses
         ref_datetime = datetime(2024, 8, 29, 10, 30, 0, tzinfo=timezone.utc)
@@ -881,9 +887,9 @@ class TestExcludeDoneTasksAndFilterZeroRows:
                 }
                 assert result == expected
 
-    def test_should_filter_out_authors_with_all_zero_counts(self):
+    def test_should_filter_out_authors_with_all_zero_counts(self, test_reports_dir):
         """Test that authors with all zero counts are filtered out from report data."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock data where some authors have all zeros
         cmd.week1_data = {
@@ -951,9 +957,9 @@ class TestExcludeDoneTasksAndFilterZeroRows:
             assert result["user3"]["discovery_tasks"] == 1
             assert result["user3"]["delivery_tasks"] == 0
 
-    def test_should_keep_authors_with_some_non_zero_counts(self):
+    def test_should_keep_authors_with_some_non_zero_counts(self, test_reports_dir):
         """Test that authors with at least one non-zero count are kept in report data."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock data where authors have mixed zero/non-zero counts
         cmd.week1_data = {
@@ -1013,9 +1019,9 @@ class TestExcludeDoneTasksAndFilterZeroRows:
             expected_authors = {"user1", "user2"}
             assert set(result.keys()) == expected_authors
 
-    def test_should_handle_edge_case_all_authors_filtered(self):
+    def test_should_handle_edge_case_all_authors_filtered(self, test_reports_dir):
         """Test behavior when all authors are filtered out due to zero counts."""
-        cmd = GenerateStatusChangeReportCommand()
+        cmd = GenerateStatusChangeReportCommand(output_dir=test_reports_dir)
 
         # Mock data where all authors have zero counts
         cmd.week1_data = {
@@ -1062,9 +1068,11 @@ class TestExcludeDoneTasksAndFilterZeroRows:
             # All authors should be filtered out
             assert result == {}
 
-    def test_should_exclude_done_tasks_in_team_grouping(self):
+    def test_should_exclude_done_tasks_in_team_grouping(self, test_reports_dir):
         """Test that done tasks are excluded when grouping by team."""
-        cmd = GenerateStatusChangeReportCommand(group_by="team")
+        cmd = GenerateStatusChangeReportCommand(
+            group_by="team", output_dir=test_reports_dir
+        )
 
         # Mock AuthorTeamMappingService
         mock_mapping_service = Mock()
