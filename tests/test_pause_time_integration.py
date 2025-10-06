@@ -144,14 +144,14 @@ class TestPauseTimeIntegration:
             # Check pause time metrics
             assert author1_metrics.ttd_metrics.pause_times[0] == 3
             assert author1_metrics.ttm_metrics.pause_times[0] == 3
-            # Tail metrics have no pause time
-            assert author1_metrics.tail_metrics.pause_times[0] == 0
+            # Tail metrics have no pause time tracking
+            assert author1_metrics.tail_metrics.pause_times is None
             assert author1_metrics.ttd_metrics.pause_mean == 3.0
             assert author1_metrics.ttd_metrics.pause_p85 == 3.0
             assert author1_metrics.ttm_metrics.pause_mean == 3.0
             assert author1_metrics.ttm_metrics.pause_p85 == 3.0
-            assert author1_metrics.tail_metrics.pause_mean == 0.0
-            assert author1_metrics.tail_metrics.pause_p85 == 0.0
+            assert author1_metrics.tail_metrics.pause_mean is None
+            assert author1_metrics.tail_metrics.pause_p85 is None
 
             # Check Author2 metrics (no pause time)
             author2_metrics = quarter_report.groups["Author2"]
@@ -164,11 +164,11 @@ class TestPauseTimeIntegration:
             # Tail should be: 5-4=1 day, no pause time
             assert author2_metrics.tail_metrics.times[0] == 1
             assert author2_metrics.ttm_metrics.pause_times[0] == 0
-            assert author2_metrics.tail_metrics.pause_times[0] == 0
+            assert author2_metrics.tail_metrics.pause_times is None
             assert author2_metrics.ttm_metrics.pause_mean == 0.0
             assert author2_metrics.ttm_metrics.pause_p85 == 0.0
-            assert author2_metrics.tail_metrics.pause_mean == 0.0
-            assert author2_metrics.tail_metrics.pause_p85 == 0.0
+            assert author2_metrics.tail_metrics.pause_mean is None
+            assert author2_metrics.tail_metrics.pause_p85 is None
 
     def test_csv_rendering_with_pause_time(self, test_reports_dir):
         """Test CSV rendering includes pause time columns."""
@@ -204,8 +204,6 @@ class TestPauseTimeIntegration:
             assert "Q1 2024_ttd_pause_p85" in content
             assert "Q1 2024_ttm_pause_mean" in content
             assert "Q1 2024_ttm_pause_p85" in content
-            assert "Q1 2024_tail_pause_mean" in content
-            assert "Q1 2024_tail_pause_p85" in content
 
             # Check that data is present
             assert "Author1" in content

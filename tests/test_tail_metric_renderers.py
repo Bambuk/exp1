@@ -73,8 +73,6 @@ class TestTailMetricCSVRenderer:
         assert "tail_mean" in written_content
         assert "tail_p85" in written_content
         assert "tail_tasks" in written_content
-        assert "tail_pause_mean" in written_content
-        assert "tail_pause_p85" in written_content
 
     @patch("pathlib.Path.mkdir")
     @patch("builtins.open", new_callable=mock_open)

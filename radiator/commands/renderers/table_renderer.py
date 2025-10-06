@@ -344,19 +344,15 @@ class TableRenderer(BaseRenderer):
                     tail_avg = group_metrics.tail_metrics.mean or 0
                     tail_p85 = group_metrics.tail_metrics.p85 or 0
                     tasks = group_metrics.tail_metrics.count
-                    pause_avg = group_metrics.tail_metrics.pause_mean or 0
-                    pause_p85 = group_metrics.tail_metrics.pause_p85 or 0
                     row.extend(
                         [
                             f"{tail_avg:.1f}",
                             f"{tail_p85:.1f}",
                             str(tasks),
-                            f"{pause_avg:.1f}",
-                            f"{pause_p85:.1f}",
                         ]
                     )
                 else:
-                    row.extend(["N/A", "N/A", "0", "N/A", "N/A"])
+                    row.extend(["N/A", "N/A", "0"])
             tail_table_data.append(row)
 
         # Create headers
@@ -367,8 +363,6 @@ class TableRenderer(BaseRenderer):
                     f"{quarter}\nAvg",
                     f"{quarter}\n85%",
                     f"{quarter}\nTasks",
-                    f"{quarter}\nPause Avg",
-                    f"{quarter}\nPause 85%",
                 ]
             )
 
@@ -378,7 +372,7 @@ class TableRenderer(BaseRenderer):
             colLabels=tail_headers,
             cellLoc="center",
             loc="center",
-            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 5),
+            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 3),
         )
 
         # Style Tail table

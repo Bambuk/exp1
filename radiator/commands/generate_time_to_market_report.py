@@ -141,7 +141,6 @@ class GenerateTimeToMarketReportCommand:
                         "ttm_times": [],
                         "ttm_pause_times": [],
                         "tail_times": [],
-                        "tail_pause_times": [],
                     }
                 )
 
@@ -198,9 +197,6 @@ class GenerateTimeToMarketReportCommand:
                         )
                         if tail is not None:
                             group_data[group_value]["tail_times"].append(tail)
-                            group_data[group_value]["tail_pause_times"].append(
-                                0
-                            )  # No pause time for tail
                     except Exception as e:
                         logger.warning(
                             f"Error calculating tail metric for task {task.key}: {e}"
@@ -220,7 +216,6 @@ class GenerateTimeToMarketReportCommand:
                             data["ttm_times"],
                             data["ttm_pause_times"],
                             data["tail_times"],
-                            data["tail_pause_times"],
                         )
 
                 if groups:

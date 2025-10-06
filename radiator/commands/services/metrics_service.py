@@ -503,7 +503,6 @@ class MetricsService:
         ttm_times: List[int],
         ttm_pause_times: List[int],
         tail_times: List[int],
-        tail_pause_times: List[int],
     ) -> GroupMetrics:
         """
         Calculate enhanced metrics for a specific group including pause time.
@@ -515,14 +514,13 @@ class MetricsService:
             ttm_times: List of TTM times
             ttm_pause_times: List of TTM pause times
             tail_times: List of Tail times
-            tail_pause_times: List of Tail pause times
 
         Returns:
             GroupMetrics object with pause time data
         """
         ttd_metrics = self.calculate_enhanced_statistics(ttd_times, ttd_pause_times)
         ttm_metrics = self.calculate_enhanced_statistics(ttm_times, ttm_pause_times)
-        tail_metrics = self.calculate_enhanced_statistics(tail_times, tail_pause_times)
+        tail_metrics = self.calculate_statistics(tail_times)
 
         return GroupMetrics(
             group_name=group_name,

@@ -76,8 +76,6 @@ class CSVRenderer(BaseRenderer):
                                 f"{quarter}_tail_mean",
                                 f"{quarter}_tail_p85",
                                 f"{quarter}_tail_tasks",
-                                f"{quarter}_tail_pause_mean",
-                                f"{quarter}_tail_pause_p85",
                             ]
                         )
 
@@ -141,8 +139,6 @@ class CSVRenderer(BaseRenderer):
                                         f"{quarter}_tail_mean": "",
                                         f"{quarter}_tail_p85": "",
                                         f"{quarter}_tail_tasks": "",
-                                        f"{quarter}_tail_pause_mean": "",
-                                        f"{quarter}_tail_pause_p85": "",
                                     }
                                 )
 

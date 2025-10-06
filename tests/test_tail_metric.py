@@ -277,7 +277,6 @@ class TestTailMetricGroupMetrics:
         ttm_times = [4, 5, 6]
         ttm_pause_times = [1, 0, 1]
         tail_times = [1, 2, 3]
-        tail_pause_times = [0, 1, 0]
 
         result = self.service.calculate_enhanced_group_metrics(
             "TestGroup",
@@ -286,7 +285,6 @@ class TestTailMetricGroupMetrics:
             ttm_times,
             ttm_pause_times,
             tail_times,
-            tail_pause_times,
         )
 
         assert result.group_name == "TestGroup"
@@ -295,7 +293,7 @@ class TestTailMetricGroupMetrics:
         assert result.ttm_metrics.times == ttm_times
         assert result.ttm_metrics.pause_times == ttm_pause_times
         assert result.tail_metrics.times == tail_times
-        assert result.tail_metrics.pause_times == tail_pause_times
+        assert result.tail_metrics.pause_times is None
         assert result.total_tasks == 6  # ttd + ttm count
 
     def test_calculate_group_metrics_with_tail(self):
@@ -321,7 +319,6 @@ class TestTailMetricGroupMetrics:
         ttm_times = [4, 5, 6]
         ttm_pause_times = [1, 0, 1]
         tail_times = []
-        tail_pause_times = []
 
         result = self.service.calculate_enhanced_group_metrics(
             "TestGroup",
@@ -330,11 +327,10 @@ class TestTailMetricGroupMetrics:
             ttm_times,
             ttm_pause_times,
             tail_times,
-            tail_pause_times,
         )
 
         assert result.tail_metrics.times == []
-        assert result.tail_metrics.pause_times == []
+        assert result.tail_metrics.pause_times is None
         assert result.tail_metrics.mean is None
         assert result.tail_metrics.p85 is None
         assert result.tail_metrics.count == 0

@@ -430,7 +430,7 @@ class TestErrorHandling:
 
         # Test with empty times
         result = service.calculate_enhanced_group_metrics(
-            "TestGroup", [], [], [], [], [], []
+            "TestGroup", [], [], [], [], []
         )
         assert result.group_name == "TestGroup"
         assert result.ttd_metrics.times == []
@@ -440,7 +440,7 @@ class TestErrorHandling:
 
         # Test with None times
         result = service.calculate_enhanced_group_metrics(
-            "TestGroup", None, None, None, None, None, None
+            "TestGroup", None, None, None, None, None
         )
         assert result.group_name == "TestGroup"
         assert result.ttd_metrics.times == []
