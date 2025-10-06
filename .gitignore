@@ -163,3 +163,6 @@ data/output/
 .telegram_bot_state.json
 .env.backup
 sheet-api-key.json
+
+# Test state files
+.test_state.json
