@@ -340,11 +340,10 @@ class GenerateTimeToMarketReportCommand:
                     metric_type="ttm",
                 )
 
-                # Combine tasks for processing (avoid duplicates)
-                all_tasks_in_quarter = {}
-                for task in ttd_tasks + ttm_tasks:
-                    if task.key not in all_tasks_in_quarter:
-                        all_tasks_in_quarter[task.key] = task
+                # Combine tasks for processing
+                all_tasks_in_quarter = {
+                    task.key: task for task in ttd_tasks + ttm_tasks
+                }
 
                 for task_key, task in all_tasks_in_quarter.items():
                     history = self.data_service.get_task_history(task.id)
