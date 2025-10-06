@@ -369,6 +369,7 @@ class ReportsTelegramBot:
                     "sync_and_report", "Синхронизировать трекер и сгенерировать отчет"
                 ),
                 BotCommand("sync_tracker", "Синхронизировать трекер с фильтром"),
+                BotCommand("restart_service", "Перезапустить сервис телеграм бота"),
             ]
 
             await self.bot.set_my_commands(commands)
@@ -409,6 +410,8 @@ class ReportsTelegramBot:
                     return
                 filter_str = " ".join(args)
                 await self._handle_sync_tracker(filter_str)
+            elif command == "restart_service":
+                await self._handle_restart_service()
             else:
                 await self.send_message(
                     f"❌ Неизвестная команда: {command}\n\n{self.command_executor.format_command_help()}"
@@ -644,6 +647,28 @@ class ReportsTelegramBot:
                 filtered_lines.append(line)
 
         return "\n".join(filtered_lines)
+
+    async def _handle_restart_service(self) -> None:
+        """Handle restart service command."""
+        await self.send_message(
+            "🔄 Перезапускаю сервис телеграм бота...\n\n"
+            "⚠️ Внимание: Бот будет перезапущен через 3 секунды!"
+        )
+
+        # Wait a bit to ensure message is sent
+        await asyncio.sleep(3)
+
+        # Send final message before restart
+        await self.send_message("🔄 Перезапуск сервиса...")
+
+        # Log the restart
+        logger.info("Service restart requested via Telegram command")
+
+        # Exit the process to trigger restart by systemd or supervisor
+        import os
+        import signal
+
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def cleanup(self):
         """Cleanup resources."""
