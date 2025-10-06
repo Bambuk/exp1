@@ -15,7 +15,7 @@ class FileMonitor:
 
     def __init__(self, reports_dir: Path = None):
         self.reports_dir = reports_dir or TelegramBotConfig.get_reports_dir()
-        self.state_file = Path(".telegram_bot_state.json")
+        self.state_file = Path("data/.telegram_bot_state.json")
         self.known_files: Set[str] = set()
         self.file_timestamps: Dict[str, float] = {}
         self._load_state()

@@ -54,7 +54,9 @@ class GoogleSheetsConfig:
     LOG_FILE: str = os.getenv("GOOGLE_SHEETS_LOG_FILE", "logs/google_sheets_bot.log")
 
     # State file for tracking processed files
-    STATE_FILE: str = os.getenv("GOOGLE_SHEETS_STATE_FILE", ".google_sheets_state.json")
+    STATE_FILE: str = os.getenv(
+        "GOOGLE_SHEETS_STATE_FILE", "data/.google_sheets_state.json"
+    )
 
     @classmethod
     def validate(cls) -> bool:

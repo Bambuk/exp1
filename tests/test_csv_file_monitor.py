@@ -27,7 +27,7 @@ class TestCSVFileMonitor:
             "radiator.services.csv_file_monitor.GoogleSheetsConfig"
         ) as mock_config:
             mock_config.get_reports_dir.return_value = temp_dir
-            mock_config.STATE_FILE = ".test_state.json"
+            mock_config.STATE_FILE = "data/.test_state.json"
             monitor = CSVFileMonitor()
             # Clear any loaded state
             monitor.known_files = set()
@@ -38,7 +38,7 @@ class TestCSVFileMonitor:
     def test_init(self, monitor):
         """Test CSVFileMonitor initialization."""
         assert monitor.reports_dir is not None
-        assert str(monitor.state_file) == ".test_state.json"
+        assert str(monitor.state_file) == "data/.test_state.json"
         assert monitor.known_files == set()
         assert monitor.processed_files == set()
         assert monitor.file_timestamps == {}

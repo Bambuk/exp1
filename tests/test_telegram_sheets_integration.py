@@ -39,7 +39,7 @@ class TestTelegramSheetsIntegration:
             mock_telegram_config.BOT_TOKEN = "test_token"
 
             mock_sheets_config.get_reports_dir.return_value = temp_dir
-            mock_sheets_config.STATE_FILE = ".test_state.json"
+            mock_sheets_config.STATE_FILE = "data/.test_state.json"
             mock_sheets_config.CREDENTIALS_PATH = "test_credentials.json"
             mock_sheets_config.DOCUMENT_ID = "test_document_id"
 
@@ -184,7 +184,7 @@ class TestTelegramSheetsIntegration:
             "radiator.services.csv_file_monitor.GoogleSheetsConfig"
         ) as mock_config:
             mock_config.REPORTS_DIR = temp_dir
-            mock_config.STATE_FILE = ".test_state.json"
+            mock_config.STATE_FILE = "data/.test_state.json"
             new_monitor = CSVFileMonitor()
 
         # Check that state was loaded correctly
