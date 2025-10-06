@@ -245,7 +245,8 @@ class GenerateStatusChangeReportCommand:
                         block = status_mapping.get(
                             status, "discovery"
                         )  # Default to discovery if status not found
-                        if block in ["discovery", "delivery"]:
+                        # Only count tasks that are not in done status
+                        if block in ["discovery", "delivery"] and block != "done":
                             author_blocks[final_group_value][block]["count"] += 1
 
                             # Update last update date if this task has a more recent update
@@ -257,7 +258,7 @@ class GenerateStatusChangeReportCommand:
                                     current_last is None
                                     or task_updated_at > current_last
                                 ):
-                                    author_blocks[group_value][block][
+                                    author_blocks[final_group_value][block][
                                         "last_change"
                                     ] = task_updated_at
 
@@ -402,6 +403,20 @@ class GenerateStatusChangeReportCommand:
             open_tasks_data = self.open_tasks_data.get(
                 group_value, {"discovery": 0, "delivery": 0}
             )
+
+            # Check if all counts are zero - if so, skip this group
+            total_changes = (
+                week3_data["changes"] + week2_data["changes"] + week1_data["changes"]
+            )
+            total_tasks = (
+                week3_data["tasks"] + week2_data["tasks"] + week1_data["tasks"]
+            )
+            total_open_tasks = (
+                open_tasks_data["discovery"] + open_tasks_data["delivery"]
+            )
+
+            if total_changes == 0 and total_tasks == 0 and total_open_tasks == 0:
+                continue  # Skip groups with all zero counts
 
             self.report_data[group_value] = {
                 "week3_changes": week3_data["changes"],  # Hidden week for dynamics

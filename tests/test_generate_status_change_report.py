@@ -821,5 +821,300 @@ class TestDateFormattingAndColumnOrdering:
             ), "This test will guide the implementation of date formatting in console output"
 
 
+class TestExcludeDoneTasksAndFilterZeroRows:
+    """Tests for excluding done tasks from discovery/delivery counts and filtering zero rows."""
+
+    def test_should_exclude_done_tasks_from_discovery_and_delivery_counts(self):
+        """Test that tasks in done status are excluded from discovery and delivery counts."""
+        cmd = GenerateStatusChangeReportCommand()
+
+        # Mock database query results with tasks in different statuses
+        ref_datetime = datetime(2024, 8, 29, 10, 30, 0, tzinfo=timezone.utc)
+        mock_results = [
+            ("user1", 101, "В работе", ref_datetime),  # discovery
+            ("user1", 102, "МП / В работе", ref_datetime),  # delivery
+            ("user1", 103, "Выполнено с ИТ", ref_datetime),  # done - should be excluded
+            (
+                "user1",
+                104,
+                "Раскатано на всех",
+                ref_datetime,
+            ),  # done - should be excluded
+            ("user2", 201, "Аналитика / В работе", ref_datetime),  # discovery
+            ("user2", 202, "Готово к релизу", ref_datetime),  # delivery
+            ("user2", 203, "Done", ref_datetime),  # done - should be excluded
+        ]
+
+        # Mock the status mapping file
+        with patch.object(cmd, "_load_status_mapping") as mock_load_mapping:
+            mock_load_mapping.return_value = {
+                "В работе": "discovery",
+                "МП / В работе": "delivery",
+                "Аналитика / В работе": "discovery",
+                "Готово к релизу": "delivery",
+                "Выполнено с ИТ": "done",
+                "Раскатано на всех": "done",
+                "Done": "done",
+            }
+
+            with patch.object(cmd.db, "query") as mock_query:
+                mock_query.return_value.filter.return_value.all.return_value = (
+                    mock_results
+                )
+
+                result = cmd.get_open_tasks_by_group()
+
+                # Only non-done tasks should be counted
+                expected = {
+                    "user1": {
+                        "discovery": 1,  # Only "В работе", "Выполнено с ИТ" excluded
+                        "delivery": 1,  # Only "МП / В работе", "Раскатано на всех" excluded
+                        "discovery_last_change": ref_datetime,
+                        "delivery_last_change": ref_datetime,
+                    },
+                    "user2": {
+                        "discovery": 1,  # Only "Аналитика / В работе", "Done" excluded
+                        "delivery": 1,  # Only "Готово к релизу", "Done" excluded
+                        "discovery_last_change": ref_datetime,
+                        "delivery_last_change": ref_datetime,
+                    },
+                }
+                assert result == expected
+
+    def test_should_filter_out_authors_with_all_zero_counts(self):
+        """Test that authors with all zero counts are filtered out from report data."""
+        cmd = GenerateStatusChangeReportCommand()
+
+        # Mock data where some authors have all zeros
+        cmd.week1_data = {
+            "user1": {"changes": 5, "tasks": 3},
+            "user2": {"changes": 0, "tasks": 0},  # All zeros
+            "user3": {"changes": 2, "tasks": 1},
+        }
+        cmd.week2_data = {
+            "user1": {"changes": 2, "tasks": 1},
+            "user2": {"changes": 0, "tasks": 0},  # All zeros
+            "user3": {"changes": 1, "tasks": 1},
+        }
+        cmd.week3_data = {
+            "user1": {"changes": 1, "tasks": 1},
+            "user2": {"changes": 0, "tasks": 0},  # All zeros
+            "user3": {"changes": 0, "tasks": 0},
+        }
+        cmd.open_tasks_data = {
+            "user1": {
+                "discovery": 2,
+                "delivery": 1,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },
+            "user2": {
+                "discovery": 0,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },  # All zeros
+            "user3": {
+                "discovery": 1,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },
+        }
+
+        # Mock the methods to return the data we set
+        with patch.object(
+            cmd, "get_status_changes_by_group"
+        ) as mock_get_changes, patch.object(
+            cmd, "get_open_tasks_by_group"
+        ) as mock_get_open_tasks:
+            mock_get_changes.side_effect = [
+                cmd.week1_data,
+                cmd.week2_data,
+                cmd.week3_data,
+            ]
+            mock_get_open_tasks.return_value = cmd.open_tasks_data
+
+            result = cmd.generate_report_data()
+
+            # user2 should be filtered out because all counts are zero
+            expected_authors = {"user1", "user3"}
+            assert set(result.keys()) == expected_authors
+
+            # Verify user1 data is preserved
+            assert result["user1"]["week1_changes"] == 5
+            assert result["user1"]["discovery_tasks"] == 2
+            assert result["user1"]["delivery_tasks"] == 1
+
+            # Verify user3 data is preserved
+            assert result["user3"]["week1_changes"] == 2
+            assert result["user3"]["discovery_tasks"] == 1
+            assert result["user3"]["delivery_tasks"] == 0
+
+    def test_should_keep_authors_with_some_non_zero_counts(self):
+        """Test that authors with at least one non-zero count are kept in report data."""
+        cmd = GenerateStatusChangeReportCommand()
+
+        # Mock data where authors have mixed zero/non-zero counts
+        cmd.week1_data = {
+            "user1": {"changes": 0, "tasks": 0},  # Zero activity but has open tasks
+            "user2": {"changes": 5, "tasks": 3},  # Has activity but no open tasks
+            "user3": {
+                "changes": 0,
+                "tasks": 0,
+            },  # Zero activity and zero open tasks - should be filtered
+        }
+        cmd.week2_data = {
+            "user1": {"changes": 0, "tasks": 0},
+            "user2": {"changes": 0, "tasks": 0},
+            "user3": {"changes": 0, "tasks": 0},
+        }
+        cmd.week3_data = {
+            "user1": {"changes": 0, "tasks": 0},
+            "user2": {"changes": 0, "tasks": 0},
+            "user3": {"changes": 0, "tasks": 0},
+        }
+        cmd.open_tasks_data = {
+            "user1": {
+                "discovery": 2,
+                "delivery": 1,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },  # Has open tasks
+            "user2": {
+                "discovery": 0,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },  # No open tasks but has activity
+            "user3": {
+                "discovery": 0,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },  # All zeros - should be filtered
+        }
+
+        with patch.object(
+            cmd, "get_status_changes_by_group"
+        ) as mock_get_changes, patch.object(
+            cmd, "get_open_tasks_by_group"
+        ) as mock_get_open_tasks:
+            mock_get_changes.side_effect = [
+                cmd.week1_data,
+                cmd.week2_data,
+                cmd.week3_data,
+            ]
+            mock_get_open_tasks.return_value = cmd.open_tasks_data
+
+            result = cmd.generate_report_data()
+
+            # user1 and user2 should be kept, user3 should be filtered out
+            expected_authors = {"user1", "user2"}
+            assert set(result.keys()) == expected_authors
+
+    def test_should_handle_edge_case_all_authors_filtered(self):
+        """Test behavior when all authors are filtered out due to zero counts."""
+        cmd = GenerateStatusChangeReportCommand()
+
+        # Mock data where all authors have zero counts
+        cmd.week1_data = {
+            "user1": {"changes": 0, "tasks": 0},
+            "user2": {"changes": 0, "tasks": 0},
+        }
+        cmd.week2_data = {
+            "user1": {"changes": 0, "tasks": 0},
+            "user2": {"changes": 0, "tasks": 0},
+        }
+        cmd.week3_data = {
+            "user1": {"changes": 0, "tasks": 0},
+            "user2": {"changes": 0, "tasks": 0},
+        }
+        cmd.open_tasks_data = {
+            "user1": {
+                "discovery": 0,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },
+            "user2": {
+                "discovery": 0,
+                "delivery": 0,
+                "discovery_last_change": None,
+                "delivery_last_change": None,
+            },
+        }
+
+        with patch.object(
+            cmd, "get_status_changes_by_group"
+        ) as mock_get_changes, patch.object(
+            cmd, "get_open_tasks_by_group"
+        ) as mock_get_open_tasks:
+            mock_get_changes.side_effect = [
+                cmd.week1_data,
+                cmd.week2_data,
+                cmd.week3_data,
+            ]
+            mock_get_open_tasks.return_value = cmd.open_tasks_data
+
+            result = cmd.generate_report_data()
+
+            # All authors should be filtered out
+            assert result == {}
+
+    def test_should_exclude_done_tasks_in_team_grouping(self):
+        """Test that done tasks are excluded when grouping by team."""
+        cmd = GenerateStatusChangeReportCommand(group_by="team")
+
+        # Mock AuthorTeamMappingService
+        mock_mapping_service = Mock()
+        mock_mapping_service.get_team_by_author.side_effect = (
+            lambda author: f"team_{author}"
+        )
+        mock_mapping_service.get_all_teams.return_value = ["team_user1", "team_user2"]
+        cmd.author_team_mapping_service = mock_mapping_service
+
+        # Mock database query results
+        ref_datetime = datetime(2024, 8, 29, 10, 30, 0, tzinfo=timezone.utc)
+        mock_results = [
+            ("user1", 101, "В работе", ref_datetime),  # discovery
+            ("user1", 102, "Выполнено с ИТ", ref_datetime),  # done - should be excluded
+            ("user2", 201, "МП / В работе", ref_datetime),  # delivery
+            ("user2", 202, "Done", ref_datetime),  # done - should be excluded
+        ]
+
+        with patch.object(cmd, "_load_status_mapping") as mock_load_mapping:
+            mock_load_mapping.return_value = {
+                "В работе": "discovery",
+                "МП / В работе": "delivery",
+                "Выполнено с ИТ": "done",
+                "Done": "done",
+            }
+
+            with patch.object(cmd.db, "query") as mock_query:
+                mock_query.return_value.filter.return_value.all.return_value = (
+                    mock_results
+                )
+
+                result = cmd.get_open_tasks_by_group()
+
+                # Only non-done tasks should be counted, grouped by team
+                expected = {
+                    "team_user1": {
+                        "discovery": 1,  # Only "В работе", "Выполнено с ИТ" excluded
+                        "delivery": 0,
+                        "discovery_last_change": ref_datetime,
+                        "delivery_last_change": None,
+                    },
+                    "team_user2": {
+                        "discovery": 0,
+                        "delivery": 1,  # Only "МП / В работе", "Done" excluded
+                        "discovery_last_change": None,
+                        "delivery_last_change": ref_datetime,
+                    },
+                }
+                assert result == expected
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
