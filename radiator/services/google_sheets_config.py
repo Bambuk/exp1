@@ -72,8 +72,9 @@ class GoogleSheetsConfig:
             errors.append("GOOGLE_SHEETS_DOCUMENT_ID environment variable is required")
 
         # Check reports directory
-        if not cls.REPORTS_DIR.exists():
-            errors.append(f"Reports directory does not exist: {cls.REPORTS_DIR}")
+        reports_dir = cls.get_reports_dir()
+        if not reports_dir.exists():
+            errors.append(f"Reports directory does not exist: {reports_dir}")
 
         # Check polling interval
         if cls.POLLING_INTERVAL <= 0:
@@ -98,7 +99,7 @@ class GoogleSheetsConfig:
         print(f"  Credentials Path: {cls.CREDENTIALS_PATH}")
         print(f"  Document ID: {cls.DOCUMENT_ID}")
         print(f"  Sheet Prefix: {cls.SHEET_PREFIX}")
-        print(f"  Reports Directory: {cls.REPORTS_DIR}")
+        print(f"  Reports Directory: {cls.get_reports_dir()}")
         print(f"  Polling Interval: {cls.POLLING_INTERVAL}s")
         print(f"  Max File Size: {cls.MAX_FILE_SIZE / (1024*1024):.1f}MB")
         print(f"  Max Rows: {cls.MAX_ROWS:,}")

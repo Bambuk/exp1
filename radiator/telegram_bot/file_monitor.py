@@ -1,6 +1,7 @@
 """File monitoring for reports directory."""
 
 import json
+import logging
 import os
 import time
 from datetime import datetime
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Dict, Optional, Set
 
 from .config import TelegramBotConfig
+
+logger = logging.getLogger(__name__)
 
 
 class FileMonitor:
@@ -19,6 +22,8 @@ class FileMonitor:
         self.known_files: Set[str] = set()
         self.file_timestamps: Dict[str, float] = {}
         self._load_state()
+        # Clean up any upload marker files that might be in the state
+        self.cleanup_upload_markers_from_state()
 
     def _load_state(self):
         """Load known files state from file."""
@@ -91,6 +96,20 @@ class FileMonitor:
         if file_path.exists():
             return file_path
         return None
+
+    def cleanup_upload_markers_from_state(self):
+        """Remove upload marker files from known_files state."""
+        original_count = len(self.known_files)
+        self.known_files = {
+            filename
+            for filename in self.known_files
+            if not filename.startswith(".upload_me_")
+        }
+        removed_count = original_count - len(self.known_files)
+
+        if removed_count > 0:
+            logger.info(f"Cleaned up {removed_count} upload marker files from state")
+            self._save_state()
 
     def get_file_info(self, filename: str) -> Optional[Dict]:
         """Get file information."""
