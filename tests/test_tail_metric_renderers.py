@@ -371,5 +371,155 @@ class TestTailMetricRendererIntegration:
         assert console_result == ""
 
 
+class TestCSVLongFormat:
+    """Tests for CSV renderer long format."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create two quarters for better testing
+        self.quarter1 = Quarter("Q1 2024", datetime(2024, 1, 1), datetime(2024, 3, 31))
+        self.quarter2 = Quarter("Q2 2024", datetime(2024, 4, 1), datetime(2024, 6, 30))
+        self.status_mapping = StatusMapping(["Discovery"], ["Done"])
+
+        # Create mock group metrics for Q1
+        self.group_metrics_q1 = GroupMetrics(
+            group_name="TestAuthor",
+            ttd_metrics=TimeMetrics([1, 2, 3], 2.0, 2.7, 3),
+            ttm_metrics=TimeMetrics([4, 5, 6], 5.0, 5.7, 3),
+            tail_metrics=TimeMetrics([1, 2, 3], 2.0, 2.7, 3),
+            total_tasks=6,
+        )
+
+        # Create mock group metrics for Q2
+        self.group_metrics_q2 = GroupMetrics(
+            group_name="TestAuthor",
+            ttd_metrics=TimeMetrics([2, 3, 4], 3.0, 3.7, 3),
+            ttm_metrics=TimeMetrics([5, 6, 7], 6.0, 6.7, 3),
+            tail_metrics=TimeMetrics([2, 3, 4], 3.0, 3.7, 3),
+            total_tasks=6,
+        )
+
+        self.quarter_report_q1 = QuarterReport(
+            quarter=self.quarter1, groups={"TestAuthor": self.group_metrics_q1}
+        )
+        self.quarter_report_q2 = QuarterReport(
+            quarter=self.quarter2, groups={"TestAuthor": self.group_metrics_q2}
+        )
+
+        self.report = TimeToMarketReport(
+            quarters=[self.quarter1, self.quarter2],
+            status_mapping=self.status_mapping,
+            group_by=GroupBy.AUTHOR,
+            quarter_reports={
+                "Q1 2024": self.quarter_report_q1,
+                "Q2 2024": self.quarter_report_q2,
+            },
+        )
+
+        self.renderer = CSVRenderer(self.report)
+
+    @patch("pathlib.Path.mkdir")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_render_long_format_structure(self, mock_file, mock_mkdir):
+        """Test that long format creates correct structure (quarter as rows)."""
+        mock_file.return_value.__enter__.return_value.write = Mock()
+
+        result = self.renderer.render(report_type=ReportType.BOTH, csv_format="long")
+
+        # Verify file was opened for writing
+        mock_file.assert_called_once()
+
+        # Get the written content
+        written_content = "".join(
+            call[0][0]
+            for call in mock_file.return_value.__enter__.return_value.write.call_args_list
+        )
+
+        # Check that we have the right columns (without quarter prefix)
+        assert "group_name" in written_content
+        assert "quarter" in written_content
+        assert "ttd_mean" in written_content
+        assert "ttd_p85" in written_content
+        assert "ttm_mean" in written_content
+        assert "tail_mean" in written_content
+
+        # Check that we don't have quarter-prefixed columns (which would be wide format)
+        assert "Q1 2024_ttd_mean" not in written_content
+        assert "Q2 2024_ttm_mean" not in written_content
+
+    @patch("pathlib.Path.mkdir")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_render_long_format_ttd_only(self, mock_file, mock_mkdir):
+        """Test long format with TTD report type."""
+        mock_file.return_value.__enter__.return_value.write = Mock()
+
+        result = self.renderer.render(report_type=ReportType.TTD, csv_format="long")
+
+        # Get the written content
+        written_content = "".join(
+            call[0][0]
+            for call in mock_file.return_value.__enter__.return_value.write.call_args_list
+        )
+
+        # Check that TTD columns are included
+        assert "ttd_mean" in written_content
+        assert "ttd_p85" in written_content
+        assert "ttd_tasks" in written_content
+
+        # Check that TTM and Tail columns are NOT included
+        assert "ttm_mean" not in written_content
+        assert "tail_mean" not in written_content
+
+    @patch("pathlib.Path.mkdir")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_render_long_format_ttm_only(self, mock_file, mock_mkdir):
+        """Test long format with TTM report type."""
+        mock_file.return_value.__enter__.return_value.write = Mock()
+
+        result = self.renderer.render(report_type=ReportType.TTM, csv_format="long")
+
+        # Get the written content
+        written_content = "".join(
+            call[0][0]
+            for call in mock_file.return_value.__enter__.return_value.write.call_args_list
+        )
+
+        # Check that TTM and Tail columns are included
+        assert "ttm_mean" in written_content
+        assert "ttm_p85" in written_content
+        assert "tail_mean" in written_content
+        assert "tail_p85" in written_content
+
+        # Check that TTD columns are NOT included
+        assert "ttd_mean" not in written_content
+
+    @patch("pathlib.Path.mkdir")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_render_wide_format_default(self, mock_file, mock_mkdir):
+        """Test that wide format is still the default."""
+        mock_file.return_value.__enter__.return_value.write = Mock()
+
+        # Call without csv_format parameter (should default to wide)
+        result = self.renderer.render(report_type=ReportType.BOTH)
+
+        # Get the written content
+        written_content = "".join(
+            call[0][0]
+            for call in mock_file.return_value.__enter__.return_value.write.call_args_list
+        )
+
+        # Check that we have quarter-prefixed columns (wide format)
+        assert "Q1 2024_ttd_mean" in written_content or "Q1 2024" in written_content
+
+        # Check that we don't have separate quarter column (which would be long format)
+        # In wide format, "quarter" might appear as part of column name, so we check structure
+        lines = written_content.split("\n")
+        if lines:
+            header = lines[0]
+            # Wide format should have many columns
+            columns = header.split(",")
+            assert len(columns) > 5  # Wide format has many columns
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

@@ -109,9 +109,24 @@ class CommandExecutor:
 
         return success, combined_output, ""
 
-    async def generate_time_to_market_report_teams(self) -> Tuple[bool, str, str]:
-        """Generate time to market report by teams."""
-        return await self.run_make_command("generate-time-to-market-report-teams")
+    async def generate_time_to_market_report_teams(
+        self, csv_format: str = "wide"
+    ) -> Tuple[bool, str, str]:
+        """
+        Generate time to market report by teams.
+
+        Args:
+            csv_format: CSV format - "wide" or "long"
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
+        if csv_format == "long":
+            return await self.run_make_command(
+                "generate-time-to-market-report-teams-long"
+            )
+        else:
+            return await self.run_make_command("generate-time-to-market-report-teams")
 
     async def sync_and_report(self) -> Tuple[bool, str, str]:
         """Sync tracker and generate status report."""
@@ -178,7 +193,7 @@ class CommandExecutor:
             Dictionary of command names and descriptions
         """
         return {
-            "generate_time_to_market_teams": "📊 Сгенерировать отчет Time to Market по командам",
+            "generate_time_to_market_teams": "📊 Сгенерировать отчет Time to Market по командам (опционально: long)",
             "sync_and_report": "🔄 Синхронизировать трекер и сгенерировать отчет",
             "sync_tracker": "🔄 Синхронизировать трекер с фильтром (обязательный параметр)",
             "restart_service": "🔄 Перезапустить сервис телеграм бота",
@@ -201,6 +216,7 @@ class CommandExecutor:
         help_text += "• /sync_tracker Queue: CPO Status: In Progress\n"
         help_text += "• /sync_tracker key:CPO-*\n"
         help_text += "• /generate_time_to_market_teams\n"
+        help_text += "• /generate_time_to_market_teams long\n"
         help_text += "• /sync_and_report\n"
 
         return help_text

@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-time-to-market-report generate-time-to-market-report-teams
+.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-time-to-market-report generate-time-to-market-report-teams generate-time-to-market-report-long generate-time-to-market-report-teams-long
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -23,8 +23,10 @@ help:  ## Show this help message
 	@echo '  sync-and-report - Complete CPO workflow: sync tasks + generate report'
 	@echo ''
 	@echo 'Time To Market Commands:'
-	@echo '  generate-time-to-market-report - Generate TTD/TTM report by authors'
-	@echo '  generate-time-to-market-report-teams - Generate TTD/TTM report by teams'
+	@echo '  generate-time-to-market-report - Generate TTD/TTM report by authors (wide format)'
+	@echo '  generate-time-to-market-report-teams - Generate TTD/TTM report by teams (wide format)'
+	@echo '  generate-time-to-market-report-long - Generate TTD/TTM report by authors (long format)'
+	@echo '  generate-time-to-market-report-teams-long - Generate TTD/TTM report by teams (long format)'
 	@echo '  generate-time-to-market-report-all - Generate both author and team TTD/TTM reports'
 	@echo ''
 	@echo 'Google Sheets Commands:'
@@ -231,3 +233,15 @@ generate-time-to-market-report-teams:  ## Generate Time To Delivery and Time To 
 	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both
 	@echo ""
 	@echo "✅ Time To Market report by teams generated successfully!"
+
+generate-time-to-market-report-long:  ## Generate Time To Delivery and Time To Market report by authors (long format)
+	@echo "📊 Generating Time To Market report by authors (long format)..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by author --report-type both --csv-format long
+	@echo ""
+	@echo "✅ Time To Market report by authors (long format) generated successfully!"
+
+generate-time-to-market-report-teams-long:  ## Generate Time To Delivery and Time To Market report by teams (long format)
+	@echo "📊 Generating Time To Market report by teams (long format)..."
+	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both --csv-format long
+	@echo ""
+	@echo "✅ Time To Market report by teams (long format) generated successfully!"

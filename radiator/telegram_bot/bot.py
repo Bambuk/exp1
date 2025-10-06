@@ -394,7 +394,11 @@ class ReportsTelegramBot:
             if command == "help":
                 await self._handle_help_command()
             elif command == "generate_time_to_market_teams":
-                await self._handle_generate_time_to_market_teams()
+                # Parse format argument (default to "wide")
+                csv_format = "wide"
+                if args and args[0].lower() in ["long", "wide"]:
+                    csv_format = args[0].lower()
+                await self._handle_generate_time_to_market_teams(csv_format)
             elif command == "sync_and_report":
                 await self._handle_sync_and_report()
             elif command == "sync_tracker":
@@ -426,21 +430,29 @@ class ReportsTelegramBot:
         help_text = self.command_executor.format_command_help()
         await self.send_message(help_text)
 
-    async def _handle_generate_time_to_market_teams(self) -> None:
-        """Handle generate time to market report by teams command."""
+    async def _handle_generate_time_to_market_teams(
+        self, csv_format: str = "wide"
+    ) -> None:
+        """
+        Handle generate time to market report by teams command.
+
+        Args:
+            csv_format: CSV format - "wide" or "long"
+        """
+        format_text = "длинном" if csv_format == "long" else "широком"
         await self.send_message(
-            "🔄 Запускаю генерацию отчета Time to Market по командам..."
+            f"🔄 Запускаю генерацию отчета Time to Market по командам ({format_text} формат)..."
         )
 
         (
             success,
             stdout,
             stderr,
-        ) = await self.command_executor.generate_time_to_market_report_teams()
+        ) = await self.command_executor.generate_time_to_market_report_teams(csv_format)
 
         if success:
             await self.send_message(
-                "✅ Отчет Time to Market по командам успешно сгенерирован!"
+                f"✅ Отчет Time to Market по командам ({format_text} формат) успешно сгенерирован!"
             )
 
             # Send detailed output

@@ -99,6 +99,24 @@ radiator generate-time-to-market-report --group-by team
 
 # С указанием файлов
 radiator generate-time-to-market-report --csv data/reports/time_to_market.csv --table data/reports/time_to_market.png
+
+# С длинным форматом CSV
+radiator generate-time-to-market-report --csv-format long
+```
+
+### 3. Через Makefile
+```bash
+# Генерация отчёта по авторам (широкий формат)
+make generate-time-to-market-report
+
+# Генерация отчёта по авторам (длинный формат)
+make generate-time-to-market-report-long
+
+# Генерация отчёта по командам (широкий формат)
+make generate-time-to-market-report-teams
+
+# Генерация отчёта по командам (длинный формат)
+make generate-time-to-market-report-teams-long
 ```
 
 ## Параметры команды
@@ -108,15 +126,49 @@ radiator generate-time-to-market-report --csv data/reports/time_to_market.csv --
 | `--group-by` | Группировка: `author` или `team` | `author` |
 | `--csv` | Путь к CSV файлу отчёта | `data/reports/time_to_market_report_{timestamp}.csv` |
 | `--table` | Путь к PNG файлу таблицы | `data/reports/time_to_market_table_{timestamp}.png` |
+| `--csv-format` | Формат CSV: `wide` (кварталы в колонках) или `long` (кварталы в строках) | `wide` |
+| `--report-type` | Тип отчёта: `ttd`, `ttm` или `both` | `both` |
 
 ## Структура выходных файлов
 
 ### CSV файл
+
+#### Формат Wide (по умолчанию)
+В широком формате кварталы представлены как отдельные колонки:
 ```csv
-group_name,period,tasks_count,ttd_mean,ttd_p85,ttm_mean,ttm_p85
-Иван Иванов,2025.Q1,5,12.4,18.0,45.2,67.0
-Петр Петров,2025.Q1,3,8.7,12.0,38.1,55.0
-Команда А,2025.Q1,8,10.8,15.0,42.1,61.0
+group_name,Q1 2024_ttd_mean,Q1 2024_ttd_p85,Q1 2024_ttd_tasks,Q2 2024_ttd_mean,Q2 2024_ttd_p85,Q2 2024_ttd_tasks,...
+Иван Иванов,12.4,18.0,5,10.2,15.3,7,...
+Петр Петров,8.7,12.0,3,9.5,13.8,4,...
+```
+
+**Преимущества:**
+- Компактный формат для небольшого количества кварталов
+- Удобен для визуального анализа в Excel
+- Легко сравнивать метрики между кварталами
+
+#### Формат Long (длинный)
+В длинном формате квартал представлен как отдельная колонка:
+```csv
+group_name,quarter,ttd_mean,ttd_p85,ttd_tasks,ttm_mean,ttm_p85,ttm_tasks,...
+Иван Иванов,Q1 2024,12.4,18.0,5,45.2,67.0,5,...
+Иван Иванов,Q2 2024,10.2,15.3,7,42.1,61.3,7,...
+Петр Петров,Q1 2024,8.7,12.0,3,38.1,55.0,3,...
+Петр Петров,Q2 2024,9.5,13.8,4,40.2,58.5,4,...
+```
+
+**Преимущества:**
+- Удобен для анализа большого количества кварталов
+- Легко импортировать в аналитические инструменты (pandas, SQL)
+- Проще для построения графиков и pivot-таблиц
+- Более читаем при большом количестве периодов
+
+**Для выбора формата используйте параметр `--csv-format`:**
+```bash
+# Широкий формат (по умолчанию)
+python -m radiator.commands.generate_time_to_market_report --csv-format wide
+
+# Длинный формат
+python -m radiator.commands.generate_time_to_market_report --csv-format long
 ```
 
 ### Табличный файл

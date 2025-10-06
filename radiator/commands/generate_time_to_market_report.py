@@ -274,7 +274,10 @@ class GenerateTimeToMarketReportCommand:
             )
 
     def generate_csv(
-        self, filepath: Optional[str] = None, report_type: ReportType = ReportType.BOTH
+        self,
+        filepath: Optional[str] = None,
+        report_type: ReportType = ReportType.BOTH,
+        csv_format: str = "wide",
     ) -> str:
         """
         Generate CSV report.
@@ -282,6 +285,7 @@ class GenerateTimeToMarketReportCommand:
         Args:
             filepath: Output file path (optional)
             report_type: Type of report to generate
+            csv_format: CSV format - "wide" (quarters as columns) or "long" (quarters as rows)
 
         Returns:
             Path to generated CSV file
@@ -293,7 +297,7 @@ class GenerateTimeToMarketReportCommand:
             return ""
 
         renderer = CSVRenderer(self.report, self.output_dir)
-        return renderer.render(filepath, report_type)
+        return renderer.render(filepath, report_type, csv_format)
 
     def generate_table(
         self, filepath: Optional[str] = None, report_type: ReportType = ReportType.BOTH
@@ -471,6 +475,12 @@ def main():
     parser.add_argument("--table", help="Table output file path")
     parser.add_argument("--task-details", help="Task details CSV output file path")
     parser.add_argument(
+        "--csv-format",
+        choices=["wide", "long"],
+        default="wide",
+        help="CSV format: wide (quarters as columns, default) or long (quarters as rows)",
+    )
+    parser.add_argument(
         "--config-dir",
         default="data/config",
         help="Configuration directory path (default: data/config)",
@@ -498,19 +508,23 @@ def main():
 
             if report_type == ReportType.BOTH:
                 # Generate TTD files
-                ttd_csv_file = cmd.generate_csv(None, ReportType.TTD)
+                ttd_csv_file = cmd.generate_csv(None, ReportType.TTD, args.csv_format)
                 ttd_table_file = cmd.generate_table(None, ReportType.TTD)
 
                 # Generate TTM files
-                ttm_csv_file = cmd.generate_csv(None, ReportType.TTM)
+                ttm_csv_file = cmd.generate_csv(None, ReportType.TTM, args.csv_format)
                 ttm_table_file = cmd.generate_table(None, ReportType.TTM)
             else:
                 # Generate single report type files
                 if report_type == ReportType.TTD:
-                    ttd_csv_file = cmd.generate_csv(args.csv, ReportType.TTD)
+                    ttd_csv_file = cmd.generate_csv(
+                        args.csv, ReportType.TTD, args.csv_format
+                    )
                     ttd_table_file = cmd.generate_table(args.table, ReportType.TTD)
                 elif report_type == ReportType.TTM:
-                    ttm_csv_file = cmd.generate_csv(args.csv, ReportType.TTM)
+                    ttm_csv_file = cmd.generate_csv(
+                        args.csv, ReportType.TTM, args.csv_format
+                    )
                     ttm_table_file = cmd.generate_table(args.table, ReportType.TTM)
 
             # Generate task details CSV (always generate, use provided path or default)
