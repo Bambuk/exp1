@@ -54,6 +54,10 @@ class FileMonitor:
         current_files = {}
         for file_path in self.reports_dir.iterdir():
             if file_path.is_file():
+                # Skip upload marker files
+                if file_path.name.startswith(".upload_me_"):
+                    continue
+
                 extension = file_path.suffix.lower()
                 if extension in TelegramBotConfig.MONITORED_EXTENSIONS:
                     file_key = file_path.name
