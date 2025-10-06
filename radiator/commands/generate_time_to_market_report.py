@@ -357,6 +357,7 @@ class GenerateTimeToMarketReportCommand:
                     task_details.append(
                         {
                             "Автор": task.author,
+                            "Команда": task.team,
                             "Ключ задачи": task.key,
                             "Название": task.summary,
                             "TTD": ttd if ttd is not None else "",
@@ -372,6 +373,7 @@ class GenerateTimeToMarketReportCommand:
                 with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
                     fieldnames = [
                         "Автор",
+                        "Команда",
                         "Ключ задачи",
                         "Название",
                         "TTD",

@@ -157,6 +157,7 @@ class TestTaskDetailsCSV:
                 # Verify headers
                 expected_headers = [
                     "Автор",
+                    "Команда",
                     "Ключ задачи",
                     "Название",
                     "TTD",
@@ -173,6 +174,7 @@ class TestTaskDetailsCSV:
                 # Verify first row structure
                 first_row = rows[0]
                 assert "Автор" in first_row
+                assert "Команда" in first_row
                 assert "Ключ задачи" in first_row
                 assert "Название" in first_row
                 assert "TTD" in first_row
