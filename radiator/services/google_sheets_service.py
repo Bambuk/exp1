@@ -751,7 +751,7 @@ class GoogleSheetsService:
                 },
                 "rows": [
                     {
-                        "sourceColumnOffset": self._get_column_index("Автор"),
+                        "sourceColumnOffset": self._get_column_index("Команда"),
                         "showTotals": True,
                         "sortOrder": "ASCENDING",
                     },
