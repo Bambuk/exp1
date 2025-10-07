@@ -12,6 +12,7 @@ from typing import Dict
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from radiator.core.single_instance import SingleInstance
 from radiator.services.csv_file_monitor import CSVFileMonitor
 from radiator.services.csv_processor import CSVProcessor
 from radiator.services.google_sheets_config import GoogleSheetsConfig
@@ -297,6 +298,14 @@ class GoogleSheetsCSVUploader:
     def start_monitoring(self):
         """Start continuous monitoring of CSV files with upload markers."""
         logging.info("Starting CSV file monitoring for files with upload markers...")
+
+        # Check for single instance
+        try:
+            with SingleInstance("google_sheets_uploader"):
+                logging.info("Google Sheets uploader instance lock acquired")
+        except RuntimeError as e:
+            logging.error(f"Failed to start Google Sheets uploader: {e}")
+            sys.exit(1)
 
         try:
             while True:

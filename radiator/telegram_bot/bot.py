@@ -2,12 +2,15 @@
 
 import asyncio
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
+
+from radiator.core.single_instance import SingleInstance
 
 from .command_executor import CommandExecutor
 from .config import TelegramBotConfig
@@ -369,6 +372,14 @@ class ReportsTelegramBot:
     async def start_monitoring(self) -> None:
         """Start continuous monitoring of reports directory."""
         logger.info("Starting Telegram bot monitoring...")
+
+        # Check for single instance
+        try:
+            with SingleInstance("telegram_bot"):
+                logger.info("Telegram bot instance lock acquired")
+        except RuntimeError as e:
+            logger.error(f"Failed to start Telegram bot: {e}")
+            sys.exit(1)
 
         try:
             # Send startup message only if successful
