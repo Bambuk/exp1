@@ -437,9 +437,11 @@ class GoogleSheetsService:
 
         for (group_name, quarter), group_data in grouped:
             if pivot_type == "ttd":
-                # TTD metrics
-                ttd_values = group_data["TTD"].dropna()
-                ttd_pause_values = group_data["TTD Pause"].dropna()
+                # TTD metrics - filter out empty strings and convert to numeric
+                ttd_values = pd.to_numeric(group_data["TTD"], errors="coerce").dropna()
+                ttd_pause_values = pd.to_numeric(
+                    group_data["TTD Pause"], errors="coerce"
+                ).dropna()
 
                 if len(ttd_values) == 0:
                     continue
@@ -458,9 +460,11 @@ class GoogleSheetsService:
                 )
 
             elif pivot_type == "ttm":
-                # TTM metrics
-                ttm_values = group_data["TTM"].dropna()
-                tail_values = group_data["Tail"].dropna()
+                # TTM metrics - filter out empty strings and convert to numeric
+                ttm_values = pd.to_numeric(group_data["TTM"], errors="coerce").dropna()
+                tail_values = pd.to_numeric(
+                    group_data["Tail"], errors="coerce"
+                ).dropna()
 
                 if len(ttm_values) == 0:
                     continue
@@ -577,6 +581,42 @@ class GoogleSheetsService:
 
         except Exception as e:
             logger.error(f"Failed to create pivot tables: {e}")
+            return {"ttd_pivot": None, "ttm_pivot": None}
+
+    def create_pivot_tables_from_dataframe(
+        self, details_data: pd.DataFrame, document_id: str
+    ) -> Dict[str, Optional[int]]:
+        """
+        Create pivot tables from DataFrame data.
+
+        Args:
+            details_data: DataFrame with details data
+            document_id: Google Sheets document ID
+
+        Returns:
+            Dictionary with sheet IDs: {'ttd_pivot': sheet_id, 'ttm_pivot': sheet_id}
+        """
+        try:
+            if details_data is None or details_data.empty:
+                logger.warning("No details data provided for pivot tables")
+                return {"ttd_pivot": None, "ttm_pivot": None}
+
+            # Create TTD pivot data
+            ttd_pivot_data = self._create_pivot_data(details_data, "ttd")
+            ttd_sheet_id = self._create_pivot_sheet(
+                document_id, ttd_pivot_data, "TTD Pivot"
+            )
+
+            # Create TTM pivot data
+            ttm_pivot_data = self._create_pivot_data(details_data, "ttm")
+            ttm_sheet_id = self._create_pivot_sheet(
+                document_id, ttm_pivot_data, "TTM Pivot"
+            )
+
+            return {"ttd_pivot": ttd_sheet_id, "ttm_pivot": ttm_sheet_id}
+
+        except Exception as e:
+            logger.error(f"Failed to create pivot tables from DataFrame: {e}")
             return {"ttd_pivot": None, "ttm_pivot": None}
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:

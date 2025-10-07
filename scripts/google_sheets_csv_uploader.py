@@ -27,6 +27,7 @@ class GoogleSheetsCSVUploader:
         self.sheets_service = None
         self.file_monitor = CSVFileMonitor()
         self.csv_processor = CSVProcessor()
+        self.reports_dir = self.config.get_reports_dir()
         self.setup_logging()
 
     def setup_logging(self):
@@ -190,9 +191,9 @@ class GoogleSheetsCSVUploader:
                 logging.error(f"Failed to upload {file_path.name} to Google Sheets")
                 return False
 
-            # Create pivot tables using the document ID
-            pivot_results = self.sheets_service.create_pivot_tables_from_details(
-                self.sheets_service.document_id
+            # Create pivot tables using the DataFrame data
+            pivot_results = self.sheets_service.create_pivot_tables_from_dataframe(
+                df, self.sheets_service.document_id
             )
 
             if pivot_results["ttd_pivot"] is None or pivot_results["ttm_pivot"] is None:
