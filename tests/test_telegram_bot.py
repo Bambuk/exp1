@@ -46,6 +46,23 @@ class TestReportsTelegramBot:
         )
 
     @pytest.mark.asyncio
+    async def test_handle_callback_query_upload_csv_with_pivots(self, mock_bot):
+        """Test handling upload CSV with pivots callback query."""
+        query = Mock()
+        query.data = "upload_csv_with_pivots:test_file.csv"
+        query.id = "test_query_456"
+        query.from_user = Mock()
+        query.from_user.username = "test_user"
+
+        mock_bot._handle_upload_csv_with_pivots_request = AsyncMock()
+
+        await mock_bot.handle_callback_query(query)
+
+        mock_bot._handle_upload_csv_with_pivots_request.assert_called_once_with(
+            "test_query_456", "test_file.csv"
+        )
+
+    @pytest.mark.asyncio
     async def test_handle_callback_query_unknown(self, mock_bot):
         """Test handling unknown callback query."""
         query = Mock()
@@ -244,3 +261,50 @@ class TestReportsTelegramBot:
         result = await mock_bot.test_connection()
 
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_handle_upload_csv_with_pivots_request_success(self, mock_bot):
+        """Test successful upload CSV with pivots request handling."""
+        mock_bot.bot.answer_callback_query = AsyncMock()
+
+        with patch("pathlib.Path.exists", return_value=True), patch(
+            "builtins.open", mock_open(read_data="test data")
+        ):
+            await mock_bot._handle_upload_csv_with_pivots_request(
+                "test_query_123", "test_file.csv"
+            )
+
+            mock_bot.bot.answer_callback_query.assert_called_once_with(
+                "test_query_123",
+                text="✅ Файл test_file.csv добавлен в очередь загрузки с созданием сводных таблиц",
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_upload_csv_with_pivots_request_file_not_found(self, mock_bot):
+        """Test upload CSV with pivots request when file not found."""
+        mock_bot.bot.answer_callback_query = AsyncMock()
+
+        with patch("pathlib.Path.exists", return_value=False):
+            await mock_bot._handle_upload_csv_with_pivots_request(
+                "test_query_123", "nonexistent_file.csv"
+            )
+
+            mock_bot.bot.answer_callback_query.assert_called_once_with(
+                "test_query_123", text="❌ Файл nonexistent_file.csv не найден"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_upload_csv_with_pivots_request_error(self, mock_bot):
+        """Test upload CSV with pivots request when error occurs."""
+        mock_bot.bot.answer_callback_query = AsyncMock()
+
+        with patch("pathlib.Path.exists", return_value=True), patch(
+            "builtins.open", side_effect=Exception("File error")
+        ):
+            await mock_bot._handle_upload_csv_with_pivots_request(
+                "test_query_123", "test_file.csv"
+            )
+
+            mock_bot.bot.answer_callback_query.assert_called_once_with(
+                "test_query_123", text="❌ Ошибка создания маркера для test_file.csv"
+            )

@@ -159,6 +159,55 @@ class GoogleSheetsCSVUploader:
 
         return stats
 
+    def process_file_with_pivots(self, file_path: Path) -> bool:
+        """
+        Process a single CSV file and upload to Google Sheets with pivot tables.
+
+        Args:
+            file_path: Path to the CSV file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            logging.info(f"Processing file with pivots: {file_path.name}")
+
+            # Validate file
+            validation = self.csv_processor.validate_file(file_path)
+            if not validation["valid"]:
+                logging.error(f"File validation failed: {validation['errors']}")
+                return False
+
+            # Process CSV
+            df = self.csv_processor.process_csv(file_path)
+            if df is None:
+                logging.error(f"Failed to process CSV file: {file_path.name}")
+                return False
+
+            # Upload to Google Sheets
+            success = self.sheets_service.upload_csv_to_sheet(file_path)
+            if not success:
+                logging.error(f"Failed to upload {file_path.name} to Google Sheets")
+                return False
+
+            # Create pivot tables using the document ID
+            pivot_results = self.sheets_service.create_pivot_tables_from_details(
+                self.sheets_service.document_id
+            )
+
+            if pivot_results["ttd_pivot"] is None or pivot_results["ttm_pivot"] is None:
+                logging.error(f"Failed to create pivot tables for {file_path.name}")
+                return False
+
+            logging.info(
+                f"Successfully uploaded {file_path.name} with pivot tables to Google Sheets"
+            )
+            return True
+
+        except Exception as e:
+            logging.error(f"Error processing file with pivots {file_path.name}: {e}")
+            return False
+
     def process_files_with_markers(self) -> Dict[str, int]:
         """
         Process only CSV files that have upload markers (requested via Telegram).
@@ -201,6 +250,49 @@ class GoogleSheetsCSVUploader:
 
         return stats
 
+    def process_files_with_pivot_markers(self) -> Dict[str, int]:
+        """
+        Process only CSV files that have pivot upload markers (requested via Telegram).
+
+        Returns:
+            Dictionary with processing statistics
+        """
+        stats = {"processed": 0, "failed": 0, "skipped": 0}
+
+        # Get files with pivot upload markers
+        files_with_markers = self.file_monitor.get_files_with_pivot_markers()
+
+        if not files_with_markers:
+            logging.info("No files with pivot upload markers found")
+            return stats
+
+        logging.info(f"Found {len(files_with_markers)} files with pivot upload markers")
+
+        for filename in files_with_markers:
+            file_path = self.reports_dir / filename
+
+            if not file_path.exists():
+                logging.warning(f"File {filename} no longer exists, skipping")
+                stats["skipped"] += 1
+                continue
+
+            # Process file with pivots
+            if self.process_file_with_pivots(file_path):
+                # Mark as processed and remove marker
+                self.file_monitor.mark_file_processed(filename)
+                self.file_monitor.remove_pivot_upload_marker(filename)
+                logging.info(
+                    f"Successfully processed and removed pivot marker for {filename}"
+                )
+                stats["processed"] += 1
+            else:
+                self.file_monitor.mark_file_failed(
+                    filename, "Processing with pivots failed"
+                )
+                stats["failed"] += 1
+
+        return stats
+
     def start_monitoring(self):
         """Start continuous monitoring of CSV files with upload markers."""
         logging.info("Starting CSV file monitoring for files with upload markers...")
@@ -229,7 +321,33 @@ class GoogleSheetsCSVUploader:
                                 self.file_monitor.mark_file_failed(
                                     filename, "Processing failed"
                                 )
-                else:
+
+                # Check for files with pivot upload markers
+                files_with_pivot_markers = (
+                    self.file_monitor.get_files_with_pivot_markers()
+                )
+
+                if files_with_pivot_markers:
+                    logging.info(
+                        f"Found {len(files_with_pivot_markers)} files with pivot upload markers"
+                    )
+
+                    for filename in files_with_pivot_markers:
+                        file_path = self.file_monitor.get_file_path(filename)
+                        if file_path:
+                            success = self.process_file_with_pivots(file_path)
+                            if success:
+                                self.file_monitor.mark_file_processed(filename)
+                                self.file_monitor.remove_pivot_upload_marker(filename)
+                                logging.info(
+                                    f"Successfully processed and removed pivot marker for {filename}"
+                                )
+                            else:
+                                self.file_monitor.mark_file_failed(
+                                    filename, "Processing with pivots failed"
+                                )
+
+                if not files_with_markers and not files_with_pivot_markers:
                     logging.debug("No files with upload markers found")
 
                 # Cleanup old records
@@ -276,6 +394,11 @@ def main():
         "--process-markers",
         action="store_true",
         help="Process files with upload markers (from Telegram)",
+    )
+    parser.add_argument(
+        "--process-pivot-markers",
+        action="store_true",
+        help="Process files with pivot upload markers (from Telegram)",
     )
     parser.add_argument("--process-file", type=str, help="Process specific CSV file")
     parser.add_argument(
@@ -353,6 +476,15 @@ def main():
     if args.process_markers:
         stats = uploader.process_files_with_markers()
         print(f"Processing files with upload markers completed:")
+        print(f"  Processed: {stats['processed']}")
+        print(f"  Failed: {stats['failed']}")
+        print(f"  Skipped: {stats['skipped']}")
+        return
+
+    # Process files with pivot markers if requested
+    if args.process_pivot_markers:
+        stats = uploader.process_files_with_pivot_markers()
+        print(f"Processing files with pivot upload markers completed:")
         print(f"  Processed: {stats['processed']}")
         print(f"  Failed: {stats['failed']}")
         print(f"  Skipped: {stats['skipped']}")

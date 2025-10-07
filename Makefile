@@ -201,6 +201,10 @@ google-sheets-monitor: ## Start Google Sheets CSV uploader monitoring
 	@echo "Starting Google Sheets CSV uploader monitoring..."
 	@python3 scripts/google_sheets_csv_uploader.py --monitor
 
+google-sheets-process-pivots: ## Process CSV files with pivot upload markers
+	@echo "Processing CSV files with pivot upload markers..."
+	@python3 scripts/google_sheets_csv_uploader.py --process-pivot-markers
+
 # Status change report commands
 generate-status-report:  ## Generate CPO tasks status change report by authors (last 2 weeks)
 	@echo "Generating CPO tasks status change report by authors for last 2 weeks..."

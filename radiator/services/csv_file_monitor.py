@@ -163,6 +163,34 @@ class CSVFileMonitor:
 
         return files_with_markers
 
+    def get_files_with_pivot_markers(self) -> List[str]:
+        """
+        Get list of CSV files that have pivot upload markers (requested for Google Sheets upload with pivot tables).
+
+        Returns:
+            List of filenames with pivot upload markers
+        """
+        if not self.reports_dir.exists():
+            return []
+
+        files_with_markers = []
+
+        # Look for pivot marker files
+        for file_path in self.reports_dir.iterdir():
+            if file_path.is_file() and file_path.name.startswith(
+                ".upload_with_pivots_"
+            ):
+                # Extract original filename from marker
+                original_filename = file_path.name[
+                    20:
+                ]  # Remove '.upload_with_pivots_' prefix
+                # Check if original file still exists
+                original_file_path = self.reports_dir / original_filename
+                if original_file_path.exists() and original_filename.endswith(".csv"):
+                    files_with_markers.append(original_filename)
+
+        return files_with_markers
+
     def remove_upload_marker(self, filename: str) -> bool:
         """
         Remove upload marker for a specific file.
@@ -184,6 +212,29 @@ class CSVFileMonitor:
             return False
         except Exception as e:
             logger.error(f"Failed to remove marker for {filename}: {e}")
+            return False
+
+    def remove_pivot_upload_marker(self, filename: str) -> bool:
+        """
+        Remove pivot upload marker for a specific file.
+
+        Args:
+            filename: Name of the file to remove pivot marker for
+
+        Returns:
+            True if marker was removed, False otherwise
+        """
+        marker_filename = f".upload_with_pivots_{filename}"
+        marker_path = self.reports_dir / marker_filename
+
+        try:
+            if marker_path.exists():
+                marker_path.unlink()
+                logger.info(f"Removed pivot upload marker for {filename}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to remove pivot marker for {filename}: {e}")
             return False
 
     def mark_file_processed(self, filename: str):

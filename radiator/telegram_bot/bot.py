@@ -115,7 +115,13 @@ class ReportsTelegramBot:
                                 "📊 Загрузить в Google Sheets",
                                 callback_data=f"upload_csv:{file_path.name}",
                             )
-                        ]
+                        ],
+                        [
+                            InlineKeyboardButton(
+                                "📈 Загрузить с сводными",
+                                callback_data=f"upload_csv_with_pivots:{file_path.name}",
+                            )
+                        ],
                     ]
                 )
 
@@ -193,6 +199,12 @@ class ReportsTelegramBot:
                 filename = query_data.split(":", 1)[1]
                 logger.info(f"Processing upload request for file: {filename}")
                 await self._handle_upload_csv_request(query_id, filename)
+            elif query_data.startswith("upload_csv_with_pivots:"):
+                filename = query_data.split(":", 1)[1]
+                logger.info(
+                    f"Processing upload with pivots request for file: {filename}"
+                )
+                await self._handle_upload_csv_with_pivots_request(query_id, filename)
             else:
                 # Answer unknown callback
                 logger.warning(f"Unknown callback query: {query_data}")
@@ -249,6 +261,54 @@ class ReportsTelegramBot:
 
         except Exception as e:
             logger.error(f"Error handling upload request for {filename}: {e}")
+            await self.bot.answer_callback_query(
+                query_id, text=f"❌ Ошибка обработки запроса для {filename}"
+            )
+
+    async def _handle_upload_csv_with_pivots_request(
+        self, query_id: str, filename: str
+    ) -> None:
+        """
+        Handle CSV upload with pivot tables request from button press.
+
+        Args:
+            query_id: Callback query ID
+            filename: Name of the CSV file
+        """
+        try:
+            # Check if file exists
+            file_path = self.reports_dir / filename
+            if not file_path.exists():
+                await self.bot.answer_callback_query(
+                    query_id, text=f"❌ Файл {filename} не найден"
+                )
+                return
+
+            # Create marker file for upload with pivots
+            marker_filename = f".upload_with_pivots_{filename}"
+            marker_path = self.reports_dir / marker_filename
+
+            try:
+                with open(marker_path, "w", encoding="utf-8") as f:
+                    f.write(f"Upload with pivots request for {filename}\n")
+                    f.write(f"Created at: {datetime.now().isoformat()}\n")
+
+                await self.bot.answer_callback_query(
+                    query_id,
+                    text=f"✅ Файл {filename} добавлен в очередь загрузки с созданием сводных таблиц",
+                )
+                logger.info(f"Upload with pivots marker created for {filename}")
+
+            except Exception as e:
+                logger.error(f"Failed to create marker file for {filename}: {e}")
+                await self.bot.answer_callback_query(
+                    query_id, text=f"❌ Ошибка создания маркера для {filename}"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error handling upload with pivots request for {filename}: {e}"
+            )
             await self.bot.answer_callback_query(
                 query_id, text=f"❌ Ошибка обработки запроса для {filename}"
             )
