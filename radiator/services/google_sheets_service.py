@@ -587,7 +587,7 @@ class GoogleSheetsService:
         self, details_data: pd.DataFrame, document_id: str
     ) -> Dict[str, Optional[int]]:
         """
-        Create pivot tables from DataFrame data.
+        Create Google Sheets pivot tables from DataFrame data.
 
         Args:
             details_data: DataFrame with details data
@@ -601,16 +601,23 @@ class GoogleSheetsService:
                 logger.warning("No details data provided for pivot tables")
                 return {"ttd_pivot": None, "ttm_pivot": None}
 
-            # Create TTD pivot data
-            ttd_pivot_data = self._create_pivot_data(details_data, "ttd")
-            ttd_sheet_id = self._create_pivot_sheet(
-                document_id, ttd_pivot_data, "TTD Pivot"
+            # Get the source sheet ID (first sheet with details data)
+            source_sheet_id = self._get_source_sheet_id(document_id)
+            if source_sheet_id is None:
+                logger.error("Could not find source sheet for pivot tables")
+                return {"ttd_pivot": None, "ttm_pivot": None}
+
+            # Create TTD pivot table with unique name
+            import time
+
+            timestamp = int(time.time())
+            ttd_sheet_id = self._create_google_pivot_table(
+                document_id, source_sheet_id, f"TTD Pivot {timestamp}", "ttd"
             )
 
-            # Create TTM pivot data
-            ttm_pivot_data = self._create_pivot_data(details_data, "ttm")
-            ttm_sheet_id = self._create_pivot_sheet(
-                document_id, ttm_pivot_data, "TTM Pivot"
+            # Create TTM pivot table with unique name
+            ttm_sheet_id = self._create_google_pivot_table(
+                document_id, source_sheet_id, f"TTM Pivot {timestamp}", "ttm"
             )
 
             return {"ttd_pivot": ttd_sheet_id, "ttm_pivot": ttm_sheet_id}
@@ -618,6 +625,236 @@ class GoogleSheetsService:
         except Exception as e:
             logger.error(f"Failed to create pivot tables from DataFrame: {e}")
             return {"ttd_pivot": None, "ttm_pivot": None}
+
+    def _get_source_sheet_id(self, document_id: str) -> Optional[int]:
+        """
+        Get the ID of the source sheet (first sheet with details data).
+
+        Args:
+            document_id: Google Sheets document ID
+
+        Returns:
+            Sheet ID if found, None otherwise
+        """
+        try:
+            spreadsheet = (
+                self.service.spreadsheets().get(spreadsheetId=document_id).execute()
+            )
+            sheets = spreadsheet.get("sheets", [])
+
+            if not sheets:
+                logger.warning("No sheets found in document")
+                return None
+
+            # Return the first sheet ID
+            return sheets[0]["properties"]["sheetId"]
+
+        except Exception as e:
+            logger.error(f"Failed to get source sheet ID: {e}")
+            return None
+
+    def _create_google_pivot_table(
+        self, document_id: str, source_sheet_id: int, sheet_name: str, pivot_type: str
+    ) -> Optional[int]:
+        """
+        Create a Google Sheets pivot table.
+
+        Args:
+            document_id: Google Sheets document ID
+            source_sheet_id: Source sheet ID with data
+            sheet_name: Name for the new pivot sheet
+            pivot_type: Type of pivot ("ttd" or "ttm")
+
+        Returns:
+            New sheet ID if successful, None otherwise
+        """
+        try:
+            # Create new sheet for pivot table
+            request_body = {
+                "requests": [
+                    {
+                        "addSheet": {
+                            "properties": {
+                                "title": sheet_name,
+                                "gridProperties": {"rowCount": 1000, "columnCount": 20},
+                            }
+                        }
+                    }
+                ]
+            }
+
+            response = (
+                self.service.spreadsheets()
+                .batchUpdate(spreadsheetId=document_id, body=request_body)
+                .execute()
+            )
+
+            new_sheet_id = response["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+            # Create pivot table
+            pivot_table_request = self._build_pivot_table_request(
+                source_sheet_id, new_sheet_id, pivot_type
+            )
+
+            if pivot_table_request:
+                self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=document_id, body={"requests": [pivot_table_request]}
+                ).execute()
+
+            logger.info(f"Successfully created Google Sheets pivot table: {sheet_name}")
+            return new_sheet_id
+
+        except Exception as e:
+            logger.error(
+                f"Failed to create Google Sheets pivot table {sheet_name}: {e}"
+            )
+            return None
+
+    def _build_pivot_table_request(
+        self, source_sheet_id: int, target_sheet_id: int, pivot_type: str
+    ) -> Optional[Dict]:
+        """
+        Build pivot table request for Google Sheets API.
+
+        Args:
+            source_sheet_id: Source sheet ID
+            target_sheet_id: Target sheet ID
+            pivot_type: Type of pivot ("ttd" or "ttm")
+
+        Returns:
+            Pivot table request dictionary
+        """
+        try:
+            # Base pivot table configuration
+            pivot_table = {
+                "source": {
+                    "sheetId": source_sheet_id,
+                    "startRowIndex": 0,
+                    "startColumnIndex": 0,
+                    "endRowIndex": 1000,  # Will be adjusted by Google Sheets
+                    "endColumnIndex": 20,  # Will be adjusted by Google Sheets
+                },
+                "rows": [
+                    {
+                        "sourceColumnOffset": self._get_column_index("Автор"),
+                        "showTotals": True,
+                        "sortOrder": "ASCENDING",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("Квартал"),
+                        "showTotals": True,
+                        "sortOrder": "ASCENDING",
+                    },
+                ],
+                "values": [],
+                "criteria": {},
+            }
+
+            if pivot_type == "ttd":
+                # TTD pivot table values
+                pivot_table["values"] = [
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTD"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "TTD Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTD"),
+                        "summarizeFunction": "MAX",
+                        "name": "TTD Max",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTD"),
+                        "summarizeFunction": "COUNT",
+                        "name": "TTD Count",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTD Pause"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "TTD Pause Mean",
+                    },
+                ]
+            elif pivot_type == "ttm":
+                # TTM pivot table values
+                pivot_table["values"] = [
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTM"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "TTM Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTM"),
+                        "summarizeFunction": "MAX",
+                        "name": "TTM Max",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("TTM"),
+                        "summarizeFunction": "COUNT",
+                        "name": "TTM Count",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("Tail"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "Tail Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("Tail"),
+                        "summarizeFunction": "MAX",
+                        "name": "Tail Max",
+                    },
+                ]
+
+            return {
+                "updateCells": {
+                    "start": {
+                        "sheetId": target_sheet_id,
+                        "rowIndex": 0,
+                        "columnIndex": 0,
+                    },
+                    "rows": [
+                        {
+                            "values": [
+                                {
+                                    "pivotTable": pivot_table,
+                                }
+                            ]
+                        }
+                    ],
+                    "fields": "pivotTable",
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to build pivot table request: {e}")
+            return None
+
+    def _get_column_index(self, column_name: str) -> int:
+        """
+        Get column index for a given column name.
+
+        Args:
+            column_name: Name of the column
+
+        Returns:
+            Column index (0-based)
+        """
+        # Standard column mapping for details CSV
+        column_mapping = {
+            "Автор": 0,
+            "Команда": 1,
+            "Ключ задачи": 2,
+            "Название": 3,
+            "TTD": 4,
+            "TTM": 5,
+            "Tail": 6,
+            "Пауза": 7,
+            "TTD Pause": 8,
+            "Discovery backlog (дни)": 9,
+            "Готова к разработке (дни)": 10,
+            "Квартал": 11,
+        }
+
+        return column_mapping.get(column_name, 0)
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
         """
