@@ -628,7 +628,7 @@ class GoogleSheetsService:
 
     def _get_source_sheet_id(self, document_id: str) -> Optional[int]:
         """
-        Get the ID of the source sheet (first sheet with details data).
+        Get the ID of the source sheet with details data.
 
         Args:
             document_id: Google Sheets document ID
@@ -646,7 +646,22 @@ class GoogleSheetsService:
                 logger.warning("No sheets found in document")
                 return None
 
-            # Return the first sheet ID
+            # Look for a sheet that contains details data (not a pivot table)
+            for sheet in sheets:
+                sheet_name = sheet["properties"]["title"]
+                # Skip pivot tables and look for details sheet
+                if (
+                    not sheet_name.startswith("TTD Pivot")
+                    and not sheet_name.startswith("TTM Pivot")
+                    and not sheet_name == "Лист1"
+                ):
+                    logger.info(
+                        f"Found source sheet: {sheet_name} (ID: {sheet['properties']['sheetId']})"
+                    )
+                    return sheet["properties"]["sheetId"]
+
+            # If no suitable sheet found, return the first one
+            logger.warning("No suitable source sheet found, using first sheet")
             return sheets[0]["properties"]["sheetId"]
 
         except Exception as e:
