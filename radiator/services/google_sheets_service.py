@@ -752,12 +752,12 @@ class GoogleSheetsService:
                 "rows": [
                     {
                         "sourceColumnOffset": self._get_column_index("Команда"),
-                        "showTotals": True,
+                        "showTotals": False,
                         "sortOrder": "ASCENDING",
                     },
                     {
                         "sourceColumnOffset": self._get_column_index("Квартал"),
-                        "showTotals": True,
+                        "showTotals": False,
                         "sortOrder": "ASCENDING",
                     },
                 ],
@@ -806,6 +806,11 @@ class GoogleSheetsService:
                         "sourceColumnOffset": self._get_column_index("TTM"),
                         "summarizeFunction": "COUNT",
                         "name": "TTM Count",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("Пауза"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "TTM Pause Mean",
                     },
                     {
                         "sourceColumnOffset": self._get_column_index("Tail"),
