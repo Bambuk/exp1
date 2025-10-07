@@ -377,35 +377,35 @@ class ReportsTelegramBot:
         try:
             with SingleInstance("telegram_bot"):
                 logger.info("Telegram bot instance lock acquired")
+
+                try:
+                    # Send startup message only if successful
+                    try:
+                        await self.send_message(
+                            "🤖 Бот запущен и начал мониторинг папки reports"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not send startup message: {e}")
+
+                    while True:
+                        await self.check_and_send_new_files()
+                        await asyncio.sleep(TelegramBotConfig.POLLING_INTERVAL)
+
+                except KeyboardInterrupt:
+                    logger.info("Monitoring stopped by user")
+                    try:
+                        await self.send_message("🛑 Мониторинг остановлен")
+                    except Exception as e:
+                        logger.warning(f"Could not send stop message: {e}")
+                except Exception as e:
+                    logger.error(f"Monitoring error: {e}")
+                    try:
+                        await self.send_message(f"❌ Ошибка мониторинга: {e}")
+                    except Exception as send_error:
+                        logger.warning(f"Could not send error message: {send_error}")
         except RuntimeError as e:
             logger.error(f"Failed to start Telegram bot: {e}")
             sys.exit(1)
-
-        try:
-            # Send startup message only if successful
-            try:
-                await self.send_message(
-                    "🤖 Бот запущен и начал мониторинг папки reports"
-                )
-            except Exception as e:
-                logger.warning(f"Could not send startup message: {e}")
-
-            while True:
-                await self.check_and_send_new_files()
-                await asyncio.sleep(TelegramBotConfig.POLLING_INTERVAL)
-
-        except KeyboardInterrupt:
-            logger.info("Monitoring stopped by user")
-            try:
-                await self.send_message("🛑 Мониторинг остановлен")
-            except Exception as e:
-                logger.warning(f"Could not send stop message: {e}")
-        except Exception as e:
-            logger.error(f"Monitoring error: {e}")
-            try:
-                await self.send_message(f"❌ Ошибка мониторинга: {e}")
-            except Exception as send_error:
-                logger.warning(f"Could not send error message: {send_error}")
 
     async def test_connection(self) -> bool:
         """Test bot connection and send test message."""

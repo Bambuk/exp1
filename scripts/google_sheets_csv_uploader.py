@@ -303,75 +303,79 @@ class GoogleSheetsCSVUploader:
         try:
             with SingleInstance("google_sheets_uploader"):
                 logging.info("Google Sheets uploader instance lock acquired")
+
+                try:
+                    while True:
+                        # Check for files with upload markers
+                        files_with_markers = (
+                            self.file_monitor.get_files_with_upload_markers()
+                        )
+
+                        if files_with_markers:
+                            logging.info(
+                                f"Found {len(files_with_markers)} files with upload markers"
+                            )
+
+                            for filename in files_with_markers:
+                                file_path = self.file_monitor.get_file_path(filename)
+                                if file_path:
+                                    success = self.process_single_file(file_path)
+                                    if success:
+                                        self.file_monitor.mark_file_processed(filename)
+                                        self.file_monitor.remove_upload_marker(filename)
+                                        logging.info(
+                                            f"Successfully processed and removed marker for {filename}"
+                                        )
+                                    else:
+                                        self.file_monitor.mark_file_failed(
+                                            filename, "Processing failed"
+                                        )
+
+                        # Check for files with pivot upload markers
+                        files_with_pivot_markers = (
+                            self.file_monitor.get_files_with_pivot_markers()
+                        )
+
+                        if files_with_pivot_markers:
+                            logging.info(
+                                f"Found {len(files_with_pivot_markers)} files with pivot upload markers"
+                            )
+
+                            for filename in files_with_pivot_markers:
+                                file_path = self.file_monitor.get_file_path(filename)
+                                if file_path:
+                                    success = self.process_file_with_pivots(file_path)
+                                    if success:
+                                        self.file_monitor.mark_file_processed(filename)
+                                        self.file_monitor.remove_pivot_upload_marker(
+                                            filename
+                                        )
+                                        logging.info(
+                                            f"Successfully processed and removed pivot marker for {filename}"
+                                        )
+                                    else:
+                                        self.file_monitor.mark_file_failed(
+                                            filename, "Processing with pivots failed"
+                                        )
+
+                        if not files_with_markers and not files_with_pivot_markers:
+                            logging.debug("No files with upload markers found")
+
+                        # Cleanup old records
+                        self.file_monitor.cleanup_old_files()
+
+                        # Wait before next check
+                        import time
+
+                        time.sleep(self.config.POLLING_INTERVAL)
+
+                except KeyboardInterrupt:
+                    logging.info("Monitoring stopped by user")
+                except Exception as e:
+                    logging.error(f"Monitoring error: {e}")
         except RuntimeError as e:
             logging.error(f"Failed to start Google Sheets uploader: {e}")
             sys.exit(1)
-
-        try:
-            while True:
-                # Check for files with upload markers
-                files_with_markers = self.file_monitor.get_files_with_upload_markers()
-
-                if files_with_markers:
-                    logging.info(
-                        f"Found {len(files_with_markers)} files with upload markers"
-                    )
-
-                    for filename in files_with_markers:
-                        file_path = self.file_monitor.get_file_path(filename)
-                        if file_path:
-                            success = self.process_single_file(file_path)
-                            if success:
-                                self.file_monitor.mark_file_processed(filename)
-                                self.file_monitor.remove_upload_marker(filename)
-                                logging.info(
-                                    f"Successfully processed and removed marker for {filename}"
-                                )
-                            else:
-                                self.file_monitor.mark_file_failed(
-                                    filename, "Processing failed"
-                                )
-
-                # Check for files with pivot upload markers
-                files_with_pivot_markers = (
-                    self.file_monitor.get_files_with_pivot_markers()
-                )
-
-                if files_with_pivot_markers:
-                    logging.info(
-                        f"Found {len(files_with_pivot_markers)} files with pivot upload markers"
-                    )
-
-                    for filename in files_with_pivot_markers:
-                        file_path = self.file_monitor.get_file_path(filename)
-                        if file_path:
-                            success = self.process_file_with_pivots(file_path)
-                            if success:
-                                self.file_monitor.mark_file_processed(filename)
-                                self.file_monitor.remove_pivot_upload_marker(filename)
-                                logging.info(
-                                    f"Successfully processed and removed pivot marker for {filename}"
-                                )
-                            else:
-                                self.file_monitor.mark_file_failed(
-                                    filename, "Processing with pivots failed"
-                                )
-
-                if not files_with_markers and not files_with_pivot_markers:
-                    logging.debug("No files with upload markers found")
-
-                # Cleanup old records
-                self.file_monitor.cleanup_old_files()
-
-                # Wait before next check
-                import time
-
-                time.sleep(self.config.POLLING_INTERVAL)
-
-        except KeyboardInterrupt:
-            logging.info("Monitoring stopped by user")
-        except Exception as e:
-            logging.error(f"Monitoring error: {e}")
 
     def show_stats(self):
         """Show monitoring statistics."""

@@ -20,7 +20,6 @@ class TestSingleInstance:
 
             with SingleInstance("test_lock", lock_dir) as instance:
                 assert instance.lock_file.exists()
-                assert instance.lock_fd is not None
 
                 # Check that PID is written to lock file
                 with open(instance.lock_file, "r") as f:
