@@ -7,7 +7,7 @@ Command-line tool for Yandex Tracker integration, task synchronization, and repo
 - **Yandex Tracker Integration**: Automatic synchronization of tasks and their history
 - **PostgreSQL Database**: Robust relational database with SQLAlchemy ORM
 - **Status Change Reports**: Generate comprehensive reports on task status changes
-- **Time to Market Reports**: Analyze task completion timelines
+- **Time to Market Reports**: Analyze task completion timelines (TTD/TTM metrics)
 - **Google Sheets Integration**: Upload reports to Google Sheets
 - **Telegram Bot**: Automated file monitoring and processing
 - **Database Migrations**: Alembic-based database schema management
@@ -136,7 +136,41 @@ Reports are saved to the `reports/` folder:
 - `status_change_table_YYYYMMDD_HHMMSS.png` - Visual table
 
 See [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) for detailed usage instructions.
+
+## Time to Market Reports
+
+Generate comprehensive reports on task completion timelines with TTD/TTM metrics:
+
+### Quick Report Generation
+
+```bash
+# Generate report with default settings
+make generate-time-to-market-report
+
+# Or run directly
+python -m radiator.commands.generate_time_to_market_report
+
+# Group by teams
+python -m radiator.commands.generate_time_to_market_report --group-by team
 ```
+
+### Report Features
+
+- **TTD (Time To Delivery)**: Days from task creation to "Готова к разработке" status
+- **TTM (Time To Market)**: Days from task creation to completion (done status)
+- **Pause Time Handling**: Automatically excludes time spent in "Приостановлено" status
+- **Status Duration Metrics**: Time spent in "Discovery backlog" and "Готова к разработке" statuses (v2.1)
+- **Quarterly Analysis**: Tasks grouped by quarters based on target status dates
+- **Statistical Metrics**: Mean and 85th percentile calculations
+- **Multiple Formats**: CSV export and visual PNG tables
+
+### Output Files
+
+Reports are saved to the `reports/` folder:
+- `time_to_market_report_YYYYMMDD_HHMMSS.csv` - Data export
+- `time_to_market_table_YYYYMMDD_HHMMSS.png` - Visual table
+
+See [Time to Market Report Guide](docs/guides/TIME_TO_MARKET_REPORT_GUIDE.md) for detailed usage instructions.
 
 For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md).
 
@@ -224,6 +258,13 @@ isort .
 pre-commit install
 pre-commit run --all-files
 ```
+
+## Documentation
+
+- [Time to Market Report Guide](docs/guides/TIME_TO_MARKET_REPORT_GUIDE.md) - User guide for TTM/TTD reports
+- [TTM/TTD Calculation Details](TTM_TTD_CALCULATION.md) - Technical documentation of calculation algorithms
+- [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) - User guide for status change reports
+- [Tracker Sync Guide](docs/guides/TRACKER_SYNC_README.md) - Yandex Tracker integration guide
 
 ## License
 

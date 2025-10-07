@@ -138,8 +138,12 @@ class GenerateTimeToMarketReportCommand:
                     lambda: {
                         "ttd_times": [],
                         "ttd_pause_times": [],
+                        "ttd_discovery_backlog_times": [],
+                        "ttd_ready_for_dev_times": [],
                         "ttm_times": [],
                         "ttm_pause_times": [],
+                        "ttm_discovery_backlog_times": [],
+                        "ttm_ready_for_dev_times": [],
                         "tail_times": [],
                     }
                 )
@@ -178,8 +182,26 @@ class GenerateTimeToMarketReportCommand:
                             else 0
                         )
 
+                        # Calculate status duration metrics for TTD
+                        discovery_backlog_duration = (
+                            self.metrics_service.calculate_status_duration(
+                                history, "Discovery backlog"
+                            )
+                        )
+                        ready_for_dev_duration = (
+                            self.metrics_service.calculate_status_duration(
+                                history, "Готова к разработке"
+                            )
+                        )
+
                         group_data[group_value]["ttd_times"].append(ttd)
                         group_data[group_value]["ttd_pause_times"].append(pause_time)
+                        group_data[group_value]["ttd_discovery_backlog_times"].append(
+                            discovery_backlog_duration
+                        )
+                        group_data[group_value]["ttd_ready_for_dev_times"].append(
+                            ready_for_dev_duration
+                        )
 
                 # Process TTM tasks
                 for task in ttm_tasks:
@@ -215,8 +237,26 @@ class GenerateTimeToMarketReportCommand:
                             else 0
                         )
 
+                        # Calculate status duration metrics for TTM
+                        discovery_backlog_duration = (
+                            self.metrics_service.calculate_status_duration(
+                                history, "Discovery backlog"
+                            )
+                        )
+                        ready_for_dev_duration = (
+                            self.metrics_service.calculate_status_duration(
+                                history, "Готова к разработке"
+                            )
+                        )
+
                         group_data[group_value]["ttm_times"].append(ttm)
                         group_data[group_value]["ttm_pause_times"].append(pause_time)
+                        group_data[group_value]["ttm_discovery_backlog_times"].append(
+                            discovery_backlog_duration
+                        )
+                        group_data[group_value]["ttm_ready_for_dev_times"].append(
+                            ready_for_dev_duration
+                        )
 
                     # Calculate Tail metric (only for TTM tasks)
                     try:
@@ -237,12 +277,16 @@ class GenerateTimeToMarketReportCommand:
                     if data["ttd_times"] or data["ttm_times"] or data["tail_times"]:
                         groups[
                             group_value
-                        ] = self.metrics_service.calculate_enhanced_group_metrics(
+                        ] = self.metrics_service.calculate_enhanced_group_metrics_with_status_durations(
                             group_value,
                             data["ttd_times"],
                             data["ttd_pause_times"],
+                            data["ttd_discovery_backlog_times"],
+                            data["ttd_ready_for_dev_times"],
                             data["ttm_times"],
                             data["ttm_pause_times"],
+                            data["ttm_discovery_backlog_times"],
+                            data["ttm_ready_for_dev_times"],
                             data["tail_times"],
                         )
 
@@ -394,6 +438,18 @@ class GenerateTimeToMarketReportCommand:
                     )
                     pause_time = self.metrics_service.calculate_pause_time(history)
 
+                    # Calculate status duration metrics
+                    discovery_backlog_duration = (
+                        self.metrics_service.calculate_status_duration(
+                            history, "Discovery backlog"
+                        )
+                    )
+                    ready_for_dev_duration = (
+                        self.metrics_service.calculate_status_duration(
+                            history, "Готова к разработке"
+                        )
+                    )
+
                     task_details.append(
                         {
                             "Автор": task.author,
@@ -404,6 +460,8 @@ class GenerateTimeToMarketReportCommand:
                             "TTM": ttm if ttm is not None else "",
                             "Tail": tail if tail is not None else "",
                             "Пауза": pause_time if pause_time is not None else "",
+                            "Discovery backlog (дни)": discovery_backlog_duration,
+                            "Готова к разработке (дни)": ready_for_dev_duration,
                             "Квартал": quarter.name,
                         }
                     )
@@ -420,6 +478,8 @@ class GenerateTimeToMarketReportCommand:
                         "TTM",
                         "Tail",
                         "Пауза",
+                        "Discovery backlog (дни)",
+                        "Готова к разработке (дни)",
                         "Квартал",
                     ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

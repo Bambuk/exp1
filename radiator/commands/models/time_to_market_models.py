@@ -77,6 +77,13 @@ class TimeMetrics:
     pause_times: Optional[List[int]] = None
     pause_mean: Optional[float] = None
     pause_p85: Optional[float] = None
+    # New fields for status duration metrics
+    discovery_backlog_times: Optional[List[int]] = None
+    discovery_backlog_mean: Optional[float] = None
+    discovery_backlog_p85: Optional[float] = None
+    ready_for_dev_times: Optional[List[int]] = None
+    ready_for_dev_mean: Optional[float] = None
+    ready_for_dev_p85: Optional[float] = None
 
     @property
     def has_data(self) -> bool:
@@ -87,6 +94,16 @@ class TimeMetrics:
     def has_pause_data(self) -> bool:
         """Check if pause metrics have data."""
         return bool(self.pause_times)
+
+    @property
+    def has_discovery_backlog_data(self) -> bool:
+        """Check if discovery backlog duration metrics have data."""
+        return bool(self.discovery_backlog_times)
+
+    @property
+    def has_ready_for_dev_data(self) -> bool:
+        """Check if ready for development duration metrics have data."""
+        return bool(self.ready_for_dev_times)
 
 
 @dataclass

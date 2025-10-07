@@ -79,6 +79,10 @@ class CSVRenderer(BaseRenderer):
                                 f"{quarter}_ttd_tasks",
                                 f"{quarter}_ttd_pause_mean",
                                 f"{quarter}_ttd_pause_p85",
+                                f"{quarter}_ttd_discovery_backlog_mean",
+                                f"{quarter}_ttd_discovery_backlog_p85",
+                                f"{quarter}_ttd_ready_for_dev_mean",
+                                f"{quarter}_ttd_ready_for_dev_p85",
                             ]
                         )
                     if report_type in [ReportType.TTM, ReportType.BOTH]:
@@ -89,6 +93,10 @@ class CSVRenderer(BaseRenderer):
                                 f"{quarter}_ttm_tasks",
                                 f"{quarter}_ttm_pause_mean",
                                 f"{quarter}_ttm_pause_p85",
+                                f"{quarter}_ttm_discovery_backlog_mean",
+                                f"{quarter}_ttm_discovery_backlog_p85",
+                                f"{quarter}_ttm_ready_for_dev_mean",
+                                f"{quarter}_ttm_ready_for_dev_p85",
                                 f"{quarter}_tail_mean",
                                 f"{quarter}_tail_p85",
                                 f"{quarter}_tail_tasks",

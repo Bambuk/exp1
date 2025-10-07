@@ -381,6 +381,54 @@ class MetricsService:
             logger.warning(f"Failed to calculate Tail metric: {e}")
             return None
 
+    def calculate_status_duration(
+        self, history_data: List[StatusHistoryEntry], target_status: str
+    ) -> int:
+        """
+        Calculate total time spent in a specific status.
+
+        Args:
+            history_data: List of status history entries
+            target_status: Status name to calculate duration for
+
+        Returns:
+            Total days spent in the target status
+        """
+        if not history_data:
+            return 0
+
+        try:
+            total_duration = 0
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+
+            # Remove consecutive duplicate statuses to avoid double counting
+            filtered_history = []
+            for i, entry in enumerate(sorted_history):
+                if i == 0 or entry.status != sorted_history[i - 1].status:
+                    filtered_history.append(entry)
+
+            for i, entry in enumerate(filtered_history):
+                if entry.status == target_status:
+                    # Find the next status change to calculate duration
+                    next_entry = None
+                    for j in range(i + 1, len(filtered_history)):
+                        if filtered_history[j].status != target_status:
+                            next_entry = filtered_history[j]
+                            break
+
+                    if next_entry:
+                        duration = (next_entry.start_date - entry.start_date).days
+                        total_duration += max(0, duration)  # Ensure non-negative
+                    # If no next entry, this is the last status - no duration to calculate
+
+            return total_duration
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to calculate status duration for {target_status}: {e}"
+            )
+            return 0
+
     def calculate_statistics(self, times: List[int]) -> TimeMetrics:
         """
         Calculate statistics for a list of times.
@@ -464,6 +512,112 @@ class MetricsService:
                 pause_p85=None,
             )
 
+    def calculate_enhanced_statistics_with_status_durations(
+        self,
+        times: List[int],
+        pause_times: List[int],
+        discovery_backlog_times: List[int],
+        ready_for_dev_times: List[int],
+    ) -> TimeMetrics:
+        """
+        Calculate enhanced statistics including pause time and status duration metrics.
+
+        Args:
+            times: List of time values in days
+            pause_times: List of pause time values in days
+            discovery_backlog_times: List of discovery backlog duration values in days
+            ready_for_dev_times: List of ready for development duration values in days
+
+        Returns:
+            TimeMetrics object with all metrics data
+        """
+        if not times:
+            return TimeMetrics(
+                times=[],
+                mean=None,
+                p85=None,
+                count=0,
+                pause_times=pause_times if pause_times else [],
+                pause_mean=None,
+                pause_p85=None,
+                discovery_backlog_times=discovery_backlog_times
+                if discovery_backlog_times
+                else [],
+                discovery_backlog_mean=None,
+                discovery_backlog_p85=None,
+                ready_for_dev_times=ready_for_dev_times if ready_for_dev_times else [],
+                ready_for_dev_mean=None,
+                ready_for_dev_p85=None,
+            )
+
+        try:
+            # Calculate regular statistics
+            mean = np.mean(times)
+            p85 = np.percentile(times, 85)
+
+            # Calculate pause statistics
+            pause_mean = None
+            pause_p85 = None
+            if pause_times:
+                pause_mean = float(np.mean(pause_times))
+                pause_p85 = float(np.percentile(pause_times, 85))
+
+            # Calculate discovery backlog duration statistics
+            discovery_backlog_mean = None
+            discovery_backlog_p85 = None
+            if discovery_backlog_times:
+                discovery_backlog_mean = float(np.mean(discovery_backlog_times))
+                discovery_backlog_p85 = float(
+                    np.percentile(discovery_backlog_times, 85)
+                )
+
+            # Calculate ready for development duration statistics
+            ready_for_dev_mean = None
+            ready_for_dev_p85 = None
+            if ready_for_dev_times:
+                ready_for_dev_mean = float(np.mean(ready_for_dev_times))
+                ready_for_dev_p85 = float(np.percentile(ready_for_dev_times, 85))
+
+            return TimeMetrics(
+                times=times,
+                mean=float(mean),
+                p85=float(p85),
+                count=len(times),
+                pause_times=pause_times if pause_times else [],
+                pause_mean=pause_mean,
+                pause_p85=pause_p85,
+                discovery_backlog_times=discovery_backlog_times
+                if discovery_backlog_times
+                else [],
+                discovery_backlog_mean=discovery_backlog_mean,
+                discovery_backlog_p85=discovery_backlog_p85,
+                ready_for_dev_times=ready_for_dev_times if ready_for_dev_times else [],
+                ready_for_dev_mean=ready_for_dev_mean,
+                ready_for_dev_p85=ready_for_dev_p85,
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to calculate enhanced statistics with status durations: {e}"
+            )
+            return TimeMetrics(
+                times=times,
+                mean=None,
+                p85=None,
+                count=len(times),
+                pause_times=pause_times if pause_times else [],
+                pause_mean=None,
+                pause_p85=None,
+                discovery_backlog_times=discovery_backlog_times
+                if discovery_backlog_times
+                else [],
+                discovery_backlog_mean=None,
+                discovery_backlog_p85=None,
+                ready_for_dev_times=ready_for_dev_times if ready_for_dev_times else [],
+                ready_for_dev_mean=None,
+                ready_for_dev_p85=None,
+            )
+
     def calculate_group_metrics(
         self,
         group_name: str,
@@ -520,6 +674,59 @@ class MetricsService:
         """
         ttd_metrics = self.calculate_enhanced_statistics(ttd_times, ttd_pause_times)
         ttm_metrics = self.calculate_enhanced_statistics(ttm_times, ttm_pause_times)
+        tail_metrics = self.calculate_statistics(tail_times)
+
+        return GroupMetrics(
+            group_name=group_name,
+            ttd_metrics=ttd_metrics,
+            ttm_metrics=ttm_metrics,
+            tail_metrics=tail_metrics,
+            total_tasks=ttd_metrics.count + ttm_metrics.count,
+        )
+
+    def calculate_enhanced_group_metrics_with_status_durations(
+        self,
+        group_name: str,
+        ttd_times: List[int],
+        ttd_pause_times: List[int],
+        ttd_discovery_backlog_times: List[int],
+        ttd_ready_for_dev_times: List[int],
+        ttm_times: List[int],
+        ttm_pause_times: List[int],
+        ttm_discovery_backlog_times: List[int],
+        ttm_ready_for_dev_times: List[int],
+        tail_times: List[int],
+    ) -> GroupMetrics:
+        """
+        Calculate enhanced metrics for a specific group including pause time and status duration metrics.
+
+        Args:
+            group_name: Name of the group
+            ttd_times: List of TTD times
+            ttd_pause_times: List of TTD pause times
+            ttd_discovery_backlog_times: List of TTD discovery backlog duration times
+            ttd_ready_for_dev_times: List of TTD ready for development duration times
+            ttm_times: List of TTM times
+            ttm_pause_times: List of TTM pause times
+            ttm_discovery_backlog_times: List of TTM discovery backlog duration times
+            ttm_ready_for_dev_times: List of TTM ready for development duration times
+            tail_times: List of Tail times
+
+        Returns:
+            GroupMetrics object with all metrics data
+        """
+        ttd_metrics = self.calculate_enhanced_statistics_with_status_durations(
+            ttd_times,
+            ttd_pause_times,
+            ttd_discovery_backlog_times,
+            ttd_ready_for_dev_times,
+        )
+        ttm_metrics = self.calculate_enhanced_statistics_with_status_durations(
+            ttm_times,
+            ttm_pause_times,
+            ttm_discovery_backlog_times,
+            ttm_ready_for_dev_times,
+        )
         tail_metrics = self.calculate_statistics(tail_times)
 
         return GroupMetrics(
