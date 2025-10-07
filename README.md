@@ -160,6 +160,7 @@ python -m radiator.commands.generate_time_to_market_report --group-by team
 - **TTM (Time To Market)**: Days from task creation to completion (done status)
 - **Pause Time Handling**: Automatically excludes time spent in "Приостановлено" status
 - **Status Duration Metrics**: Time spent in "Discovery backlog" and "Готова к разработке" statuses (v2.1)
+- **TTD Pause Metrics**: Time spent in pause status before reaching "Готова к разработке" (v2.2)
 - **Quarterly Analysis**: Tasks grouped by quarters based on target status dates
 - **Statistical Metrics**: Mean and 85th percentile calculations
 - **Multiple Formats**: CSV export and visual PNG tables

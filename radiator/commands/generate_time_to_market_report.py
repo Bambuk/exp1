@@ -14,6 +14,7 @@ from radiator.commands.models.time_to_market_models import (
     GroupMetrics,
     QuarterReport,
     ReportType,
+    TaskData,
     TimeToMarketReport,
 )
 from radiator.commands.renderers.console_renderer import ConsoleRenderer
@@ -450,6 +451,9 @@ class GenerateTimeToMarketReportCommand:
                         )
                     )
 
+                    # Calculate TTD pause time
+                    ttd_pause = self._calculate_ttd_pause(task)
+
                     task_details.append(
                         {
                             "Автор": task.author,
@@ -460,6 +464,7 @@ class GenerateTimeToMarketReportCommand:
                             "TTM": ttm if ttm is not None else "",
                             "Tail": tail if tail is not None else "",
                             "Пауза": pause_time if pause_time is not None else "",
+                            "TTD Pause": ttd_pause,
                             "Discovery backlog (дни)": discovery_backlog_duration,
                             "Готова к разработке (дни)": ready_for_dev_duration,
                             "Квартал": quarter.name,
@@ -478,6 +483,7 @@ class GenerateTimeToMarketReportCommand:
                         "TTM",
                         "Tail",
                         "Пауза",
+                        "TTD Pause",
                         "Discovery backlog (дни)",
                         "Готова к разработке (дни)",
                         "Квартал",
@@ -496,6 +502,40 @@ class GenerateTimeToMarketReportCommand:
         except Exception as e:
             logger.error(f"Error generating task details CSV: {e}", exc_info=True)
             return ""
+
+    def _calculate_ttd_pause(self, task: TaskData) -> int:
+        """
+        Calculate TTD pause time (pause time up to 'Готова к разработке' status).
+
+        Args:
+            task: Task data
+
+        Returns:
+            Number of days spent in pause status up to ready for development
+        """
+        try:
+            history = self.data_service.get_task_history(task.id)
+            if not history:
+                return 0
+
+            # Find 'Готова к разработке' status
+            ready_entry = None
+            for entry in sorted(history, key=lambda x: x.start_date):
+                if entry.status == "Готова к разработке":
+                    ready_entry = entry
+                    break
+
+            if not ready_entry:
+                return 0
+
+            # Calculate pause time up to ready status
+            return self.metrics_service.calculate_pause_time_up_to_date(
+                history, ready_entry.start_date
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate TTD pause for task {task.key}: {e}")
+            return 0
 
     def print_summary(self, report_type: ReportType = ReportType.BOTH) -> None:
         """

@@ -165,6 +165,7 @@ class TestTaskDetailsCSV:
                     "TTM",
                     "Tail",
                     "Пауза",
+                    "TTD Pause",
                     "Discovery backlog (дни)",
                     "Готова к разработке (дни)",
                     "Квартал",
