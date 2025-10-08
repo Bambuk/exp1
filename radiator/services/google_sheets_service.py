@@ -566,7 +566,7 @@ class GoogleSheetsService:
                     },
                     {
                         "sourceColumnOffset": self._get_column_index("TTD"),
-                        "summarizeFunction": "COUNT",
+                        "summarizeFunction": "COUNTA",
                         "name": "TTD Count",
                     },
                     {
@@ -590,7 +590,7 @@ class GoogleSheetsService:
                     },
                     {
                         "sourceColumnOffset": self._get_column_index("TTM"),
-                        "summarizeFunction": "COUNT",
+                        "summarizeFunction": "COUNTA",
                         "name": "TTM Count",
                     },
                     {
