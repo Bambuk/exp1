@@ -48,10 +48,10 @@ class TestTaskKeyHyperlinks:
         task_key_index = 2  # "Ключ задачи" column index
 
         expected_hyperlink_1 = (
-            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709","CPO-1709")'
+            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709";"CPO-1709")'
         )
         expected_hyperlink_2 = (
-            '=HYPERLINK("https://tracker.yandex.ru/CPO-2345","CPO-2345")'
+            '=HYPERLINK("https://tracker.yandex.ru/CPO-2345";"CPO-2345")'
         )
 
         assert data[1][task_key_index] == expected_hyperlink_1
@@ -70,7 +70,7 @@ class TestTaskKeyHyperlinks:
 
         # First row should have hyperlink
         assert (
-            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709","CPO-1709")' == data[1][0]
+            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709";"CPO-1709")' == data[1][0]
         )
 
         # Empty strings should remain empty
@@ -109,9 +109,9 @@ class TestTaskKeyHyperlinks:
         data = mock_google_sheets_service._prepare_data_for_sheets(df)
 
         # Verify hyperlinks are created correctly
-        assert data[1][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-123","CPO-123")'
+        assert data[1][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-123";"CPO-123")'
         assert (
-            data[2][0] == '=HYPERLINK("https://tracker.yandex.ru/TEST-456","TEST-456")'
+            data[2][0] == '=HYPERLINK("https://tracker.yandex.ru/TEST-456";"TEST-456")'
         )
 
     def test_prepare_data_preserves_other_columns(self, mock_google_sheets_service):
@@ -132,7 +132,7 @@ class TestTaskKeyHyperlinks:
         # Verify all columns except task key remain unchanged
         assert data[1][0] == "Author1"  # Автор
         assert (
-            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709","CPO-1709")' == data[1][1]
+            '=HYPERLINK("https://tracker.yandex.ru/CPO-1709";"CPO-1709")' == data[1][1]
         )  # Ключ задачи
         assert data[1][2] == "Task 1"  # Название
         assert data[1][3] == 10.5  # TTD
@@ -156,9 +156,9 @@ class TestTaskKeyHyperlinks:
         data = mock_google_sheets_service._prepare_data_for_sheets(df)
 
         # Verify all task keys are converted
-        assert data[1][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-1","CPO-1")'
-        assert data[2][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-100","CPO-100")'
+        assert data[1][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-1";"CPO-1")'
+        assert data[2][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-100";"CPO-100")'
         assert (
-            data[3][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-9999","CPO-9999")'
+            data[3][0] == '=HYPERLINK("https://tracker.yandex.ru/CPO-9999";"CPO-9999")'
         )
-        assert data[4][0] == '=HYPERLINK("https://tracker.yandex.ru/PROJ-1","PROJ-1")'
+        assert data[4][0] == '=HYPERLINK("https://tracker.yandex.ru/PROJ-1";"PROJ-1")'

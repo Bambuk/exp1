@@ -140,8 +140,9 @@ class GoogleSheetsService:
                 task_key = data[i][task_key_index]
                 if task_key and isinstance(task_key, str) and task_key.strip():
                     # Create HYPERLINK formula for Google Sheets
+                    # Use semicolon as separator for Russian locale
                     url = f"https://tracker.yandex.ru/{task_key}"
-                    data[i][task_key_index] = f'=HYPERLINK("{url}","{task_key}")'
+                    data[i][task_key_index] = f'=HYPERLINK("{url}";"{task_key}")'
 
         return data
 
