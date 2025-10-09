@@ -1,5 +1,6 @@
 """Metrics calculation service for Time To Market report."""
 
+import os
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional, Protocol
@@ -92,6 +93,7 @@ class MetricsService:
         self,
         ttd_strategy: StartDateStrategy = None,
         ttm_strategy: StartDateStrategy = None,
+        min_status_duration_seconds: int = None,
     ):
         """
         Initialize metrics service with strategies.
@@ -99,10 +101,83 @@ class MetricsService:
         Args:
             ttd_strategy: Strategy for TTD start date calculation
             ttm_strategy: Strategy for TTM start date calculation
+            min_status_duration_seconds: Minimum time in status (seconds) to consider valid
         """
         self.ttd_strategy = ttd_strategy or FirstChangeStrategy()
         self.ttm_strategy = ttm_strategy or FirstChangeStrategy()
         self.pause_status = "Приостановлено"  # Status that indicates pause
+
+        # Get min status duration from parameter or environment variable
+        if min_status_duration_seconds is not None:
+            self.min_status_duration_seconds = min_status_duration_seconds
+        else:
+            self.min_status_duration_seconds = int(
+                os.getenv("MIN_STATUS_DURATION_SECONDS", "300")
+            )
+
+    def _filter_short_status_transitions(
+        self, history_data: List[StatusHistoryEntry]
+    ) -> List[StatusHistoryEntry]:
+        """
+        Filter out status transitions where task spent less than minimum duration.
+        This excludes false transitions caused by accidental clicks or errors.
+
+        Args:
+            history_data: List of status history entries
+
+        Returns:
+            Filtered list with only valid status transitions
+        """
+        if not history_data or self.min_status_duration_seconds <= 0:
+            return history_data
+
+        try:
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            filtered_history = []
+
+            for i, entry in enumerate(sorted_history):
+                # Always keep the first entry (task creation)
+                if i == 0:
+                    filtered_history.append(entry)
+                    continue
+
+                # Check if we have a next entry to calculate duration
+                if i + 1 < len(sorted_history):
+                    next_entry = sorted_history[i + 1]
+                    # Calculate duration in seconds until next status change
+                    duration_seconds = (
+                        next_entry.start_date - entry.start_date
+                    ).total_seconds()
+
+                    # Keep only if duration meets minimum threshold
+                    if duration_seconds >= self.min_status_duration_seconds:
+                        filtered_history.append(entry)
+                    else:
+                        logger.debug(
+                            f"Filtered out short transition: {entry.status} "
+                            f"(duration: {duration_seconds:.0f}s < {self.min_status_duration_seconds}s)"
+                        )
+                else:
+                    # This is the last status - always keep it
+                    filtered_history.append(entry)
+
+            # Remove consecutive duplicates after filtering
+            final_history = []
+            for i, entry in enumerate(filtered_history):
+                if i == 0 or entry.status != filtered_history[i - 1].status:
+                    final_history.append(entry)
+
+            if len(final_history) != len(history_data):
+                logger.debug(
+                    f"Filtered history: {len(history_data)} -> {len(final_history)} entries "
+                    f"(min duration: {self.min_status_duration_seconds}s)"
+                )
+
+            return final_history
+
+        except Exception as e:
+            logger.warning(f"Failed to filter short status transitions: {e}")
+            return history_data
 
     def calculate_pause_time(self, history_data: List[StatusHistoryEntry]) -> int:
         """
@@ -243,6 +318,7 @@ class MetricsService:
     ) -> Optional[int]:
         """
         Calculate Time To Delivery using configured strategy, excluding pause time.
+        Filters out short status transitions (< min_status_duration_seconds).
 
         Args:
             history_data: List of status history entries
@@ -255,14 +331,19 @@ class MetricsService:
             if not history_data:
                 return None
 
+            # Filter out short status transitions
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return None
+
             # Get start date using TTD strategy
-            start_date = self.ttd_strategy.calculate_start_date(history_data)
+            start_date = self.ttd_strategy.calculate_start_date(filtered_history)
             if start_date is None:
                 return None
 
             # Find 'Готова к разработке' status specifically
             target_entry = None
-            for entry in sorted(history_data, key=lambda x: x.start_date):
+            for entry in sorted(filtered_history, key=lambda x: x.start_date):
                 if entry.status == "Готова к разработке":
                     target_entry = entry
                     break
@@ -272,7 +353,7 @@ class MetricsService:
 
             # Calculate pause time only up to the target status
             pause_time = self.calculate_pause_time_up_to_date(
-                history_data, target_entry.start_date
+                filtered_history, target_entry.start_date
             )
             total_days = (target_entry.start_date - start_date).days
             effective_days = total_days - pause_time
@@ -287,6 +368,7 @@ class MetricsService:
     ) -> Optional[int]:
         """
         Calculate Time To Market using configured strategy, excluding pause time.
+        Filters out short status transitions (< min_status_duration_seconds).
 
         Args:
             history_data: List of status history entries
@@ -299,14 +381,19 @@ class MetricsService:
             if not history_data:
                 return None
 
+            # Filter out short status transitions
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return None
+
             # Get start date using TTM strategy
-            start_date = self.ttm_strategy.calculate_start_date(history_data)
+            start_date = self.ttm_strategy.calculate_start_date(filtered_history)
             if start_date is None:
                 return None
 
             # Find first target status
             target_entry = None
-            for entry in sorted(history_data, key=lambda x: x.start_date):
+            for entry in sorted(filtered_history, key=lambda x: x.start_date):
                 if entry.status in target_statuses:
                     target_entry = entry
                     break
@@ -316,7 +403,7 @@ class MetricsService:
 
             # Calculate pause time only up to the target status
             pause_time = self.calculate_pause_time_up_to_date(
-                history_data, target_entry.start_date
+                filtered_history, target_entry.start_date
             )
             total_days = (target_entry.start_date - start_date).days
             effective_days = total_days - pause_time
@@ -331,6 +418,7 @@ class MetricsService:
     ) -> Optional[int]:
         """
         Calculate Tail metric: days from exiting 'МП / Внешний тест' status to any done status.
+        Filters out short status transitions (< min_status_duration_seconds).
 
         Args:
             history_data: List of status history entries
@@ -343,8 +431,13 @@ class MetricsService:
             if not history_data:
                 return None
 
+            # Filter out short status transitions
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return None
+
             # Sort history by date
-            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
 
             # Find the last occurrence of 'МП / Внешний тест' status
             last_mp_entry = None
@@ -370,7 +463,7 @@ class MetricsService:
 
             # Calculate pause time between MP/External Test start and done status
             pause_time = self.calculate_pause_time_between_dates(
-                history_data, last_mp_entry.start_date, done_entry.start_date
+                filtered_history, last_mp_entry.start_date, done_entry.start_date
             )
 
             total_days = (done_entry.start_date - last_mp_entry.start_date).days
@@ -386,6 +479,7 @@ class MetricsService:
     ) -> int:
         """
         Calculate total time spent in a specific status.
+        Filters out short status transitions (< min_status_duration_seconds).
 
         Args:
             history_data: List of status history entries
@@ -398,14 +492,13 @@ class MetricsService:
             return 0
 
         try:
-            total_duration = 0
-            sorted_history = sorted(history_data, key=lambda x: x.start_date)
+            # Filter out short status transitions
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return 0
 
-            # Remove consecutive duplicate statuses to avoid double counting
-            filtered_history = []
-            for i, entry in enumerate(sorted_history):
-                if i == 0 or entry.status != sorted_history[i - 1].status:
-                    filtered_history.append(entry)
+            total_duration = 0
+            sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
 
             for i, entry in enumerate(filtered_history):
                 if entry.status == target_status:
