@@ -62,6 +62,9 @@ class FileMonitor:
                 # Skip upload marker files
                 if file_path.name.startswith(".upload_me_"):
                     continue
+                # Skip pivot upload marker files
+                if file_path.name.startswith(".upload_with_pivots_"):
+                    continue
 
                 extension = file_path.suffix.lower()
                 if extension in TelegramBotConfig.MONITORED_EXTENSIONS:
