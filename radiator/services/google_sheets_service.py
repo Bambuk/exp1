@@ -114,6 +114,7 @@ class GoogleSheetsService:
     def _prepare_data_for_sheets(self, df: pd.DataFrame) -> List[List[Any]]:
         """
         Prepare DataFrame data for Google Sheets format.
+        Converts task keys in "Ключ задачи" column to hyperlinks.
 
         Args:
             df: DataFrame to prepare
@@ -130,6 +131,17 @@ class GoogleSheetsService:
         # Add headers as first row
         headers = df_clean.columns.tolist()
         data.insert(0, headers)
+
+        # Convert task keys to hyperlinks if "Ключ задачи" column exists
+        if "Ключ задачи" in headers:
+            task_key_index = headers.index("Ключ задачи")
+
+            for i in range(1, len(data)):  # Skip header row
+                task_key = data[i][task_key_index]
+                if task_key and isinstance(task_key, str) and task_key.strip():
+                    # Create HYPERLINK formula for Google Sheets
+                    url = f"https://tracker.yandex.ru/{task_key}"
+                    data[i][task_key_index] = f'=HYPERLINK("{url}","{task_key}")'
 
         return data
 
@@ -216,7 +228,7 @@ class GoogleSheetsService:
             self.service.spreadsheets().values().update(
                 spreadsheetId=self.document_id,
                 range=range_name,
-                valueInputOption="RAW",
+                valueInputOption="USER_ENTERED",  # Use USER_ENTERED to process formulas like HYPERLINK
                 body=body,
             ).execute()
 
