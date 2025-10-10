@@ -4,8 +4,8 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from radiator.core.database import Base
 
@@ -36,8 +36,8 @@ class TrackerTask(Base):
         DateTime, nullable=True
     )  # When task was last updated in tracker
 
-    # Links to other tasks (JSON array)
-    links = Column(JSON, nullable=True)  # Array of link objects from API
+    # Links to other tasks (JSONB array)
+    links = Column(JSONB, nullable=True)  # Array of link objects from API
 
     def __repr__(self) -> str:
         return f"<TrackerTask(id={self.id}, tracker_id='{self.tracker_id}')>"

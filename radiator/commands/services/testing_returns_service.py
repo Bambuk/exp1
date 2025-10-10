@@ -78,17 +78,16 @@ class TestingReturnsService:
             if not task or not task.links:
                 return []
 
-            # Filter FULLSTACK inward relates
+            # Filter FULLSTACK relates (both inward and outward)
+            # Outward: CPO -> FULLSTACK (CPO task has outward link to FULLSTACK)
+            # Inward: FULLSTACK -> CPO (FULLSTACK task has inward link from CPO)
             fullstack_keys = []
             for link in task.links:
                 if link and isinstance(link, dict):  # Check if link is valid
-                    if (
-                        link.get("type", {}).get("id") == "relates"
-                        and link.get("direction") == "inward"
-                        and link.get("object", {})
-                        .get("key", "")
-                        .startswith("FULLSTACK")
-                    ):
+                    if link.get("type", {}).get("id") == "relates" and link.get(
+                        "object", {}
+                    ).get("key", "").startswith("FULLSTACK"):
+                        # Accept both inward and outward directions
                         fullstack_keys.append(link["object"]["key"])
 
             return fullstack_keys
