@@ -100,6 +100,8 @@ class CSVRenderer(BaseRenderer):
                                 f"{quarter}_tail_mean",
                                 f"{quarter}_tail_p85",
                                 f"{quarter}_tail_tasks",
+                                f"{quarter}_testing_returns_p85",
+                                f"{quarter}_external_test_returns_p85",
                             ]
                         )
 
@@ -139,6 +141,8 @@ class CSVRenderer(BaseRenderer):
                                         f"{quarter}_tail_mean": group_metrics.tail_metrics.mean,
                                         f"{quarter}_tail_p85": group_metrics.tail_metrics.p85,
                                         f"{quarter}_tail_tasks": group_metrics.tail_metrics.count,
+                                        f"{quarter}_testing_returns_p85": group_metrics.ttm_metrics.testing_returns_p85,
+                                        f"{quarter}_external_test_returns_p85": group_metrics.ttm_metrics.external_test_returns_p85,
                                     }
                                 )
                         else:
@@ -163,6 +167,8 @@ class CSVRenderer(BaseRenderer):
                                         f"{quarter}_tail_mean": "",
                                         f"{quarter}_tail_p85": "",
                                         f"{quarter}_tail_tasks": "",
+                                        f"{quarter}_testing_returns_p85": "",
+                                        f"{quarter}_external_test_returns_p85": "",
                                     }
                                 )
 
@@ -230,6 +236,10 @@ class CSVRenderer(BaseRenderer):
                             "tail_mean",
                             "tail_p85",
                             "tail_tasks",
+                            "testing_returns_mean",
+                            "testing_returns_p85",
+                            "external_test_returns_mean",
+                            "external_test_returns_p85",
                         ]
                     )
 
@@ -274,6 +284,10 @@ class CSVRenderer(BaseRenderer):
                                         "tail_mean": group_metrics.tail_metrics.mean,
                                         "tail_p85": group_metrics.tail_metrics.p85,
                                         "tail_tasks": group_metrics.tail_metrics.count,
+                                        "testing_returns_mean": group_metrics.ttm_metrics.testing_returns_mean,
+                                        "testing_returns_p85": group_metrics.ttm_metrics.testing_returns_p85,
+                                        "external_test_returns_mean": group_metrics.ttm_metrics.external_test_returns_mean,
+                                        "external_test_returns_p85": group_metrics.ttm_metrics.external_test_returns_p85,
                                     }
                                 )
                         else:
@@ -300,6 +314,10 @@ class CSVRenderer(BaseRenderer):
                                         "tail_mean": "",
                                         "tail_p85": "",
                                         "tail_tasks": "",
+                                        "testing_returns_mean": "",
+                                        "testing_returns_p85": "",
+                                        "external_test_returns_mean": "",
+                                        "external_test_returns_p85": "",
                                     }
                                 )
 

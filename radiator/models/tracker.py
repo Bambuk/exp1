@@ -36,6 +36,9 @@ class TrackerTask(Base):
         DateTime, nullable=True
     )  # When task was last updated in tracker
 
+    # Links to other tasks (JSON array)
+    links = Column(JSON, nullable=True)  # Array of link objects from API
+
     def __repr__(self) -> str:
         return f"<TrackerTask(id={self.id}, tracker_id='{self.tracker_id}')>"
 

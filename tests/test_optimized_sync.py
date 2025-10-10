@@ -217,7 +217,9 @@ class TestOptimizedSync:
             assert result is True
 
             # Verify get_tasks_batch WAS called for backwards compatibility
-            mock_service.get_tasks_batch.assert_called_once_with(task_ids)
+            mock_service.get_tasks_batch.assert_called_once_with(
+                task_ids, expand=["links"]
+            )
 
             # Verify tasks were saved
             saved_tasks = db_session.query(TrackerTask).all()

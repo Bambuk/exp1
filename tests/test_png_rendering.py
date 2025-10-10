@@ -228,34 +228,42 @@ class TestPNGRendering:
         # Verify we have data for both authors
         assert len(cell_text) == 2  # Two authors
 
-        # Verify we have TTM and Tail columns (8 columns per quarter: 5 TTM + 3 Tail)
-        assert len(col_labels) == 9  # 1 Group + 8 metric columns
+        # Verify we have TTM and Tail columns (10 columns per quarter: 7 TTM + 3 Tail)
+        assert len(col_labels) == 11  # 1 Group + 10 metric columns
 
         # Verify column headers include both TTM and Tail
         ttm_headers = [col for col in col_labels if "TTM" in col]
         tail_headers = [col for col in col_labels if "Tail" in col]
+        testing_returns_headers = [
+            col for col in col_labels if "Testing" in col or "External" in col
+        ]
 
         assert (
             len(ttm_headers) == 5
         )  # TTM Avg, TTM 85%, TTM Tasks, TTM Pause Avg, TTM Pause 85%
+        assert (
+            len(testing_returns_headers) == 2
+        )  # Testing Returns 85%, External Returns 85%
         assert (
             len(tail_headers) == 3
         )  # Tail Avg, Tail 85%, Tail Tasks (no pause for tail)
 
         # Verify data structure for Author1 (has both TTM and Tail data)
         author1_row = cell_text[0]
-        assert len(author1_row) == 9  # Group + 8 metric columns
+        assert len(author1_row) == 11  # Group + 10 metric columns
 
-        # Verify TTM data is present (first 5 metric columns)
-        ttm_data = author1_row[1:6]  # Skip group name
+        # Verify TTM data is present (first 7 metric columns)
+        ttm_data = author1_row[1:8]  # Skip group name
         assert ttm_data[0] == "8.0"  # TTM Avg
         assert ttm_data[1] == "10.0"  # TTM 85%
         assert ttm_data[2] == "3"  # TTM Tasks
         assert ttm_data[3] == "1.0"  # TTM Pause Avg
         assert ttm_data[4] == "2.0"  # TTM Pause 85%
+        assert ttm_data[5] == "0.0"  # Testing Returns 85%
+        assert ttm_data[6] == "0.0"  # External Returns 85%
 
         # Verify Tail data is present (last 3 metric columns)
-        tail_data = author1_row[6:9]
+        tail_data = author1_row[8:11]
         assert tail_data[0] == "2.0"  # Tail Avg
         assert tail_data[1] == "3.0"  # Tail 85%
         assert tail_data[2] == "3"  # Tail Tasks
@@ -302,12 +310,12 @@ class TestPNGRendering:
 
         # Author2 should have empty tail data (no tail metrics)
         author2_row = cell_text[1]
-        tail_data_author2 = author2_row[6:9]
+        tail_data_author2 = author2_row[8:11]
 
-        # Verify tail metrics are empty for Author2
-        assert tail_data_author2[0] == ""  # Tail Avg
-        assert tail_data_author2[1] == ""  # Tail 85%
-        assert tail_data_author2[2] == ""  # Tail Tasks
+        # Verify tail metrics are "0.0" for Author2 (changed from empty strings)
+        assert tail_data_author2[0] == "0.0"  # Tail Avg
+        assert tail_data_author2[1] == "0.0"  # Tail 85%
+        assert tail_data_author2[2] == "0"  # Tail Tasks (integer, not float)
 
     def test_pause_metrics_not_duplicated(self):
         """Test that pause metrics are not duplicated between TTM and Tail."""

@@ -77,6 +77,23 @@ class TrackerAPIService:
             elif status_code == 401:
                 logger.error(f"🚫 API Error 401: Неавторизован (проверьте токен)")
                 logger.error(f"   URL: {url}")
+            elif status_code == 429:
+                logger.warning(
+                    f"⚠️ API Error 429: Превышен лимит запросов, ждем 60 секунд..."
+                )
+                logger.warning(f"   URL: {url}")
+                time.sleep(60)  # Ждем 60 секунд при ошибке 429
+                # Попробуем повторить запрос
+                try:
+                    response = requests.request(
+                        method, url, headers=self.headers, **kwargs
+                    )
+                    response.raise_for_status()
+                    time.sleep(self.request_delay)
+                    return response
+                except Exception as retry_e:
+                    logger.error(f"🚫 Повторный запрос также failed: {retry_e}")
+                    raise e
             elif status_code == 400:
                 logger.error(f"🚫 API Error 400: Bad Request")
                 logger.error(f"   URL: {url}")
@@ -101,11 +118,16 @@ class TrackerAPIService:
 
             raise
 
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_task(
+        self, task_id: str, expand: List[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Get task details by ID."""
         try:
             url = f"{self.base_url}issues/{task_id}"
-            response = self._make_request(url)
+            params = {}
+            if expand:
+                params["expand"] = ",".join(expand)
+            response = self._make_request(url, params=params)
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")
@@ -182,7 +204,7 @@ class TrackerAPIService:
         return all_data
 
     def get_tasks_batch(
-        self, task_ids: List[str]
+        self, task_ids: List[str], expand: List[str] = None
     ) -> List[Tuple[str, Optional[Dict[str, Any]]]]:
         """Get multiple tasks in parallel with progress bar."""
 
@@ -196,7 +218,7 @@ class TrackerAPIService:
             # Submit all tasks and store futures with their indices
             future_to_index = {}
             for i, task_id in enumerate(task_ids):
-                future = executor.submit(self.get_task, task_id)
+                future = executor.submit(self.get_task, task_id, expand)
                 future_to_index[future] = i
 
             # Use tqdm for real-time progress indication
@@ -324,6 +346,7 @@ class TrackerAPIService:
             ),
             "task_updated_at": task_updated_at,
             "created_at": task_created_at,
+            "links": task.get("links", []),  # Include links from API response
         }
 
     def extract_status_history(
@@ -755,7 +778,7 @@ class TrackerAPIService:
             return []
 
     def search_tasks_with_data(
-        self, query: str, limit: int = None
+        self, query: str, limit: int = None, expand: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Search for tasks using a query with automatic pagination method selection and return full task data.
@@ -763,6 +786,7 @@ class TrackerAPIService:
         Args:
             query: Yandex Tracker search query
             limit: Maximum number of tasks to return (uses default from config if None)
+            expand: List of fields to expand (e.g., ['links'])
 
         Returns:
             List of full task data dictionaries
@@ -780,7 +804,7 @@ class TrackerAPIService:
                     f"Используем scroll-пагинацию (v3) для {limit} задач с данными"
                 )
                 return self._search_tasks_with_scroll(
-                    query, limit, extract_full_data=True
+                    query, limit, extract_full_data=True, expand=expand
                 )
 
             # Существующая логика для обычной пагинации v2 (БЕЗ ИЗМЕНЕНИЙ)
@@ -793,6 +817,8 @@ class TrackerAPIService:
                 # Prepare request data
                 post_data = {"query": query}
                 params = {"perPage": per_page, "page": page}
+                if expand:
+                    params["expand"] = ",".join(expand)
 
                 logger.debug(f"   Страница {page}: запрос {per_page} задач")
                 response = self._make_request(
@@ -1012,7 +1038,9 @@ class TrackerAPIService:
                 # Use the query string directly as provided
                 search_query = filters["query"]
                 logger.info(f"Using direct query: {search_query}")
-                return self.search_tasks_with_data(query=search_query, limit=limit)
+                return self.search_tasks_with_data(
+                    query=search_query, limit=limit, expand=["links"]
+                )
 
             # Build search query from filters using Tracker query syntax
             search_parts = []
@@ -1053,7 +1081,9 @@ class TrackerAPIService:
                 return []
 
             logger.info(f"Built search query: {search_query}")
-            return self.search_tasks_with_data(query=search_query, limit=limit)
+            return self.search_tasks_with_data(
+                query=search_query, limit=limit, expand=["links"]
+            )
 
         except Exception as e:
             logger.error(f"Failed to get tasks by filter: {e}")
@@ -1092,6 +1122,7 @@ class TrackerAPIService:
         query: str,
         limit: int,
         extract_full_data: bool = False,
+        expand: List[str] = None,
     ) -> List[Any]:
         """
         Поиск задач с использованием scroll-пагинации (для >10000 результатов).
@@ -1119,6 +1150,8 @@ class TrackerAPIService:
             "perScroll": 1000,
             "scrollTTLMillis": 300000,  # 5 минут для долгих операций
         }
+        if expand:
+            params["expand"] = ",".join(expand)
         post_data = {"query": query}
 
         logger.info(f"Начинаем scroll-пагинацию (v3) для запроса: {query}")
@@ -1127,6 +1160,8 @@ class TrackerAPIService:
             # Для последующих запросов используем scrollId
             if scroll_id:
                 params = {"scrollId": scroll_id, "scrollTTLMillis": 300000}
+                if expand:
+                    params["expand"] = ",".join(expand)
 
             response = self._make_request(
                 url, method="POST", json=post_data, params=params

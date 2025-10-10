@@ -81,7 +81,22 @@ def setup_logging() -> None:
             },
             "sqlalchemy.engine": {
                 "handlers": ["file"],
-                "level": "WARNING",
+                "level": "ERROR",
+                "propagate": False,
+            },
+            "sqlalchemy.engine.Engine": {
+                "handlers": ["file"],
+                "level": "ERROR",
+                "propagate": False,
+            },
+            "sqlalchemy.pool": {
+                "handlers": ["file"],
+                "level": "ERROR",
+                "propagate": False,
+            },
+            "sqlalchemy.dialects": {
+                "handlers": ["file"],
+                "level": "ERROR",
                 "propagate": False,
             },
             "alembic": {

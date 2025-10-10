@@ -84,6 +84,13 @@ class TimeMetrics:
     ready_for_dev_times: Optional[List[int]] = None
     ready_for_dev_mean: Optional[float] = None
     ready_for_dev_p85: Optional[float] = None
+    # New fields for testing returns metrics
+    testing_returns: Optional[List[int]] = None
+    testing_returns_mean: Optional[float] = None
+    testing_returns_p85: Optional[float] = None
+    external_test_returns: Optional[List[int]] = None
+    external_test_returns_mean: Optional[float] = None
+    external_test_returns_p85: Optional[float] = None
 
     @property
     def has_data(self) -> bool:
@@ -104,6 +111,16 @@ class TimeMetrics:
     def has_ready_for_dev_data(self) -> bool:
         """Check if ready for development duration metrics have data."""
         return bool(self.ready_for_dev_times)
+
+    @property
+    def has_testing_returns_data(self) -> bool:
+        """Check if testing returns metrics have data."""
+        return bool(self.testing_returns)
+
+    @property
+    def has_external_test_returns_data(self) -> bool:
+        """Check if external test returns metrics have data."""
+        return bool(self.external_test_returns)
 
 
 @dataclass

@@ -210,3 +210,29 @@ class DataService:
         except Exception as e:
             logger.error(f"Failed to get task history for task_id {task_id}: {e}")
             return []
+
+    def get_task_history_by_key(self, task_key: str) -> List[StatusHistoryEntry]:
+        """
+        Get status history for a specific task by key.
+
+        Args:
+            task_key: Task key (e.g., 'FULLSTACK-123')
+
+        Returns:
+            List of StatusHistoryEntry objects
+        """
+        try:
+            # First get the task to find its ID
+            task = (
+                self.db.query(TrackerTask).filter(TrackerTask.key == task_key).first()
+            )
+
+            if not task:
+                logger.warning(f"Task not found: {task_key}")
+                return []
+
+            return self.get_task_history(task.id)
+
+        except Exception as e:
+            logger.error(f"Failed to get task history for task_key {task_key}: {e}")
+            return []

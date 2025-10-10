@@ -13,7 +13,7 @@ async_engine = create_async_engine(
     settings.DATABASE_URL,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    echo=settings.DEBUG,
+    echo=False,  # Disable SQL query logging
     future=True,
 )
 
@@ -22,7 +22,7 @@ sync_engine = create_engine(
     settings.DATABASE_URL_SYNC,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    echo=settings.DEBUG,
+    echo=False,  # Disable SQL query logging
 )
 
 # Session factories

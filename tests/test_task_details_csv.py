@@ -168,6 +168,9 @@ class TestTaskDetailsCSV:
                     "TTD Pause",
                     "Discovery backlog (дни)",
                     "Готова к разработке (дни)",
+                    "Возвраты с Testing",
+                    "Возвраты с Внешний тест",
+                    "Всего возвратов",
                     "Квартал",
                 ]
                 assert reader.fieldnames == expected_headers

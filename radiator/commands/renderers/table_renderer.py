@@ -194,6 +194,12 @@ class TableRenderer(BaseRenderer):
                     tasks = group_metrics.ttm_metrics.count
                     pause_avg = group_metrics.ttm_metrics.pause_mean or 0
                     pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
+                    testing_returns_p85 = (
+                        group_metrics.ttm_metrics.testing_returns_p85 or 0
+                    )
+                    external_returns_p85 = (
+                        group_metrics.ttm_metrics.external_test_returns_p85 or 0
+                    )
                     row.extend(
                         [
                             f"{ttm_avg:.1f}",
@@ -201,10 +207,12 @@ class TableRenderer(BaseRenderer):
                             str(tasks),
                             f"{pause_avg:.1f}",
                             f"{pause_p85:.1f}",
+                            f"{testing_returns_p85:.1f}",
+                            f"{external_returns_p85:.1f}",
                         ]
                     )
                 else:
-                    row.extend(["", "", "", "", ""])
+                    row.extend(["", "", "", "", "", "", ""])
             ttm_table_data.append(row)
 
         # Create headers
@@ -217,6 +225,8 @@ class TableRenderer(BaseRenderer):
                     f"{quarter}\nTasks",
                     f"{quarter}\nPause Avg",
                     f"{quarter}\nPause 85%",
+                    f"{quarter}\nTesting\nReturns 85%",
+                    f"{quarter}\nExternal\nReturns 85%",
                 ]
             )
 
@@ -226,7 +236,7 @@ class TableRenderer(BaseRenderer):
             colLabels=ttm_headers,
             cellLoc="center",
             loc="center",
-            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 5),
+            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 7),
         )
 
         # Style TTM table
@@ -259,15 +269,23 @@ class TableRenderer(BaseRenderer):
                         ttm_tasks = group_metrics.ttm_metrics.count
                         ttm_pause_avg = group_metrics.ttm_metrics.pause_mean or 0
                         ttm_pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
+                        testing_returns_p85 = (
+                            group_metrics.ttm_metrics.testing_returns_p85 or 0
+                        )
+                        external_returns_p85 = (
+                            group_metrics.ttm_metrics.external_test_returns_p85 or 0
+                        )
                         ttm_values = [
                             f"{ttm_avg:.1f}",
                             f"{ttm_p85:.1f}",
                             str(ttm_tasks),
                             f"{ttm_pause_avg:.1f}",
                             f"{ttm_pause_p85:.1f}",
+                            f"{testing_returns_p85:.1f}",
+                            f"{external_returns_p85:.1f}",
                         ]
                     else:
-                        ttm_values = ["", "", "", "", ""]
+                        ttm_values = ["0.0", "0.0", "0", "0.0", "0.0", "0.0", "0.0"]
 
                     # Tail columns
                     if group_metrics.tail_metrics.count > 0:
@@ -280,11 +298,25 @@ class TableRenderer(BaseRenderer):
                             str(tail_tasks),
                         ]
                     else:
-                        tail_values = ["", "", ""]
+                        tail_values = ["0.0", "0.0", "0"]
 
                     row.extend(ttm_values + tail_values)
                 else:
-                    row.extend(["", "", "", "", "", "", "", ""])
+                    # No metrics for this group in this quarter: 7 TTM columns + 3 Tail columns = 10 values
+                    row.extend(
+                        [
+                            "0.0",
+                            "0.0",
+                            "0",
+                            "0.0",
+                            "0.0",
+                            "0.0",
+                            "0.0",
+                            "0.0",
+                            "0.0",
+                            "0",
+                        ]
+                    )
             ttm_tail_table_data.append(row)
 
         # Create headers
@@ -297,6 +329,8 @@ class TableRenderer(BaseRenderer):
                     f"{quarter}\nTTM Tasks",
                     f"{quarter}\nTTM Pause Avg",
                     f"{quarter}\nTTM Pause 85%",
+                    f"{quarter}\nTesting\nReturns 85%",
+                    f"{quarter}\nExternal\nReturns 85%",
                     f"{quarter}\nTail Avg",
                     f"{quarter}\nTail 85%",
                     f"{quarter}\nTail Tasks",
@@ -309,7 +343,7 @@ class TableRenderer(BaseRenderer):
             colLabels=ttm_tail_headers,
             cellLoc="center",
             loc="center",
-            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 8),
+            colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 10),
         )
 
         # Style TTM+Tail table

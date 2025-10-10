@@ -26,6 +26,10 @@ from radiator.commands.services.author_team_mapping_service import (
 from radiator.commands.services.config_service import ConfigService
 from radiator.commands.services.data_service import DataService
 from radiator.commands.services.metrics_service import MetricsService
+from radiator.commands.services.testing_returns_metrics import (
+    calculate_enhanced_group_metrics_with_testing_returns,
+)
+from radiator.commands.services.testing_returns_service import TestingReturnsService
 from radiator.core.database import SessionLocal
 from radiator.core.logging import logger
 
@@ -67,6 +71,7 @@ class GenerateTimeToMarketReportCommand:
         )
         self.data_service = DataService(self.db, self.author_team_mapping_service)
         self.metrics_service = MetricsService()
+        self.testing_returns_service = TestingReturnsService(self.db)
 
         # Report data
         self.report: Optional[TimeToMarketReport] = None
@@ -146,6 +151,8 @@ class GenerateTimeToMarketReportCommand:
                         "ttm_discovery_backlog_times": [],
                         "ttm_ready_for_dev_times": [],
                         "tail_times": [],
+                        "testing_returns": [],
+                        "external_test_returns": [],
                     }
                 )
 
@@ -272,13 +279,36 @@ class GenerateTimeToMarketReportCommand:
                         )
                         # Continue without tail metric
 
+                    # Calculate testing returns for TTM tasks
+                    try:
+                        (
+                            testing_returns,
+                            external_returns,
+                        ) = self.testing_returns_service.calculate_testing_returns_for_cpo_task(
+                            task.key, self.data_service.get_task_history_by_key
+                        )
+                        group_data[group_value]["testing_returns"].append(
+                            testing_returns
+                        )
+                        group_data[group_value]["external_test_returns"].append(
+                            external_returns
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Error calculating testing returns for task {task.key}: {e}"
+                        )
+                        # Continue without testing returns
+                        group_data[group_value]["testing_returns"].append(0)
+                        group_data[group_value]["external_test_returns"].append(0)
+
                 # Calculate metrics for each group
                 groups = {}
                 for group_value, data in group_data.items():
                     if data["ttd_times"] or data["ttm_times"] or data["tail_times"]:
                         groups[
                             group_value
-                        ] = self.metrics_service.calculate_enhanced_group_metrics_with_status_durations(
+                        ] = calculate_enhanced_group_metrics_with_testing_returns(
+                            self.metrics_service,
                             group_value,
                             data["ttd_times"],
                             data["ttd_pause_times"],
@@ -289,6 +319,8 @@ class GenerateTimeToMarketReportCommand:
                             data["ttm_discovery_backlog_times"],
                             data["ttm_ready_for_dev_times"],
                             data["tail_times"],
+                            data["testing_returns"],
+                            data["external_test_returns"],
                         )
 
                 if groups:
@@ -382,6 +414,12 @@ class GenerateTimeToMarketReportCommand:
             )
             return ""
 
+        # Reconnect to database in case of previous transaction errors
+        try:
+            self.db.rollback()
+        except Exception:
+            pass  # Ignore rollback errors
+
         task_details = []
 
         try:
@@ -401,21 +439,33 @@ class GenerateTimeToMarketReportCommand:
                 logger.info(f"Processing task details for quarter: {quarter.name}")
 
                 # Get tasks for TTD and TTM
-                ttd_tasks = self.data_service.get_tasks_for_period(
-                    quarter.start_date,
-                    quarter.end_date,
-                    self.group_by,
-                    self.report.status_mapping,
-                    metric_type="ttd",
-                )
+                try:
+                    ttd_tasks = self.data_service.get_tasks_for_period(
+                        quarter.start_date,
+                        quarter.end_date,
+                        self.group_by,
+                        self.report.status_mapping,
+                        metric_type="ttd",
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to get TTD tasks for quarter {quarter.name}: {e}"
+                    )
+                    ttd_tasks = []
 
-                ttm_tasks = self.data_service.get_tasks_for_period(
-                    quarter.start_date,
-                    quarter.end_date,
-                    self.group_by,
-                    self.report.status_mapping,
-                    metric_type="ttm",
-                )
+                try:
+                    ttm_tasks = self.data_service.get_tasks_for_period(
+                        quarter.start_date,
+                        quarter.end_date,
+                        self.group_by,
+                        self.report.status_mapping,
+                        metric_type="ttm",
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to get TTM tasks for quarter {quarter.name}: {e}"
+                    )
+                    ttm_tasks = []
 
                 # Combine tasks for processing
                 all_tasks_in_quarter = {
@@ -423,9 +473,15 @@ class GenerateTimeToMarketReportCommand:
                 }
 
                 for task_key, task in all_tasks_in_quarter.items():
-                    history = self.data_service.get_task_history(task.id)
-                    if not history:
-                        logger.debug(f"No history found for task {task.key}")
+                    try:
+                        history = self.data_service.get_task_history(task.id)
+                        if not history:
+                            logger.debug(f"No history found for task {task.key}")
+                            continue
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to get history for task {task.key}: {e}"
+                        )
                         continue
 
                     ttd = self.metrics_service.calculate_time_to_delivery(
@@ -454,6 +510,21 @@ class GenerateTimeToMarketReportCommand:
                     # Calculate TTD pause time
                     ttd_pause = self._calculate_ttd_pause(task)
 
+                    # Calculate testing returns
+                    testing_returns = 0
+                    external_returns = 0
+                    try:
+                        (
+                            testing_returns,
+                            external_returns,
+                        ) = self.testing_returns_service.calculate_testing_returns_for_cpo_task(
+                            task.key, self.data_service.get_task_history_by_key
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Error calculating testing returns for task {task.key}: {e}"
+                        )
+
                     task_details.append(
                         {
                             "Автор": task.author,
@@ -467,6 +538,9 @@ class GenerateTimeToMarketReportCommand:
                             "TTD Pause": ttd_pause,
                             "Discovery backlog (дни)": discovery_backlog_duration,
                             "Готова к разработке (дни)": ready_for_dev_duration,
+                            "Возвраты с Testing": testing_returns,
+                            "Возвраты с Внешний тест": external_returns,
+                            "Всего возвратов": testing_returns + external_returns,
                             "Квартал": quarter.name,
                         }
                     )
@@ -486,6 +560,9 @@ class GenerateTimeToMarketReportCommand:
                         "TTD Pause",
                         "Discovery backlog (дни)",
                         "Готова к разработке (дни)",
+                        "Возвраты с Testing",
+                        "Возвраты с Внешний тест",
+                        "Всего возвратов",
                         "Квартал",
                     ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

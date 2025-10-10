@@ -11,7 +11,7 @@ help:  ## Show this help message
 	@echo '  test-db-*          - Manage test database (create, drop, reset)'
 	@echo ''
 	@echo 'Tracker Sync Commands:'
-	@echo '  sync-tracker       - Sync tracker tasks with custom filter and optional skip-history'
+	@echo '  sync-tracker       - Sync tracker tasks with custom filter, optional skip-history and limit'
 	@echo '  sync-tracker-*     - Various sync modes (active, recent, filter, file)'
 	@echo ''
 	@echo 'Tracker Test Commands:'
@@ -91,7 +91,7 @@ migrate-history:  ## Show migration history
 migrate-downgrade:  ## Downgrade one migration
 	alembic downgrade -1
 
-migrate-reset:  ## Reset to base (remove all migrations)
+migrate-reset-base:  ## Reset to base (remove all migrations)
 	alembic downgrade base
 
 db-init:  ## Initialize main database
@@ -118,18 +118,25 @@ test-env:  ## Verify test environment configuration
 # Tracker sync commands
 
 sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-history
-	@echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true]"
-	@echo "Example: make sync-tracker FILTER='Queue: CPO Status: In Progress'"
-	@echo "Example: make sync-tracker FILTER='key:CPO-*' SKIP_HISTORY=true"
 	@if [ -n "$(FILTER)" ]; then \
 		if [ "$(SKIP_HISTORY)" = "true" ]; then \
-			. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
+			if [ -n "$(LIMIT)" ]; then \
+				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history --limit $(LIMIT); \
+			else \
+				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
+			fi; \
 		else \
-			. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
+			if [ -n "$(LIMIT)" ]; then \
+				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --limit $(LIMIT); \
+			else \
+				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
+			fi; \
 		fi; \
 	else \
+		echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true] [LIMIT=N]"; \
+		echo "Example: make sync-tracker FILTER='Queue: CPO Status: In Progress' LIMIT=50"; \
+		echo "Example: make sync-tracker FILTER='key:CPO-*' SKIP_HISTORY=true LIMIT=100"; \
 		echo "Please specify FILTER parameter"; \
-		echo "Example: make sync-tracker FILTER='Queue: CPO'"; \
 		exit 1; \
 	fi
 

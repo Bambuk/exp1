@@ -89,7 +89,7 @@ class ConsoleRenderer(BaseRenderer):
             print(f"{'':<25}", end="")
             for quarter in quarters:
                 print(
-                    f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10}",
+                    f"{'Avg':>8} {'85%':>8} {'Tasks':>4} {'Pause Avg':>10} {'Pause 85%':>10} {'Testing 85%':>12} {'External 85%':>12}",
                     end="",
                 )
             print()
@@ -107,9 +107,15 @@ class ConsoleRenderer(BaseRenderer):
                         tasks = group_metrics.ttm_metrics.count
                         pause_avg = group_metrics.ttm_metrics.pause_mean or 0
                         pause_p85 = group_metrics.ttm_metrics.pause_p85 or 0
-                        line += f"{ttm_avg:>8.1f}{ttm_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}"
+                        testing_returns_p85 = (
+                            group_metrics.ttm_metrics.testing_returns_p85 or 0
+                        )
+                        external_returns_p85 = (
+                            group_metrics.ttm_metrics.external_test_returns_p85 or 0
+                        )
+                        line += f"{ttm_avg:>8.1f}{ttm_p85:>8.1f}{tasks:>4}{pause_avg:>10.1f}{pause_p85:>10.1f}{testing_returns_p85:>12.1f}{external_returns_p85:>12.1f}"
                     else:
-                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}"
+                        line += f"{'':>8}{'':>8}{'':>4}{'':>10}{'':>10}{'':>12}{'':>12}"
                 print(line)
 
             print()

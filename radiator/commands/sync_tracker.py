@@ -50,6 +50,7 @@ sys.path.insert(0, str(project_root))
 from radiator.core.config import settings, with_default_limit
 from radiator.core.database import SessionLocal
 from radiator.core.logging import logger
+from radiator.core.single_instance import SingleInstance
 from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHistory
 
 # CRUD operations removed - using direct SQLAlchemy queries
@@ -144,7 +145,8 @@ class TrackerSyncCommand:
             # We have only IDs - use get_tasks_batch for backwards compatibility
             logger.info("📥 Получаем данные задач из Tracker...")
             task_ids = task_data
-            tasks_data = tracker_service.get_tasks_batch(task_ids)
+            # Use expand=links to get task links along with task data
+            tasks_data = tracker_service.get_tasks_batch(task_ids, expand=["links"])
 
             # Process tasks data
             logger.info("🔄 Обрабатываем полученные данные...")
@@ -508,6 +510,20 @@ def main():
     """Main entry point for the sync command."""
     import argparse
 
+    # Check for single instance
+    try:
+        with SingleInstance("sync_tracker"):
+            logger.info("Sync tracker instance lock acquired")
+            _run_sync()
+    except RuntimeError as e:
+        logger.error(f"Failed to start sync tracker: {e}")
+        sys.exit(1)
+
+
+def _run_sync():
+    """Run the actual sync operation."""
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Sync data from Yandex Tracker with pagination support",
         epilog="""
@@ -537,6 +553,12 @@ Maximum limit is 10000 tasks per sync operation.
 
     args = parser.parse_args()
 
+    # Move all logic to _run_sync function
+    _run_sync_logic(args)
+
+
+def _run_sync_logic(args):
+    """Run the actual sync logic."""
     if args.debug:
         logger.setLevel("DEBUG")
 
