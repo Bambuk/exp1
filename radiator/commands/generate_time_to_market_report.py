@@ -451,6 +451,7 @@ class GenerateTimeToMarketReportCommand:
                     logger.warning(
                         f"Failed to get TTD tasks for quarter {quarter.name}: {e}"
                     )
+                    self.db.rollback()
                     ttd_tasks = []
 
                 try:
@@ -465,6 +466,7 @@ class GenerateTimeToMarketReportCommand:
                     logger.warning(
                         f"Failed to get TTM tasks for quarter {quarter.name}: {e}"
                     )
+                    self.db.rollback()
                     ttm_tasks = []
 
                 # Combine tasks for processing
@@ -482,6 +484,7 @@ class GenerateTimeToMarketReportCommand:
                         logger.warning(
                             f"Failed to get history for task {task.key}: {e}"
                         )
+                        self.db.rollback()
                         continue
 
                     ttd = self.metrics_service.calculate_time_to_delivery(

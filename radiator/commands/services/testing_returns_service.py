@@ -94,6 +94,7 @@ class TestingReturnsService:
 
         except Exception as e:
             logger.warning(f"Failed to get FULLSTACK links for {cpo_task_key}: {e}")
+            self.db.rollback()
             return []
 
     def get_task_hierarchy(
@@ -154,6 +155,7 @@ class TestingReturnsService:
 
         except Exception as e:
             logger.warning(f"Failed to get task hierarchy for {parent_key}: {e}")
+            self.db.rollback()
             return [parent_key]
 
     def calculate_testing_returns_for_task(

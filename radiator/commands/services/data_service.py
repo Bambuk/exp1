@@ -168,6 +168,7 @@ class DataService:
 
         except Exception as e:
             logger.error(f"Failed to get tasks for period: {e}")
+            self.db.rollback()
             return []
 
     def get_task_history(self, task_id: int) -> List[StatusHistoryEntry]:
@@ -209,6 +210,7 @@ class DataService:
 
         except Exception as e:
             logger.error(f"Failed to get task history for task_id {task_id}: {e}")
+            self.db.rollback()
             return []
 
     def get_task_history_by_key(self, task_key: str) -> List[StatusHistoryEntry]:
@@ -235,4 +237,5 @@ class DataService:
 
         except Exception as e:
             logger.error(f"Failed to get task history for task_key {task_key}: {e}")
+            self.db.rollback()
             return []
