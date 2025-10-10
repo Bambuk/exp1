@@ -16,10 +16,7 @@ import io
 # Completely disable all logging
 import logging
 
-# Completely disable all logging
-logging.disable(logging.CRITICAL)
-
-# Set all SQLAlchemy loggers to CRITICAL level
+# Disable SQLAlchemy verbose logging, but keep ERROR level
 logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.CRITICAL)
 logging.getLogger("sqlalchemy.pool").setLevel(logging.CRITICAL)
@@ -30,9 +27,15 @@ logging.getLogger("sqlalchemy.orm").setLevel(logging.CRITICAL)
 logging.getLogger("alembic").setLevel(logging.CRITICAL)
 logging.getLogger("psycopg2").setLevel(logging.CRITICAL)
 
-# Configure root logger to be quiet
-logging.basicConfig(level=logging.CRITICAL)
+# Configure root logger: show only CRITICAL, but our app logger will show ERROR
+logging.basicConfig(
+    level=logging.ERROR, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 
+# Set radiator logger to ERROR level to show errors but not info/debug
+logging.getLogger("radiator").setLevel(logging.ERROR)
+
+import traceback
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -233,21 +236,42 @@ class TrackerSyncCommand:
 
         # Process history with progress bar
         logger.info("💾 Обрабатываем и сохраняем историю в базу данных...")
+        failed_tasks = []
         with tqdm(
             total=len(changelogs_data), desc="💾 Обработка истории", unit="задача"
         ) as pbar:
             for i, (task_id, changelog) in enumerate(changelogs_data, 1):
-                history_entries, has_history = self._process_single_task_history(
-                    task_id, changelog, tasks_dict
-                )
-                total_history_entries += history_entries
-                if has_history:
-                    tasks_with_history += 1
+                try:
+                    history_entries, has_history = self._process_single_task_history(
+                        task_id, changelog, tasks_dict
+                    )
+                    total_history_entries += history_entries
+                    if has_history:
+                        tasks_with_history += 1
 
-                # Update progress bar
-                task_key = tasks_dict.get(task_id, {}).get("key", task_id[:8] + "...")
-                pbar.set_postfix({"task": task_key})
-                pbar.update(1)
+                    # Update progress bar
+                    task_key = tasks_dict.get(task_id, {}).get(
+                        "key", task_id[:8] + "..."
+                    )
+                    pbar.set_postfix({"task": task_key})
+                    pbar.update(1)
+                except Exception as e:
+                    task_key = tasks_dict.get(task_id, {}).get("key", task_id)
+                    error_msg = f"Ошибка обработки истории задачи {task_key} (ID: {task_id}): {type(e).__name__}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
+                    failed_tasks.append((task_key, str(e)))
+                    pbar.update(1)
+                    # Продолжаем обработку остальных задач
+
+        if failed_tasks:
+            logger.warning(
+                f"⚠️ Не удалось обработать историю для {len(failed_tasks)} задач:"
+            )
+            for task_key, error in failed_tasks[:10]:  # Показываем первые 10
+                logger.warning(f"  - {task_key}: {error}")
+            if len(failed_tasks) > 10:
+                logger.warning(f"  ... и ещё {len(failed_tasks) - 10} задач")
 
         logger.info(
             f"✅ История синхронизирована: {total_history_entries} записей создано для {tasks_with_history} задач"

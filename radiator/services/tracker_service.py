@@ -88,6 +88,17 @@ class TrackerAPIService:
             else:
                 logger.error(f"🚫 API Error {status_code or 'Unknown'}: {e}")
                 logger.error(f"   URL: {url}")
+
+            # Log full traceback for debugging
+            import traceback
+
+            logger.error(f"📍 Request details: method={method}, url={url}")
+            if "params" in kwargs:
+                logger.error(f"📍 Request params: {kwargs['params']}")
+            if "json" in kwargs:
+                logger.error(f"📍 Request json: {kwargs['json']}")
+            logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
+
             raise
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
@@ -150,7 +161,22 @@ class TrackerAPIService:
                     break
 
             except Exception as e:
-                logger.error(f"❌ Ошибка получения истории для задачи {task_id}: {e}")
+                import traceback
+
+                error_details = {
+                    "task_id": task_id,
+                    "page": page,
+                    "per_page": per_page,
+                    "next_page_id": next_page_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "total_data_so_far": len(all_data),
+                }
+                logger.error(
+                    f"❌ Ошибка получения истории для задачи {task_id} на странице {page}: {type(e).__name__}: {e}"
+                )
+                logger.error(f"📍 Error details: {error_details}")
+                logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
                 break
 
         return all_data
@@ -186,7 +212,20 @@ class TrackerAPIService:
                         results[index] = (task_id, task_data)
                         pbar.set_postfix({"task": task_id[:8] + "..."})
                     except Exception as e:
-                        logger.error(f"Failed to get task {task_id}: {e}")
+                        import traceback
+
+                        error_details = {
+                            "task_id": task_id,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "index": index,
+                            "total_tasks": total_tasks,
+                        }
+                        logger.error(
+                            f"❌ Failed to get task {task_id}: {type(e).__name__}: {e}"
+                        )
+                        logger.error(f"📍 Error details: {error_details}")
+                        logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
                         results[index] = (task_id, None)
 
                     pbar.update(1)
@@ -223,7 +262,20 @@ class TrackerAPIService:
                         results[index] = (task_id, changelog_data)
                         pbar.set_postfix({"task": task_id[:8] + "..."})
                     except Exception as e:
-                        logger.error(f"Failed to get changelog for task {task_id}: {e}")
+                        import traceback
+
+                        error_details = {
+                            "task_id": task_id,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "index": index,
+                            "total_tasks": total_tasks,
+                        }
+                        logger.error(
+                            f"❌ Failed to get changelog for task {task_id}: {type(e).__name__}: {e}"
+                        )
+                        logger.error(f"📍 Error details: {error_details}")
+                        logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
                         results[index] = (task_id, [])
 
                     pbar.update(1)
