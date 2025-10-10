@@ -272,6 +272,7 @@ class TrackerAPIService:
                 future_to_index[future] = i
 
             # Use tqdm for real-time progress indication
+            errors = []
             with tqdm(
                 total=total_tasks, desc="📚 Загрузка истории", unit="задача"
             ) as pbar:
@@ -293,14 +294,20 @@ class TrackerAPIService:
                             "index": index,
                             "total_tasks": total_tasks,
                         }
-                        logger.error(
-                            f"❌ Failed to get changelog for task {task_id}: {type(e).__name__}: {e}"
-                        )
-                        logger.error(f"📍 Error details: {error_details}")
-                        logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
+                        # Store error for later logging to avoid breaking progress bar
+                        error_details["stacktrace"] = traceback.format_exc()
+                        errors.append(error_details)
                         results[index] = (task_id, [])
 
                     pbar.update(1)
+
+            # Log errors after progress bar is complete
+            for error in errors:
+                logger.error(
+                    f"❌ Failed to get changelog for task {error['task_id']}: {error['error_type']}: {error['error_message']}"
+                )
+                logger.error(f"📍 Error details: {error}")
+                logger.error(f"📍 Stacktrace: {error['stacktrace']}")
 
         return results
 
