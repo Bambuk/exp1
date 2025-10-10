@@ -41,7 +41,7 @@ class TestScrollPaginationBasicFunctionality:
             params = first_call[1]["params"]
             assert params["scrollType"] == "unsorted"
             assert params["perScroll"] == 1000
-            assert params["scrollTTLMillis"] == 300000  # 5 минут
+            assert params["scrollTTLMillis"] == 60000  # 1 минута
 
             assert result == ["task1", "task2"]
 
@@ -371,13 +371,13 @@ class TestScrollPaginationIntegration:
             params = {
                 "scrollType": "unsorted",
                 "perScroll": 10,  # Маленькое окно для теста
-                "scrollTTLMillis": 300000,
+                "scrollTTLMillis": 60000,
             }
             post_data = {"query": query}
 
             while len(all_results) < limit:
                 if scroll_id:
-                    params = {"scrollId": scroll_id, "scrollTTLMillis": 300000}
+                    params = {"scrollId": scroll_id, "scrollTTLMillis": 60000}
 
                 response = service._make_request(
                     url, method="POST", json=post_data, params=params

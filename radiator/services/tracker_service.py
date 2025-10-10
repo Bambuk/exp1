@@ -709,13 +709,29 @@ class TrackerAPIService:
             List of task IDs
         """
         try:
-            # Use default limit from config if not provided
+            # Если limit не указан, проверяем total count для автоопределения
             if limit is None:
-                limit = settings.DEFAULT_SEARCH_LIMIT
+                if self.should_use_scroll(query):
+                    # API показывает 10000 - может быть больше, используем scroll
+                    logger.info(
+                        f"X-Total-Count >= 10000, переключаемся на scroll для получения всех задач"
+                    )
+                    return self._search_tasks_with_scroll(
+                        query,
+                        limit=999999,  # Очень большой limit для получения всех задач
+                        extract_full_data=False,
+                    )
+                else:
+                    # Точное количество известно, используем v2
+                    total_count = self.get_total_tasks_count(query)
+                    logger.info(
+                        f"X-Total-Count: {total_count}, используем v2 pagination"
+                    )
+                    limit = total_count
 
             log_limit_info(f"Поиск задач с фильтром: {query}", limit)
 
-            # Автоматический выбор API версии по лимиту
+            # Если limit указан явно, используем старую логику
             if limit > 10000:
                 logger.info(f"Используем scroll-пагинацию (v3) для {limit} задач")
                 return self._search_tasks_with_scroll(
@@ -799,13 +815,30 @@ class TrackerAPIService:
             List of full task data dictionaries
         """
         try:
-            # Use default limit from config if not provided
+            # Если limit не указан, проверяем total count для автоопределения
             if limit is None:
-                limit = settings.DEFAULT_SEARCH_LIMIT
+                if self.should_use_scroll(query):
+                    # API показывает 10000 - может быть больше, используем scroll
+                    logger.info(
+                        f"X-Total-Count >= 10000, переключаемся на scroll для получения всех задач"
+                    )
+                    return self._search_tasks_with_scroll(
+                        query,
+                        limit=999999,  # Очень большой limit для получения всех задач
+                        extract_full_data=True,
+                        expand=expand,
+                    )
+                else:
+                    # Точное количество известно, используем v2
+                    total_count = self.get_total_tasks_count(query)
+                    logger.info(
+                        f"X-Total-Count: {total_count}, используем v2 pagination"
+                    )
+                    limit = total_count
 
             log_limit_info(f"Поиск задач с полными данными: {query}", limit)
 
-            # Автоматический выбор API версии по лимиту
+            # Если limit указан явно, используем старую логику
             if limit > 10000:
                 logger.info(
                     f"Используем scroll-пагинацию (v3) для {limit} задач с данными"
@@ -1124,6 +1157,58 @@ class TrackerAPIService:
             logger.error(f"Failed to get recent tasks: {e}")
             return []
 
+    def get_total_tasks_count(self, query: str) -> int:
+        """
+        Get total count of tasks matching the query from X-Total-Count header.
+
+        Args:
+            query: Search query
+
+        Returns:
+            Total count of tasks (may be capped at 10000 by API)
+        """
+        try:
+            headers = {
+                "Authorization": f"OAuth {settings.TRACKER_API_TOKEN}",
+                "X-Org-ID": settings.TRACKER_ORG_ID,
+                "Content-Type": "application/json",
+            }
+
+            url = f"{settings.TRACKER_BASE_URL}issues/_search"
+            post_data = {"query": query}
+            params = {"perPage": 1, "page": 1}  # Minimal request just to get count
+
+            response = self._make_request(
+                url, method="POST", json=post_data, params=params
+            )
+
+            total_count = response.headers.get("X-Total-Count")
+            if total_count:
+                return int(total_count)
+            else:
+                logger.warning("No X-Total-Count header found")
+                return 0
+
+        except Exception as e:
+            logger.error(f"Failed to get total tasks count: {e}")
+            raise
+
+    def should_use_scroll(self, query: str) -> bool:
+        """
+        Определяет, нужно ли использовать scroll pagination.
+
+        Returns True если X-Total-Count == 10000 (может быть больше задач).
+        Returns False если X-Total-Count < 10000 (известно точное количество).
+        """
+        try:
+            total_count = self.get_total_tasks_count(query)
+            # API возвращает максимум 10000 в X-Total-Count
+            # Если именно 10000 - может быть больше, нужен scroll
+            return total_count >= 10000
+        except Exception as e:
+            logger.warning(f"Не удалось определить total count, используем scroll: {e}")
+            return True  # В случае ошибки используем scroll как более надежный метод
+
     def _search_tasks_with_scroll(
         self,
         query: str,
@@ -1155,7 +1240,7 @@ class TrackerAPIService:
         params = {
             "scrollType": "unsorted",
             "perScroll": 1000,
-            "scrollTTLMillis": 300000,  # 5 минут для долгих операций
+            "scrollTTLMillis": 60000,  # 1 минута - проверенное рабочее значение
         }
         if expand:
             params["expand"] = ",".join(expand)
@@ -1166,7 +1251,7 @@ class TrackerAPIService:
         while len(all_results) < limit:
             # Для последующих запросов используем scrollId
             if scroll_id:
-                params = {"scrollId": scroll_id, "scrollTTLMillis": 300000}
+                params = {"scrollId": scroll_id, "scrollTTLMillis": 60000}
                 if expand:
                     params["expand"] = ",".join(expand)
 
@@ -1182,7 +1267,7 @@ class TrackerAPIService:
                 page_results = self._extract_task_ids_from_response(data)
 
             if not page_results:
-                logger.debug(f"Scroll страница {page}: результатов больше нет")
+                logger.info(f"Scroll завершен: получен пустой ответ")
                 break
 
             all_results.extend(page_results)
@@ -1194,7 +1279,7 @@ class TrackerAPIService:
             scroll_id = response.headers.get("X-Scroll-Id")
 
             if not scroll_id:
-                logger.debug("X-Scroll-Id отсутствует, достигнут конец результатов")
+                logger.info(f"Scroll завершен: нет больше scroll ID")
                 break
 
             page += 1
