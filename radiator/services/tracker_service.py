@@ -617,7 +617,7 @@ class TrackerAPIService:
 
     def search_tasks(self, query: str, limit: int = None) -> List[str]:
         """
-        Search for tasks using a query with simplified pagination.
+        Search for tasks using a query with automatic pagination method selection.
 
         Args:
             query: Yandex Tracker search query
@@ -633,6 +633,14 @@ class TrackerAPIService:
 
             log_limit_info(f"Поиск задач с фильтром: {query}", limit)
 
+            # Автоматический выбор API версии по лимиту
+            if limit > 10000:
+                logger.info(f"Используем scroll-пагинацию (v3) для {limit} задач")
+                return self._search_tasks_with_scroll(
+                    query, limit, extract_full_data=False
+                )
+
+            # Существующая логика для обычной пагинации v2 (БЕЗ ИЗМЕНЕНИЙ)
             url = f"{self.base_url}issues/_search"
             all_task_ids = []
             page = 1
@@ -698,7 +706,7 @@ class TrackerAPIService:
         self, query: str, limit: int = None
     ) -> List[Dict[str, Any]]:
         """
-        Search for tasks using a query and return full task data.
+        Search for tasks using a query with automatic pagination method selection and return full task data.
 
         Args:
             query: Yandex Tracker search query
@@ -714,6 +722,16 @@ class TrackerAPIService:
 
             log_limit_info(f"Поиск задач с полными данными: {query}", limit)
 
+            # Автоматический выбор API версии по лимиту
+            if limit > 10000:
+                logger.info(
+                    f"Используем scroll-пагинацию (v3) для {limit} задач с данными"
+                )
+                return self._search_tasks_with_scroll(
+                    query, limit, extract_full_data=True
+                )
+
+            # Существующая логика для обычной пагинации v2 (БЕЗ ИЗМЕНЕНИЙ)
             url = f"{self.base_url}issues/_search"
             all_tasks = []
             page = 1
@@ -1016,6 +1034,88 @@ class TrackerAPIService:
         except Exception as e:
             logger.error(f"Failed to get recent tasks: {e}")
             return []
+
+    def _search_tasks_with_scroll(
+        self,
+        query: str,
+        limit: int,
+        extract_full_data: bool = False,
+    ) -> List[Any]:
+        """
+        Поиск задач с использованием scroll-пагинации (для >10000 результатов).
+
+        Использует API v3: https://api.tracker.yandex.net/v3/issues/_search
+
+        Args:
+            query: Поисковый запрос на языке Яндекс Трекера
+            limit: Максимальное количество задач
+            extract_full_data: Если True - возвращает полные данные, если False - только ID
+
+        Returns:
+            Список задач (ID или полные данные в зависимости от extract_full_data)
+        """
+        # ВСЕГДА используем v3 для scroll
+        url = "https://api.tracker.yandex.net/v3/issues/_search"
+
+        all_results = []
+        scroll_id = None
+        page = 1
+
+        # Первый запрос с инициализацией scroll
+        params = {
+            "scrollType": "unsorted",
+            "perScroll": 1000,
+            "scrollTTLMillis": 300000,  # 5 минут для долгих операций
+        }
+        post_data = {"query": query}
+
+        logger.info(f"Начинаем scroll-пагинацию (v3) для запроса: {query}")
+
+        while len(all_results) < limit:
+            # Для последующих запросов используем scrollId
+            if scroll_id:
+                params = {"scrollId": scroll_id, "scrollTTLMillis": 300000}
+
+            response = self._make_request(
+                url, method="POST", json=post_data, params=params
+            )
+            data = response.json()
+
+            # Извлекаем результаты
+            if extract_full_data:
+                page_results = self._extract_tasks_from_response(data)
+            else:
+                page_results = self._extract_task_ids_from_response(data)
+
+            if not page_results:
+                logger.debug(f"Scroll страница {page}: результатов больше нет")
+                break
+
+            all_results.extend(page_results)
+            logger.debug(
+                f"Scroll страница {page}: получено {len(page_results)}, всего {len(all_results)}"
+            )
+
+            # Получаем scroll_id для следующей страницы
+            scroll_id = response.headers.get("X-Scroll-Id")
+
+            if not scroll_id:
+                logger.debug("X-Scroll-Id отсутствует, достигнут конец результатов")
+                break
+
+            page += 1
+
+            # Защита от бесконечного цикла
+            if page > 1000:  # Максимум 1 млн задач
+                logger.warning("Достигнут максимальный лимит страниц (1000)")
+                break
+
+        # Ограничиваем результаты до запрошенного лимита
+        results = all_results[:limit]
+        logger.info(f"Scroll-пагинация завершена: получено {len(results)} задач")
+
+        # TTL сам очистит ресурсы через 60 секунд - ничего не делаем
+        return results
 
 
 # Create service instance
