@@ -105,6 +105,9 @@ class TrackerAPIService:
         all_data = []
         page = 1
         per_page = 50  # API default and maximum per page
+        next_page_id = (
+            None  # Local variable to avoid race conditions in parallel execution
+        )
 
         while True:
             try:
@@ -115,8 +118,8 @@ class TrackerAPIService:
                 }
 
                 # Если это не первая страница, добавляем параметр id для следующей страницы
-                if page > 1 and hasattr(self, "next_page_id"):
-                    params["id"] = self.next_page_id
+                if page > 1 and next_page_id:
+                    params["id"] = next_page_id
 
                 response = self._make_request(url, params=params)
                 page_data = response.json()
@@ -134,7 +137,7 @@ class TrackerAPIService:
 
                     match = re.search(r"id=([^&]+)", link_header)
                     if match:
-                        self.next_page_id = match.group(1)
+                        next_page_id = match.group(1)
                         page += 1
                     else:
                         break
