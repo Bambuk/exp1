@@ -22,6 +22,22 @@
 ### **Skip Cleanup?**
 > "Should we clean up temporary files and update documentation before finalizing?"
 
+## 🚫 **NEVER Do Without Asking**
+
+### **If you want to fix failing tests:**
+> "I see some tests are failing. Should I create a plan to fix these tests?"
+
+### **If you want to refactor/optimize:**
+> "Would you like me to refactor this code for better readability/performance?"
+
+### **If you want to add features:**
+> "Should I add [feature] to improve this functionality?"
+
+### **If you want to do anything not explicitly requested:**
+> "I notice [observation]. Would you like me to [suggested action]?"
+
+**Rule: Only do what the user explicitly asked for. Everything else - ask first!**
+
 ## 🎯 **Development Process**
 
 ```

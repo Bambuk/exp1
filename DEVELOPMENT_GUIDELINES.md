@@ -137,11 +137,37 @@ Before committing, verify:
 - Missing error handling
 - Performance concerns
 
+### **When to ask before acting:**
+- **User didn't explicitly ask for something** - always ask first
+- **Want to fix failing tests** - ask "Should I create a plan to fix these tests?"
+- **Want to refactor code** - ask "Would you like me to refactor this code?"
+- **Want to add features** - ask "Should I add [feature] to improve this?"
+- **Want to optimize** - ask "Would you like me to optimize this for better performance?"
+
+### **Examples of asking vs doing:**
+
+**❌ WRONG - Doing without asking:**
+- User: "Run the tests"
+- Assistant: *runs tests, sees failures, starts fixing them*
+
+**✅ CORRECT - Asking first:**
+- User: "Run the tests"
+- Assistant: *runs tests* "I see 3 tests are failing. Should I create a plan to fix these tests?"
+
+**❌ WRONG - Doing without asking:**
+- User: "Check this function"
+- Assistant: *starts refactoring the function*
+
+**✅ CORRECT - Asking first:**
+- User: "Check this function"
+- Assistant: "I notice this function could be optimized. Would you like me to refactor it for better performance?"
+
 ### **When to proceed:**
 - Clear requirements
 - Following established patterns
 - User confirms approach
 - All tests passing
+- **User explicitly asked for the action**
 
 ## 🎯 **Success Metrics**
 
