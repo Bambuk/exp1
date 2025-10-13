@@ -204,6 +204,7 @@ class TrackerSyncCommand:
         self,
         task_data: List[Any],
         tasks_data: List[tuple[str, Optional[Dict[str, Any]]]],
+        force_full_history: bool = False,
     ) -> tuple[int, int]:
         """Sync task history data."""
         # Extract task IDs from task_data
@@ -245,7 +246,7 @@ class TrackerSyncCommand:
             for i, (task_id, changelog) in enumerate(changelogs_data, 1):
                 try:
                     history_entries, has_history = self._process_single_task_history(
-                        task_id, changelog, tasks_dict
+                        task_id, changelog, tasks_dict, force_full_history
                     )
                     total_history_entries += history_entries
                     if has_history:
@@ -281,7 +282,11 @@ class TrackerSyncCommand:
         return total_history_entries, tasks_with_history
 
     def _process_single_task_history(
-        self, task_id: str, changelog: List[Dict[str, Any]], tasks_dict: Dict[str, Any]
+        self,
+        task_id: str,
+        changelog: List[Dict[str, Any]],
+        tasks_dict: Dict[str, Any],
+        force_full_history: bool = False,
     ) -> tuple[int, bool]:
         """Process history for a single task. Returns (history_entries_count, has_history)."""
         # Get task from database
@@ -300,31 +305,69 @@ class TrackerSyncCommand:
             logger.warning(f"⚠️ Данные задачи {task_id} не найдены, пропускаем историю")
             return 0, False
 
-        # Extract task data
-        task_info = tracker_service.extract_task_data(task_data)
+        # Check if we should use incremental update
+        if db_task.last_changelog_id and not force_full_history:
+            # INCREMENTAL MODE: Use incremental update
+            logger.debug(f"Using incremental history update for task {task_id}")
+            added_count = self._incremental_history_update(db_task.id, changelog)
 
-        # Extract status history with initial status support
-        task_key = db_task.key if hasattr(db_task, "key") and db_task.key else task_id
-        status_history = tracker_service.extract_status_history_with_initial_status(
-            changelog, task_info, task_key
-        )
-        if not status_history:
+            # Update last_changelog_id with the latest entry
+            if changelog:
+                latest_entry = changelog[-1]
+                db_task.last_changelog_id = latest_entry["id"]
+                self.db.commit()
+                logger.debug(
+                    f"Updated last_changelog_id to {latest_entry['id']} for task {task_id}"
+                )
+
+            return added_count, added_count > 0
+        else:
+            # FULL MODE: First time sync for this task or forced full sync
+            if force_full_history:
+                logger.debug(f"Using forced full history update for task {task_id}")
+            else:
+                logger.debug(
+                    f"Using full history update for task {task_id} (first time)"
+                )
+
+            # Extract task data
+            task_info = tracker_service.extract_task_data(task_data)
+
+            # Extract status history with initial status support
+            task_key = (
+                db_task.key if hasattr(db_task, "key") and db_task.key else task_id
+            )
+            status_history = tracker_service.extract_status_history_with_initial_status(
+                changelog, task_info, task_key
+            )
+            if not status_history:
+                return 0, False
+
+            # Delete existing history for this task to ensure clean slate
+            self.db.query(TrackerTaskHistory).filter(
+                TrackerTaskHistory.task_id == db_task.id
+            ).delete()
+
+            # Prepare history data with duplicate prevention
+            history_data = self._prepare_history_data(
+                status_history, db_task.id, task_id
+            )
+
+            # Save history
+            if history_data:
+                created_count = self._bulk_create_history(history_data)
+
+                # Set last_changelog_id for future incremental updates
+                if changelog:
+                    db_task.last_changelog_id = changelog[-1]["id"]
+                    self.db.commit()
+                    logger.debug(
+                        f"Set last_changelog_id to {changelog[-1]['id']} for task {task_id}"
+                    )
+
+                return created_count, True
+
             return 0, False
-
-        # Delete existing history for this task to ensure clean slate
-        self.db.query(TrackerTaskHistory).filter(
-            TrackerTaskHistory.task_id == db_task.id
-        ).delete()
-
-        # Prepare history data with duplicate prevention
-        history_data = self._prepare_history_data(status_history, db_task.id, task_id)
-
-        # Save history
-        if history_data:
-            created_count = self._bulk_create_history(history_data)
-            return created_count, True
-
-        return 0, False
 
     def _prepare_history_data(
         self, status_history: List[Dict[str, Any]], db_task_id: int, task_id: str
@@ -354,6 +397,97 @@ class TrackerSyncCommand:
             created_count += 1
         self.db.commit()
         return created_count
+
+    def _incremental_history_update(
+        self, task_id: int, new_changelog_entries: List[Dict[str, Any]]
+    ) -> int:
+        """
+        Append new history entries without deleting existing ones.
+
+        This method is used for incremental updates when last_changelog_id exists.
+        It only adds new entries and updates the end_date of the previous last entry.
+
+        Args:
+            task_id: Database ID of the task
+            new_changelog_entries: New changelog entries from API
+
+        Returns:
+            Number of new history entries added
+        """
+        if not new_changelog_entries:
+            return 0
+
+        # Extract status changes from new changelog entries
+        # Use simple extraction for incremental updates (no initial status handling)
+        new_status_changes = tracker_service.extract_status_history(
+            new_changelog_entries, f"task_{task_id}"
+        )
+
+        if not new_status_changes:
+            logger.debug(
+                f"No status changes found in {len(new_changelog_entries)} changelog entries for task {task_id}"
+            )
+            return 0
+
+        logger.debug(
+            f"Found {len(new_status_changes)} new status changes for task {task_id}"
+        )
+
+        # Get the current last history entry for this task
+        last_entry = (
+            self.db.query(TrackerTaskHistory)
+            .filter(TrackerTaskHistory.task_id == task_id)
+            .order_by(TrackerTaskHistory.start_date.desc())
+            .first()
+        )
+
+        # Update end_date of previous last entry if needed
+        if last_entry and last_entry.end_date is None and new_status_changes:
+            last_entry.end_date = new_status_changes[0]["start_date"]
+            logger.debug(f"Updated end_date of previous last entry for task {task_id}")
+
+        # Prepare new history entries with duplicate check
+        added_count = 0
+        for entry in new_status_changes:
+            # Check if this exact entry already exists (more precise check)
+            existing = (
+                self.db.query(TrackerTaskHistory)
+                .filter(
+                    TrackerTaskHistory.task_id == task_id,
+                    TrackerTaskHistory.status == entry["status"],
+                    TrackerTaskHistory.status_display == entry["status_display"],
+                    TrackerTaskHistory.start_date == entry["start_date"],
+                )
+                .first()
+            )
+
+            if not existing:
+                # Create new history entry
+                history_entry = TrackerTaskHistory(
+                    task_id=task_id,
+                    tracker_id=new_changelog_entries[0].get("issue", {}).get("id", ""),
+                    status=entry["status"],
+                    status_display=entry["status_display"],
+                    start_date=entry["start_date"],
+                    end_date=entry.get("end_date"),
+                )
+                self.db.add(history_entry)
+                added_count += 1
+                logger.debug(
+                    f"Added new history entry: {entry['status']} at {entry['start_date']}"
+                )
+            else:
+                logger.debug(
+                    f"Skipped duplicate history entry: {entry['status']} at {entry['start_date']}"
+                )
+
+        if added_count > 0:
+            self.db.commit()
+            logger.debug(
+                f"Committed {added_count} new history entries for task {task_id}"
+            )
+
+        return added_count
 
     def _cleanup_duplicate_history(self) -> int:
         """Clean up duplicate history entries."""
@@ -385,6 +519,7 @@ class TrackerSyncCommand:
         filters: Dict[str, Any] = None,
         limit: int = None,
         skip_history: bool = False,
+        force_full_history: bool = False,
     ):
         """Run the sync command."""
         try:
@@ -393,6 +528,7 @@ class TrackerSyncCommand:
             logger.debug(f"   filters: {filters}")
             logger.debug(f"   limit: {limit}")
             logger.debug(f"   skip_history: {skip_history}")
+            logger.debug(f"   force_full_history: {force_full_history}")
 
             # Create sync log
             self.sync_log = self.create_sync_log()
@@ -447,7 +583,7 @@ class TrackerSyncCommand:
                     logger.info("📚 Синхронизация истории включена, начинаем...")
                     try:
                         history_entries, tasks_with_history = self.sync_task_history(
-                            task_data, tasks_data
+                            task_data, tasks_data, force_full_history
                         )
                         logger.info(
                             f"📚 Синхронизация истории завершена: {history_entries} записей"
@@ -549,6 +685,11 @@ Maximum limit is 10000 tasks per sync operation.
         action="store_true",
         help="Skip syncing task history (faster sync for testing)",
     )
+    parser.add_argument(
+        "--force-full-history",
+        action="store_true",
+        help="Force full history sync for all tasks (ignore last_changelog_id)",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     args = parser.parse_args()
@@ -580,12 +721,15 @@ def _run_sync_logic(args):
     # Run sync
     logger.info("🚀 Запускаем синхронизацию...")
     logger.debug(
-        f"🔍 Параметры: filters={filters}, limit={args.limit}, skip_history={args.skip_history}"
+        f"🔍 Параметры: filters={filters}, limit={args.limit}, skip_history={args.skip_history}, force_full_history={args.force_full_history}"
     )
 
     with TrackerSyncCommand() as sync_cmd:
         success = sync_cmd.run(
-            filters=filters, limit=args.limit, skip_history=args.skip_history
+            filters=filters,
+            limit=args.limit,
+            skip_history=args.skip_history,
+            force_full_history=args.force_full_history,
         )
         sys.exit(0 if success else 1)
 

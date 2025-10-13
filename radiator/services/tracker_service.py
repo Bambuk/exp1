@@ -2,7 +2,7 @@
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -201,6 +201,93 @@ class TrackerAPIService:
                 logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
                 break
 
+        return all_data
+
+    def get_changelog_from_id(
+        self, task_id: str, last_changelog_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get changelog entries after specified ID for incremental sync.
+
+        Uses the 'id' parameter to fetch only new entries added after last_changelog_id.
+        This is much more efficient than fetching the full changelog.
+
+        Args:
+            task_id: Task ID in Tracker
+            last_changelog_id: ID of the last processed changelog entry
+
+        Returns:
+            List of new changelog entries (only those added after last_changelog_id)
+        """
+        all_data = []
+        per_page = 50  # API default and maximum per page
+        next_page_id = last_changelog_id  # Start from the last known ID
+
+        logger.debug(
+            f"Getting incremental changelog for task {task_id} from ID {last_changelog_id}"
+        )
+
+        while True:
+            try:
+                url = f"{self.base_url}issues/{task_id}/changelog"
+                params = {
+                    "perPage": per_page,
+                    "type": "IssueWorkflow",  # Only status changes
+                    "id": next_page_id,  # Get entries after this ID
+                }
+
+                response = self._make_request(url, params=params)
+                page_data = response.json()
+
+                if not page_data:
+                    # No more data available
+                    break
+
+                all_data.extend(page_data)
+
+                # Check if there's a next page using Link header
+                link_header = response.headers.get("Link", "")
+                if 'rel="next"' in link_header:
+                    # Extract the id parameter from the next page URL
+                    import re
+
+                    match = re.search(r"id=([^&]+)", link_header)
+                    if match:
+                        next_page_id = match.group(1)
+                    else:
+                        break
+                else:
+                    # No next page, we're done
+                    break
+
+                # Safety check to prevent infinite loops
+                if len(all_data) > 1000:  # Reasonable limit for incremental updates
+                    logger.warning(
+                        f"Stopping incremental changelog fetch at {len(all_data)} entries for task {task_id}"
+                    )
+                    break
+
+            except Exception as e:
+                import traceback
+
+                error_details = {
+                    "task_id": task_id,
+                    "last_changelog_id": last_changelog_id,
+                    "next_page_id": next_page_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "total_data_so_far": len(all_data),
+                }
+                logger.error(
+                    f"❌ Ошибка получения инкрементальной истории для задачи {task_id}: {type(e).__name__}: {e}"
+                )
+                logger.error(f"📍 Error details: {error_details}")
+                logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
+                break
+
+        logger.debug(
+            f"Retrieved {len(all_data)} new changelog entries for task {task_id}"
+        )
         return all_data
 
     def get_tasks_batch(

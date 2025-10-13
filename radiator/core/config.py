@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     TRACKER_API_TOKEN: str = Field(default="", env="TRACKER_API_TOKEN")
     TRACKER_ORG_ID: str = Field(default="", env="TRACKER_ORG_ID")
     TRACKER_BASE_URL: str = Field(
-        default="https://api.tracker.yandex.net/v2/", env="TRACKER_BASE_URL"
+        default="https://api.tracker.yandex.net/v3/", env="TRACKER_BASE_URL"
     )
     TRACKER_MAX_WORKERS: int = Field(default=10, env="TRACKER_MAX_WORKERS")
     TRACKER_REQUEST_DELAY: float = Field(default=1.0, env="TRACKER_REQUEST_DELAY")
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     DEFAULT_LARGE_LIMIT: int = Field(default=1000, env="DEFAULT_LARGE_LIMIT")
     DEFAULT_SEARCH_LIMIT: int = Field(default=100, env="DEFAULT_SEARCH_LIMIT")
     MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
-    API_PAGE_SIZE: int = Field(default=50, env="API_PAGE_SIZE")
+    API_PAGE_SIZE: int = Field(default=1000, env="API_PAGE_SIZE")
 
     # Reports Configuration
     REPORTS_DIR: str = Field(default="data/reports", env="REPORTS_DIR")

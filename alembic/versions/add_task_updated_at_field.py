@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "add_task_updated_at_field"
-down_revision = "fix_items_migration"
+down_revision = "5d4313ca2c02"
 branch_labels = None
 depends_on = None
 

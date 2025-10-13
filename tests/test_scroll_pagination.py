@@ -234,7 +234,7 @@ class TestAutomaticPaginationSelection:
 
             # Проверяем, что использовался v2 endpoint
             call_url = mock_request.call_args[0][0]
-            assert "/v2/issues/_search" in call_url
+            assert "/v3/issues/_search" in call_url
 
             # Проверяем, что используются параметры page/perPage, а не scroll
             params = mock_request.call_args[1]["params"]
@@ -281,7 +281,7 @@ class TestAutomaticPaginationSelection:
 
             # Проверяем, что использовался v2 endpoint
             call_url = mock_request.call_args[0][0]
-            assert "/v2/issues/_search" in call_url
+            assert "/v3/issues/_search" in call_url
 
             # Проверяем, что используются параметры page/perPage
             params = mock_request.call_args[1]["params"]

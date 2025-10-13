@@ -39,6 +39,11 @@ class TrackerTask(Base):
     # Links to other tasks (JSONB array)
     links = Column(JSONB, nullable=True)  # Array of link objects from API
 
+    # Incremental sync support
+    last_changelog_id = Column(
+        String(255), nullable=True
+    )  # ID of last processed changelog entry
+
     def __repr__(self) -> str:
         return f"<TrackerTask(id={self.id}, tracker_id='{self.tracker_id}')>"
 
@@ -89,6 +94,9 @@ Index("idx_tracker_tasks_last_sync", TrackerTask.last_sync_at)
 Index(
     "idx_tracker_tasks_task_updated", TrackerTask.task_updated_at
 )  # Index for tracker updates
+Index(
+    "idx_tracker_tasks_last_changelog_id", TrackerTask.last_changelog_id
+)  # Index for incremental sync
 Index(
     "idx_tracker_history_task_status",
     TrackerTaskHistory.task_id,
