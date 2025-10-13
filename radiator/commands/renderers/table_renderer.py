@@ -68,9 +68,11 @@ class TableRenderer(BaseRenderer):
 
             # Calculate layout based on what we're showing
             if report_type == ReportType.BOTH:
-                # Show TTD, TTM+Tail in two sections
-                ax1 = fig.add_axes([0.05, 0.55, 0.9, 0.35])  # TTD
-                ax2 = fig.add_axes([0.05, 0.1, 0.9, 0.35])  # TTM+Tail
+                # Show TTD, TTM+Tail in two sections with more space between them
+                ax1 = fig.add_axes([0.05, 0.58, 0.9, 0.35])  # TTD - increased height
+                ax2 = fig.add_axes(
+                    [0.05, 0.1, 0.9, 0.4]
+                )  # TTM+Tail - increased height and moved down
                 ax3 = None
             elif report_type == ReportType.TTD:
                 ax1 = fig.add_axes([0.05, 0.1, 0.9, 0.8])
@@ -93,7 +95,7 @@ class TableRenderer(BaseRenderer):
 
             # Main title
             title = self._get_title(report_type)
-            fig.suptitle(title, fontsize=12, fontweight="bold", y=0.95)
+            fig.suptitle(title, fontsize=12, fontweight="bold", y=0.98)
 
             # Save with optimized settings for smaller file size
             plt.savefig(
@@ -162,7 +164,7 @@ class TableRenderer(BaseRenderer):
             cellText=ttd_table_data,
             colLabels=ttd_headers,
             cellLoc="center",
-            loc="center",
+            loc="upper center",
             colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 5),
         )
 
@@ -174,7 +176,7 @@ class TableRenderer(BaseRenderer):
             "Time To Delivery (days) - Excluding Pause Time",
             fontsize=12,
             fontweight="bold",
-            pad=10,
+            pad=-5,
         )
 
     def _render_ttm_table(self, ax, quarters: list, all_groups: list):
@@ -235,7 +237,7 @@ class TableRenderer(BaseRenderer):
             cellText=ttm_table_data,
             colLabels=ttm_headers,
             cellLoc="center",
-            loc="center",
+            loc="upper center",
             colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 7),
         )
 
@@ -247,7 +249,7 @@ class TableRenderer(BaseRenderer):
             "Time To Market (days) - Excluding Pause Time",
             fontsize=12,
             fontweight="bold",
-            pad=10,
+            pad=-5,
         )
 
     def _render_ttm_with_tail_table(self, ax, quarters: list, all_groups: list):
@@ -342,7 +344,7 @@ class TableRenderer(BaseRenderer):
             cellText=ttm_tail_table_data,
             colLabels=ttm_tail_headers,
             cellLoc="center",
-            loc="center",
+            loc="upper center",
             colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 10),
         )
 
@@ -358,7 +360,7 @@ class TableRenderer(BaseRenderer):
             "Time To Market & Tail (TTM: Discovery to Done, Tail: MP/External Test to Done) - Excluding Pause Time",
             fontsize=12,
             fontweight="bold",
-            pad=10,
+            pad=-5,
         )
 
     def _render_tail_table(self, ax, quarters: list, all_groups: list):
@@ -403,7 +405,7 @@ class TableRenderer(BaseRenderer):
             cellText=tail_table_data,
             colLabels=tail_headers,
             cellLoc="center",
-            loc="center",
+            loc="upper center",
             colWidths=[0.15] + [0.14 / len(quarters)] * (len(quarters) * 3),
         )
 
@@ -415,7 +417,7 @@ class TableRenderer(BaseRenderer):
             "Tail (days from MP/External Test to Done) - Excluding Pause Time",
             fontsize=12,
             fontweight="bold",
-            pad=10,
+            pad=-5,
         )
 
     def _style_table(
