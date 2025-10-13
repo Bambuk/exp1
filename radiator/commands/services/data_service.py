@@ -239,3 +239,118 @@ class DataService:
             logger.error(f"Failed to get task history for task_key {task_key}: {e}")
             self.db.rollback()
             return []
+
+    def get_task_histories_batch(
+        self, task_ids: List[int]
+    ) -> Dict[int, List[StatusHistoryEntry]]:
+        """
+        Batch load histories for multiple tasks in one SQL query.
+
+        Args:
+            task_ids: List of task IDs to load histories for
+
+        Returns:
+            Dictionary mapping task_id to list of StatusHistoryEntry objects
+        """
+        if not task_ids:
+            return {}
+
+        try:
+            history_query = (
+                self.db.query(
+                    TrackerTaskHistory.task_id,
+                    TrackerTaskHistory.status,
+                    TrackerTaskHistory.status_display,
+                    TrackerTaskHistory.start_date,
+                    TrackerTaskHistory.end_date,
+                )
+                .filter(TrackerTaskHistory.task_id.in_(task_ids))
+                .order_by(TrackerTaskHistory.task_id, TrackerTaskHistory.start_date)
+            )
+
+            history_records = history_query.all()
+
+            result = {}
+            for task_id in task_ids:
+                result[task_id] = []
+
+            for (
+                task_id,
+                status,
+                status_display,
+                start_date,
+                end_date,
+            ) in history_records:
+                result[task_id].append(
+                    StatusHistoryEntry(
+                        status=status,
+                        status_display=status_display,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to batch load task histories: {e}")
+            self.db.rollback()
+            return {task_id: [] for task_id in task_ids}
+
+    def get_task_histories_by_keys_batch(
+        self, task_keys: List[str]
+    ) -> Dict[str, List[StatusHistoryEntry]]:
+        """
+        Batch load histories for multiple tasks by keys with JOIN in one query.
+
+        Args:
+            task_keys: List of task keys to load histories for
+
+        Returns:
+            Dictionary mapping task_key to list of StatusHistoryEntry objects
+        """
+        if not task_keys:
+            return {}
+
+        try:
+            history_query = (
+                self.db.query(
+                    TrackerTask.key,
+                    TrackerTaskHistory.status,
+                    TrackerTaskHistory.status_display,
+                    TrackerTaskHistory.start_date,
+                    TrackerTaskHistory.end_date,
+                )
+                .join(TrackerTaskHistory, TrackerTask.id == TrackerTaskHistory.task_id)
+                .filter(TrackerTask.key.in_(task_keys))
+                .order_by(TrackerTask.key, TrackerTaskHistory.start_date)
+            )
+
+            history_records = history_query.all()
+
+            result = {}
+            for task_key in task_keys:
+                result[task_key] = []
+
+            for (
+                task_key,
+                status,
+                status_display,
+                start_date,
+                end_date,
+            ) in history_records:
+                result[task_key].append(
+                    StatusHistoryEntry(
+                        status=status,
+                        status_display=status_display,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to batch load task histories by keys: {e}")
+            self.db.rollback()
+            return {task_key: [] for task_key in task_keys}

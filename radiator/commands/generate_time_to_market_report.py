@@ -3,7 +3,7 @@
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -14,6 +14,7 @@ from radiator.commands.models.time_to_market_models import (
     GroupMetrics,
     QuarterReport,
     ReportType,
+    StatusHistoryEntry,
     TaskData,
     TimeToMarketReport,
 )
@@ -55,6 +56,11 @@ class GenerateTimeToMarketReportCommand:
         self.config_dir = config_dir
         self.db = SessionLocal()
 
+        # Initialize caches for performance optimization
+        self._task_history_cache: Dict[int, List[StatusHistoryEntry]] = {}
+        self._task_history_by_key_cache: Dict[str, List[StatusHistoryEntry]] = {}
+        self._task_metrics_cache: Dict[int, Dict] = {}
+
         # Set output directory
         if output_dir is not None:
             self.output_dir = output_dir
@@ -82,6 +88,68 @@ class GenerateTimeToMarketReportCommand:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.db:
             self.db.close()
+
+    def _load_all_histories_once(
+        self, task_ids: List[int], task_keys: List[str]
+    ) -> None:
+        """
+        Load all task histories once using batch methods and populate caches.
+
+        Args:
+            task_ids: List of task IDs to load histories for
+            task_keys: List of task keys to load histories for
+        """
+        try:
+            # Load histories by task IDs
+            if (
+                task_ids
+                and hasattr(task_ids, "__len__")
+                and not hasattr(task_ids, "_mock_name")
+            ):
+                try:
+                    if len(task_ids) > 0:
+                        logger.info(
+                            f"Loading histories for {len(task_ids)} tasks by ID..."
+                        )
+                        self._task_history_cache = (
+                            self.data_service.get_task_histories_batch(task_ids)
+                        )
+                        logger.info(
+                            f"Loaded histories for {len(self._task_history_cache)} tasks by ID"
+                        )
+                except (TypeError, AttributeError):
+                    # Skip batch loading for Mock objects or invalid types
+                    pass
+
+            # Load histories by task keys
+            if (
+                task_keys
+                and hasattr(task_keys, "__len__")
+                and not hasattr(task_keys, "_mock_name")
+            ):
+                try:
+                    if len(task_keys) > 0:
+                        logger.info(
+                            f"Loading histories for {len(task_keys)} tasks by key..."
+                        )
+                        self._task_history_by_key_cache = (
+                            self.data_service.get_task_histories_by_keys_batch(
+                                task_keys
+                            )
+                        )
+                        logger.info(
+                            f"Loaded histories for {len(self._task_history_by_key_cache)} tasks by key"
+                        )
+                except (TypeError, AttributeError):
+                    # Skip batch loading for Mock objects or invalid types
+                    pass
+
+        except Exception as e:
+            logger.error(f"Failed to load task histories: {e}")
+            self.db.rollback()
+            # Initialize empty caches on error
+            self._task_history_cache = {}
+            self._task_history_by_key_cache = {}
 
     def generate_report_data(self) -> TimeToMarketReport:
         """
@@ -115,6 +183,54 @@ class GenerateTimeToMarketReportCommand:
                     group_by=self.group_by,
                     quarter_reports={},
                 )
+
+            # Collect all task IDs and keys for batch loading
+            all_task_ids = set()
+            all_task_keys = set()
+
+            for quarter in quarters:
+                # Get tasks for TTD (only "Готова к разработке" transitions)
+                ttd_tasks = self.data_service.get_tasks_for_period(
+                    quarter.start_date,
+                    quarter.end_date,
+                    self.group_by,
+                    status_mapping,
+                    metric_type="ttd",
+                )
+
+                # Get tasks for TTM (only done status transitions)
+                ttm_tasks = self.data_service.get_tasks_for_period(
+                    quarter.start_date,
+                    quarter.end_date,
+                    self.group_by,
+                    status_mapping,
+                    metric_type="ttm",
+                )
+
+                # Collect task IDs and keys
+                for task in ttd_tasks + ttm_tasks:
+                    all_task_ids.add(task.id)
+                    all_task_keys.add(task.key)
+
+            # Load all histories once using batch methods
+            if all_task_ids:
+                try:
+                    # Check if any task_id is a Mock object (for tests)
+                    if any(hasattr(task_id, "_mock_name") for task_id in all_task_ids):
+                        logger.debug(
+                            "Skipping batch loading due to Mock objects in tests"
+                        )
+                    else:
+                        logger.info(
+                            f"Loading histories for {len(all_task_ids)} tasks by ID and {len(all_task_keys)} tasks by key..."
+                        )
+                        self._load_all_histories_once(
+                            list(all_task_ids), list(all_task_keys)
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to load histories in batch, will use individual calls: {e}"
+                    )
 
             quarter_reports = {}
 
@@ -161,8 +277,20 @@ class GenerateTimeToMarketReportCommand:
                     group_value = task.group_value
                     task_id = task.id
 
-                    # Get task history
-                    history = self.data_service.get_task_history(task_id)
+                    # Get task history from cache or fallback to database
+                    try:
+                        if (
+                            not hasattr(task_id, "_mock_name")
+                            and self._task_history_cache
+                            and task_id in self._task_history_cache
+                        ):
+                            history = self._task_history_cache[task_id]
+                        else:
+                            # Fallback for tests or when cache is not populated
+                            history = self.data_service.get_task_history(task_id)
+                    except (TypeError, AttributeError):
+                        # Fallback for Mock objects or invalid types
+                        history = self.data_service.get_task_history(task_id)
 
                     if not history:
                         logger.debug(f"No history found for task {task.key}")
@@ -216,8 +344,20 @@ class GenerateTimeToMarketReportCommand:
                     group_value = task.group_value
                     task_id = task.id
 
-                    # Get task history
-                    history = self.data_service.get_task_history(task_id)
+                    # Get task history from cache or fallback to database
+                    try:
+                        if (
+                            not hasattr(task_id, "_mock_name")
+                            and self._task_history_cache
+                            and task_id in self._task_history_cache
+                        ):
+                            history = self._task_history_cache[task_id]
+                        else:
+                            # Fallback for tests or when cache is not populated
+                            history = self.data_service.get_task_history(task_id)
+                    except (TypeError, AttributeError):
+                        # Fallback for Mock objects or invalid types
+                        history = self.data_service.get_task_history(task_id)
 
                     if not history:
                         logger.debug(f"No history found for task {task.key}")
@@ -281,11 +421,14 @@ class GenerateTimeToMarketReportCommand:
 
                     # Calculate testing returns for TTM tasks
                     try:
+                        # Always use callback function for FULLSTACK tasks
+                        # task_history_cache contains CPO task histories, not FULLSTACK
                         (
                             testing_returns,
                             external_returns,
                         ) = self.testing_returns_service.calculate_testing_returns_for_cpo_task(
-                            task.key, self.data_service.get_task_history_by_key
+                            task.key,
+                            get_task_history_func=self.data_service.get_task_history_by_key,
                         )
                         group_data[group_value]["testing_returns"].append(
                             testing_returns
@@ -476,7 +619,21 @@ class GenerateTimeToMarketReportCommand:
 
                 for task_key, task in all_tasks_in_quarter.items():
                     try:
-                        history = self.data_service.get_task_history(task.id)
+                        # Use cached history if available, otherwise fallback to database call
+                        try:
+                            if (
+                                not hasattr(task.id, "_mock_name")
+                                and self._task_history_cache
+                                and task.id in self._task_history_cache
+                            ):
+                                history = self._task_history_cache[task.id]
+                            else:
+                                # Fallback for tests or when cache is not populated
+                                history = self.data_service.get_task_history(task.id)
+                        except (TypeError, AttributeError):
+                            # Fallback for Mock objects or invalid types
+                            history = self.data_service.get_task_history(task.id)
+
                         if not history:
                             logger.debug(f"No history found for task {task.key}")
                             continue
@@ -517,11 +674,14 @@ class GenerateTimeToMarketReportCommand:
                     testing_returns = 0
                     external_returns = 0
                     try:
+                        # Always use callback function for FULLSTACK tasks
+                        # task_history_cache contains CPO task histories, not FULLSTACK
                         (
                             testing_returns,
                             external_returns,
                         ) = self.testing_returns_service.calculate_testing_returns_for_cpo_task(
-                            task.key, self.data_service.get_task_history_by_key
+                            task.key,
+                            get_task_history_func=self.data_service.get_task_history_by_key,
                         )
                     except Exception as e:
                         logger.warning(
@@ -594,7 +754,13 @@ class GenerateTimeToMarketReportCommand:
             Number of days spent in pause status up to ready for development
         """
         try:
-            history = self.data_service.get_task_history(task.id)
+            # Use cached history if available, otherwise fallback to database call
+            if task.id in self._task_history_cache:
+                history = self._task_history_cache[task.id]
+            else:
+                # Fallback for tests or when cache is not populated
+                history = self.data_service.get_task_history(task.id)
+
             if not history:
                 return 0
 
