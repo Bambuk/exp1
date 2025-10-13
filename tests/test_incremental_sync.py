@@ -215,6 +215,11 @@ class TestIncrementalSync:
 
     def test_incremental_history_update_integration(self, db_session):
         """Integration test for incremental history update with real database operations."""
+        # Clean up any existing test data to ensure test isolation
+        db_session.query(TrackerTaskHistory).delete()
+        db_session.query(TrackerTask).delete()
+        db_session.commit()
+
         with TrackerSyncCommand() as sync_cmd:
             # Create a test task with existing history
             import uuid

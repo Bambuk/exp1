@@ -109,3 +109,11 @@ Index(
 )
 Index("idx_tracker_sync_logs_status", TrackerSyncLog.status)
 Index("idx_tracker_sync_logs_started", TrackerSyncLog.sync_started_at)
+
+# GIN index for JSONB links column
+Index(
+    "idx_tracker_tasks_links_gin",
+    TrackerTask.links,
+    postgresql_using="gin",
+    postgresql_ops={"links": "jsonb_path_ops"},
+)

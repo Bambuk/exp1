@@ -5,6 +5,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -101,7 +102,7 @@ class TestSyncTrackerSingleInstance:
         with tempfile.TemporaryDirectory() as temp_dir:
             lock_dir = Path(temp_dir)
 
-            # Run sync command
+            # Run sync command with skip-history to avoid API calls
             result = subprocess.run(
                 [
                     sys.executable,
@@ -111,10 +112,11 @@ class TestSyncTrackerSingleInstance:
                     "Queue: CPO",
                     "--limit",
                     "1",
+                    "--skip-history",  # Skip history sync to avoid API calls
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=15,  # Reasonable timeout for skip-history mode
             )
 
             # Check that lock file doesn't exist after completion
