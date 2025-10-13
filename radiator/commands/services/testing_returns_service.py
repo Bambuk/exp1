@@ -1,6 +1,6 @@
 """Service for calculating testing returns from task status history."""
 
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from radiator.commands.models.time_to_market_models import StatusHistoryEntry
 from radiator.core.database import SessionLocal
@@ -19,6 +19,10 @@ class TestingReturnsService:
             db: Database session (optional, will create if not provided)
         """
         self.db = db or SessionLocal()
+        # Performance optimization caches
+        self._task_hierarchy_cache: Dict[str, List[str]] = {}
+        self._task_existence_cache: Set[str] = set()
+        self._fullstack_links_cache: Dict[str, List[str]] = {}
 
     def count_status_returns(
         self, history: List[StatusHistoryEntry], status: str
@@ -68,6 +72,10 @@ class TestingReturnsService:
         Returns:
             List of FULLSTACK task keys
         """
+        # Check cache first
+        if cpo_task_key in self._fullstack_links_cache:
+            return self._fullstack_links_cache[cpo_task_key]
+
         try:
             task = (
                 self.db.query(TrackerTask)
@@ -76,6 +84,7 @@ class TestingReturnsService:
             )
 
             if not task or not task.links:
+                self._fullstack_links_cache[cpo_task_key] = []
                 return []
 
             # Filter FULLSTACK relates (both inward and outward)
@@ -90,11 +99,14 @@ class TestingReturnsService:
                         # Accept both inward and outward directions
                         fullstack_keys.append(link["object"]["key"])
 
+            # Cache the result
+            self._fullstack_links_cache[cpo_task_key] = fullstack_keys
             return fullstack_keys
 
         except Exception as e:
             logger.warning(f"Failed to get FULLSTACK links for {cpo_task_key}: {e}")
             self.db.rollback()
+            self._fullstack_links_cache[cpo_task_key] = []
             return []
 
     def get_task_hierarchy(
@@ -119,6 +131,10 @@ class TestingReturnsService:
 
         if parent_key in visited:
             return []  # Cycle protection
+
+        # Check cache first
+        if parent_key in self._task_hierarchy_cache:
+            return self._task_hierarchy_cache[parent_key]
 
         visited.add(parent_key)
         result = [parent_key]
@@ -151,11 +167,14 @@ class TestingReturnsService:
                 if subtask_key not in visited:
                     result.extend(self.get_task_hierarchy(subtask_key, visited))
 
+            # Cache the result
+            self._task_hierarchy_cache[parent_key] = result
             return result
 
         except Exception as e:
             logger.warning(f"Failed to get task hierarchy for {parent_key}: {e}")
             self.db.rollback()
+            self._task_hierarchy_cache[parent_key] = [parent_key]
             return [parent_key]
 
     def calculate_testing_returns_for_task(
@@ -175,6 +194,43 @@ class TestingReturnsService:
         external_returns = self.count_status_returns(history, "Внешний тест")
 
         return testing_returns, external_returns
+
+    def _batch_check_task_existence(self, task_keys: List[str]) -> Set[str]:
+        """
+        Batch check which tasks exist in the database.
+
+        Args:
+            task_keys: List of task keys to check
+
+        Returns:
+            Set of existing task keys
+        """
+        # Filter out already cached keys
+        uncached_keys = [
+            key for key in task_keys if key not in self._task_existence_cache
+        ]
+
+        if not uncached_keys:
+            return {key for key in task_keys if key in self._task_existence_cache}
+
+        try:
+            # Batch query to check existence
+            existing_tasks = (
+                self.db.query(TrackerTask.key)
+                .filter(TrackerTask.key.in_(uncached_keys))
+                .all()
+            )
+
+            # Update cache with existing tasks
+            existing_keys = {task.key for task in existing_tasks}
+            self._task_existence_cache.update(existing_keys)
+
+            # Return all existing keys (cached + newly found)
+            return {key for key in task_keys if key in self._task_existence_cache}
+
+        except Exception as e:
+            logger.warning(f"Failed to batch check task existence: {e}")
+            return set()
 
     def calculate_testing_returns_for_cpo_task(
         self, cpo_task_key: str, get_task_history_func
@@ -199,37 +255,35 @@ class TestingReturnsService:
             total_testing_returns = 0
             total_external_returns = 0
 
-            # Process each FULLSTACK epic and its hierarchy
+            # Collect all tasks from all epics first
+            all_tasks = []
             for epic_key in fullstack_epics:
                 # Get all tasks in the hierarchy (epic + subtasks)
-                all_tasks = self.get_task_hierarchy(epic_key)
+                epic_tasks = self.get_task_hierarchy(epic_key)
+                all_tasks.extend(epic_tasks)
 
-                for task_key in all_tasks:
-                    # Check if task exists in database before getting history
-                    task_exists = (
-                        self.db.query(TrackerTask)
-                        .filter(TrackerTask.key == task_key)
-                        .first()
-                        is not None
-                    )
+            # Batch check task existence
+            existing_tasks = self._batch_check_task_existence(all_tasks)
 
-                    if not task_exists:
-                        logger.debug(f"Task {task_key} not found in database, skipping")
-                        continue
+            # Process only existing tasks
+            for task_key in all_tasks:
+                if task_key not in existing_tasks:
+                    logger.debug(f"Task {task_key} not found in database, skipping")
+                    continue
 
-                    # Get task history
-                    history = get_task_history_func(task_key)
-                    if not history:
-                        continue
+                # Get task history
+                history = get_task_history_func(task_key)
+                if not history:
+                    continue
 
-                    # Calculate returns for this task
-                    (
-                        testing_returns,
-                        external_returns,
-                    ) = self.calculate_testing_returns_for_task(task_key, history)
+                # Calculate returns for this task
+                (
+                    testing_returns,
+                    external_returns,
+                ) = self.calculate_testing_returns_for_task(task_key, history)
 
-                    total_testing_returns += testing_returns
-                    total_external_returns += external_returns
+                total_testing_returns += testing_returns
+                total_external_returns += external_returns
 
             return total_testing_returns, total_external_returns
 

@@ -428,7 +428,7 @@ class TableRenderer(BaseRenderer):
         all_groups: list,
         header_color: str,
     ):
-        """Style table with colors and formatting."""
+        """Style table with colors and formatting - optimized for performance."""
         table.auto_set_font_size(False)
         # Use smaller font for large datasets
         font_size = 5 if len(all_groups) > 30 else 6
@@ -447,44 +447,67 @@ class TableRenderer(BaseRenderer):
             "pause_p85": "#F8F0FF",  # Very light purple for pause 85th percentile columns
         }
 
-        # Style header row
-        for i in range(num_headers):
-            table[(0, i)].set_facecolor(header_color)
-            table[(0, i)].set_text_props(weight="bold", color="white")
+        # Pre-calculate colors for all cells to avoid repeated calculations
+        cell_colors = []
+        cell_text_props = []
 
-        # Style data rows with column-based highlighting
-        for i in range(1, num_rows + 1):
+        for i in range(num_rows + 1):
+            row_colors = []
+            row_text_props = []
+
+            for j in range(num_headers):
+                if i == 0:  # Header row
+                    row_colors.append(header_color)
+                    row_text_props.append(
+                        {
+                            "weight": "bold",
+                            "color": "white",
+                            "ha": "center",
+                            "va": "center",
+                        }
+                    )
+                else:
+                    # Determine column type based on position
+                    if j == 0:  # Group column
+                        base_color = column_colors["group"]
+                        text_props = {"ha": "left", "va": "center"}
+                    else:
+                        # Calculate column group based on position (assuming 5 columns per quarter: avg, p85, tasks, pause_avg, pause_p85)
+                        col_in_quarter = (j - 1) % 5
+                        if col_in_quarter == 0:  # Average column
+                            base_color = column_colors["avg"]
+                        elif col_in_quarter == 1:  # 85th percentile column
+                            base_color = column_colors["p85"]
+                        elif col_in_quarter == 2:  # Tasks column
+                            base_color = column_colors["tasks"]
+                        elif col_in_quarter == 3:  # Pause average column
+                            base_color = column_colors["pause_avg"]
+                        elif col_in_quarter == 4:  # Pause 85th percentile column
+                            base_color = column_colors["pause_p85"]
+                        else:
+                            base_color = "#FFFFFF"
+
+                        text_props = {"ha": "center", "va": "center"}
+
+                    # Apply alternating row highlighting on top of column colors
+                    if i % 2 == 0:
+                        # Darken the base color slightly for even rows
+                        final_color = self._darken_color(base_color, 0.05)
+                    else:
+                        final_color = base_color
+
+                    row_colors.append(final_color)
+                    row_text_props.append(text_props)
+
+            cell_colors.append(row_colors)
+            cell_text_props.append(row_text_props)
+
+        # Apply styles in batch to reduce individual cell operations
+        for i in range(num_rows + 1):
             for j in range(num_headers):
                 cell = table[(i, j)]
-
-                # Determine column type based on position
-                if j == 0:  # Group column
-                    base_color = column_colors["group"]
-                    cell.set_text_props(ha="left", va="center")
-                else:
-                    # Calculate column group based on position (assuming 5 columns per quarter: avg, p85, tasks, pause_avg, pause_p85)
-                    col_in_quarter = (j - 1) % 5
-                    if col_in_quarter == 0:  # Average column
-                        base_color = column_colors["avg"]
-                    elif col_in_quarter == 1:  # 85th percentile column
-                        base_color = column_colors["p85"]
-                    elif col_in_quarter == 2:  # Tasks column
-                        base_color = column_colors["tasks"]
-                    elif col_in_quarter == 3:  # Pause average column
-                        base_color = column_colors["pause_avg"]
-                    elif col_in_quarter == 4:  # Pause 85th percentile column
-                        base_color = column_colors["pause_p85"]
-                    else:
-                        base_color = "#FFFFFF"
-
-                    cell.set_text_props(ha="center", va="center")
-
-                # Apply alternating row highlighting on top of column colors
-                if i % 2 == 0:
-                    # Darken the base color slightly for even rows
-                    cell.set_facecolor(self._darken_color(base_color, 0.05))
-                else:
-                    cell.set_facecolor(base_color)
+                cell.set_facecolor(cell_colors[i][j])
+                cell.set_text_props(**cell_text_props[i][j])
 
     def _darken_color(self, hex_color: str, factor: float) -> str:
         """Darken a hex color by a factor (0-1)."""
