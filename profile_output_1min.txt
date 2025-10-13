@@ -1,0 +1,1117 @@
+🔍 Starting TTM report generation with profiling...
+⏱️  Timeout: 1 minute (60 seconds)
+📊 Профилировщик запущен...
+
+Creating command...
+Generating report data...
+Failed to get task hierarchy for FULLSTACK-18796: (psycopg2.errors.UndefinedFunction) ОШИБКА:  функция jsonb_array_elements(json) не существует
+LINE 8:                     FROM jsonb_array_elements(links) AS link
+                                 ^
+HINT:  Функция с данными именем и типами аргументов не найдена. Возможно, вам следует добавить явные приведения типов.
+
+[SQL:
+                SELECT key, links
+                FROM tracker_tasks
+                WHERE key LIKE 'FULLSTACK%%'
+                AND links IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(links) AS link
+                    WHERE link->'type'->>'id' = 'subtask'
+                    AND link->>'direction' = 'inward'
+                    AND link->'object'->>'key' = %(parent_key)s
+                )
+            ]
+[parameters: {'parent_key': 'FULLSTACK-18796'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to calculate testing returns for CPO-4794: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_tasks.id AS tracker_tasks_id, tracker_tasks.tracker_id AS tracker_tasks_tracker_id, tracker_tasks.key AS tracker_tasks_key, tracker_tasks.summary AS tracker_tasks_summary, tracker_tasks.description AS tracker_tasks_description, tracker_tasks.status AS tracker_tasks_status, tracker_tasks.author AS tracker_tasks_author, tracker_tasks.assignee AS tracker_tasks_assignee, tracker_tasks.business_client AS tracker_tasks_business_client, tracker_tasks.team AS tracker_tasks_team, tracker_tasks.prodteam AS tracker_tasks_prodteam, tracker_tasks.profit_forecast AS tracker_tasks_profit_forecast, tracker_tasks.created_at AS tracker_tasks_created_at, tracker_tasks.updated_at AS tracker_tasks_updated_at, tracker_tasks.last_sync_at AS tracker_tasks_last_sync_at, tracker_tasks.task_updated_at AS tracker_tasks_task_updated_at, tracker_tasks.links AS tracker_tasks_links
+FROM tracker_tasks
+WHERE tracker_tasks.key = %(key_1)s
+ LIMIT %(param_1)s]
+[parameters: {'key_1': 'FULLSTACK-18796', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 391: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 391}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 392: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 392}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 395: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 395}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 396: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 396}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 401: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 401}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 403: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 403}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 404: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 404}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 408: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 408}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 409: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 409}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 411: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 411}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 412: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 412}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 574: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 574}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 677: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 677}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 759: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 759}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 794: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 794}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 826: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 826}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 841: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 841}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 858: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 858}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 868: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 868}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 938: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 938}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 945: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 945}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 980: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 980}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 990: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 990}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1006: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1006}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1012: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1012}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1026: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1026}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1100: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1100}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1102: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1102}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1111: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1111}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1180: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1180}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1202: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1202}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1244: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1244}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1245: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1245}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1248: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1248}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1249: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1249}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1250: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1250}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1251: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1251}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1252: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1252}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1255: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1255}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1288: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1288}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1319: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1319}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1328: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1328}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1340: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1340}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1413: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1413}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1414: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1414}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1416: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1416}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1419: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1419}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1432: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1432}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1472: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1472}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1494: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1494}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1539: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1539}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1635: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1635}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1636: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1636}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1638: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1638}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1641: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1641}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1749: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1749}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1760: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1760}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1761: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1761}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1762: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1762}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1763: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1763}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1764: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1764}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1765: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1765}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1768: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1768}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1798: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1798}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1799: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1799}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1810: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1810}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1823: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1823}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1824: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1824}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1841: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1841}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1847: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1847}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1848: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1848}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1849: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1849}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1851: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1851}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1863: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1863}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1864: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1864}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1870: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1870}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1880: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1880}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1881: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1881}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1885: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1885}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1887: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1887}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1892: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1892}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1904: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1904}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1910: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1910}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1914: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1914}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1915: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1915}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1926: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1926}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1934: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1934}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1942: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1942}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1963: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1963}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1968: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1968}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1969: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1969}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1970: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1970}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1971: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1971}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1972: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1972}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1973: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1973}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1974: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1974}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1975: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1975}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1976: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1976}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1977: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1977}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1978: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1978}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1979: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1979}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1980: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1980}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1985: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1985}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 1999: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 1999}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2012: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2012}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2027: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2027}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2028: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2028}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2030: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2030}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2048: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2048}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2056: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2056}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2057: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2057}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2058: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2058}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2059: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2059}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2060: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2060}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2067: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2067}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2068: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2068}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2075: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2075}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2076: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2076}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2078: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2078}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2082: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2082}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2083: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2083}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2085: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2085}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2088: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2088}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2089: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2089}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2090: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2090}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2091: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2091}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2093: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2093}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2097: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2097}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2153: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2153}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2154: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2154}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get task history for task_id 2161: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT tracker_task_history.status AS tracker_task_history_status, tracker_task_history.status_display AS tracker_task_history_status_display, tracker_task_history.start_date AS tracker_task_history_start_date, tracker_task_history.end_date AS tracker_task_history_end_date
+FROM tracker_task_history
+WHERE tracker_task_history.task_id = %(task_id_1)s ORDER BY tracker_task_history.start_date]
+[parameters: {'task_id_1': 2161}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get tasks for period: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT DISTINCT tracker_tasks.id AS tracker_tasks_id, tracker_tasks.key AS tracker_tasks_key, tracker_tasks.author AS tracker_tasks_author, tracker_tasks.created_at AS tracker_tasks_created_at, tracker_tasks.summary AS tracker_tasks_summary
+FROM tracker_tasks JOIN tracker_task_history ON tracker_tasks.id = tracker_task_history.task_id
+WHERE tracker_tasks.author IS NOT NULL AND tracker_tasks.key LIKE %(key_1)s AND tracker_task_history.status IN (%(status_1_1)s) AND tracker_task_history.start_date >= %(start_date_1)s AND tracker_task_history.start_date <= %(start_date_2)s]
+[parameters: {'key_1': 'CPO-%', 'start_date_1': datetime.datetime(2025, 4, 21, 0, 0), 'start_date_2': datetime.datetime(2025, 7, 20, 0, 0), 'status_1_1': 'Готова к разработке'}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get tasks for period: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT DISTINCT tracker_tasks.id AS tracker_tasks_id, tracker_tasks.key AS tracker_tasks_key, tracker_tasks.author AS tracker_tasks_author, tracker_tasks.created_at AS tracker_tasks_created_at, tracker_tasks.summary AS tracker_tasks_summary
+FROM tracker_tasks JOIN tracker_task_history ON tracker_tasks.id = tracker_task_history.task_id
+WHERE tracker_tasks.author IS NOT NULL AND tracker_tasks.key LIKE %(key_1)s AND tracker_task_history.status IN (%(status_1_1)s, %(status_1_2)s, %(status_1_3)s, %(status_1_4)s, %(status_1_5)s, %(status_1_6)s) AND tracker_task_history.start_date >= %(start_date_1)s AND tracker_task_history.start_date <= %(start_date_2)s]
+[parameters: {'key_1': 'CPO-%', 'start_date_1': datetime.datetime(2025, 4, 21, 0, 0), 'start_date_2': datetime.datetime(2025, 7, 20, 0, 0), 'status_1_1': 'Раскатано на всех', 'status_1_2': 'Выпилено', 'status_1_3': 'Выполнено с ИТ', 'status_1_4': 'Выполнено без ИТ', 'status_1_5': 'Done', 'status_1_6': 'Закрыт'}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get tasks for period: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT DISTINCT tracker_tasks.id AS tracker_tasks_id, tracker_tasks.key AS tracker_tasks_key, tracker_tasks.author AS tracker_tasks_author, tracker_tasks.created_at AS tracker_tasks_created_at, tracker_tasks.summary AS tracker_tasks_summary
+FROM tracker_tasks JOIN tracker_task_history ON tracker_tasks.id = tracker_task_history.task_id
+WHERE tracker_tasks.author IS NOT NULL AND tracker_tasks.key LIKE %(key_1)s AND tracker_task_history.status IN (%(status_1_1)s) AND tracker_task_history.start_date >= %(start_date_1)s AND tracker_task_history.start_date <= %(start_date_2)s]
+[parameters: {'key_1': 'CPO-%', 'start_date_1': datetime.datetime(2025, 7, 21, 0, 0), 'start_date_2': datetime.datetime(2025, 10, 12, 0, 0), 'status_1_1': 'Готова к разработке'}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+Failed to get tasks for period: (psycopg2.errors.InFailedSqlTransaction) ОШИБКА:  текущая транзакция прервана, команды до конца блока транзакции игнорируются
+
+[SQL: SELECT DISTINCT tracker_tasks.id AS tracker_tasks_id, tracker_tasks.key AS tracker_tasks_key, tracker_tasks.author AS tracker_tasks_author, tracker_tasks.created_at AS tracker_tasks_created_at, tracker_tasks.summary AS tracker_tasks_summary
+FROM tracker_tasks JOIN tracker_task_history ON tracker_tasks.id = tracker_task_history.task_id
+WHERE tracker_tasks.author IS NOT NULL AND tracker_tasks.key LIKE %(key_1)s AND tracker_task_history.status IN (%(status_1_1)s, %(status_1_2)s, %(status_1_3)s, %(status_1_4)s, %(status_1_5)s, %(status_1_6)s) AND tracker_task_history.start_date >= %(start_date_1)s AND tracker_task_history.start_date <= %(start_date_2)s]
+[parameters: {'key_1': 'CPO-%', 'start_date_1': datetime.datetime(2025, 7, 21, 0, 0), 'start_date_2': datetime.datetime(2025, 10, 12, 0, 0), 'status_1_1': 'Раскатано на всех', 'status_1_2': 'Выпилено', 'status_1_3': 'Выполнено с ИТ', 'status_1_4': 'Выполнено без ИТ', 'status_1_5': 'Done', 'status_1_6': 'Закрыт'}]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+
+✅ Report generated with 1 quarters
+
+================================================================================
+📊 PROFILING RESULTS
+================================================================================
+
+✅ Profile data saved to: ttm_profile_stats.prof
+
+--------------------------------------------------------------------------------
+TOP 30 FUNCTIONS BY CUMULATIVE TIME:
+--------------------------------------------------------------------------------
+         270380 function calls (265661 primitive calls) in 0.943 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1098 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    0.954    0.954 /home/vm/dev/radiator/profile_ttm_report.py:48(run_report)
+        1    0.005    0.005    0.953    0.953 /home/vm/dev/radiator/radiator/commands/generate_time_to_market_report.py:86(generate_report_data)
+      257    0.002    0.000    0.479    0.002 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/query.py:2682(all)
+      260    0.001    0.000    0.468    0.002 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/query.py:2852(_iter)
+      261    0.001    0.000    0.458    0.002 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:2305(execute)
+      261    0.005    0.000    0.457    0.002 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:2138(_execute_internal)
+        6    0.007    0.001    0.456    0.076 /home/vm/dev/radiator/radiator/commands/services/data_service.py:41(get_tasks_for_period)
+      251    0.013    0.000    0.397    0.002 /home/vm/dev/radiator/radiator/commands/services/data_service.py:173(get_task_history)
+      260    0.001    0.000    0.352    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py:296(orm_execute_statement)
+      261    0.001    0.000    0.343    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1375(execute)
+      261    0.001    0.000    0.342    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:517(_execute_on_connection)
+      261    0.004    0.000    0.342    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1591(_execute_clauseelement)
+      264    0.003    0.000    0.234    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1791(_execute_context)
+      251    0.001    0.000    0.234    0.001 /home/vm/dev/radiator/radiator/commands/services/author_team_mapping_service.py:90(get_team_by_author)
+      251    0.115    0.000    0.232    0.001 /home/vm/dev/radiator/radiator/commands/services/author_team_mapping_service.py:21(load_author_team_mapping)
+      264    0.003    0.000    0.216    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1850(_exec_single_context)
+      266    0.197    0.001    0.199    0.001 {method 'execute' of 'psycopg2.extensions.cursor' objects}
+      264    0.000    0.000    0.194    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:950(do_execute)
+      261    0.002    0.000    0.104    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:679(_compile_w_cache)
+      261    0.001    0.000    0.082    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:2099(_connection_for_bind)
+      261    0.001    0.000    0.081    0.000 <string>:1(_connection_for_bind)
+      262    0.002    0.000    0.081    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py:93(_go)
+      261    0.000    0.000    0.079    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:1152(_connection_for_bind)
+        1    0.000    0.000    0.079    0.079 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3254(connect)
+      2/1    0.000    0.000    0.079    0.079 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:129(__init__)
+        1    0.000    0.000    0.078    0.078 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:3279(raw_connection)
+        1    0.000    0.000    0.078    0.078 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py:439(connect)
+        1    0.000    0.000    0.078    0.078 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py:1256(_checkout)
+        1    0.000    0.000    0.078    0.078 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py:706(checkout)
+        1    0.000    0.000    0.078    0.078 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/pool/impl.py:151(_do_get)
+
+
+
+--------------------------------------------------------------------------------
+TOP 30 FUNCTIONS BY TOTAL TIME:
+--------------------------------------------------------------------------------
+         270380 function calls (265661 primitive calls) in 0.943 seconds
+
+   Ordered by: internal time
+   List reduced from 1098 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      266    0.197    0.001    0.199    0.001 {method 'execute' of 'psycopg2.extensions.cursor' objects}
+      251    0.115    0.000    0.232    0.001 /home/vm/dev/radiator/radiator/commands/services/author_team_mapping_service.py:21(load_author_team_mapping)
+        1    0.067    0.067    0.067    0.067 {built-in method psycopg2._psycopg._connect}
+    67457    0.051    0.000    0.051    0.000 {method 'strip' of 'str' objects}
+ 2658/261    0.043    0.000    0.065    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/cache_key.py:221(_gen_cache_key)
+    22394    0.029    0.000    0.029    0.000 {method 'split' of 'str' objects}
+     2168    0.022    0.000    0.055    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/coercions.py:313(expect)
+      344    0.016    0.000    0.028    0.000 /home/vm/dev/radiator/radiator/commands/services/metrics_service.py:118(_filter_short_status_transitions)
+      251    0.013    0.000    0.397    0.002 /home/vm/dev/radiator/radiator/commands/services/data_service.py:173(get_task_history)
+28759/28715    0.013    0.000    0.013    0.000 {built-in method builtins.len}
+    10837    0.011    0.000    0.012    0.000 {built-in method builtins.isinstance}
+     1713    0.010    0.000    0.010    0.000 {built-in method _codecs.utf_8_decode}
+      253    0.008    0.000    0.009    0.000 {built-in method _io.open}
+     4717    0.008    0.000    0.009    0.000 {method 'get' of 'dict' objects}
+     1441    0.008    0.000    0.010    0.000 {built-in method builtins.sorted}
+      124    0.007    0.000    0.007    0.000 {method 'fetchall' of 'psycopg2.extensions.cursor' objects}
+        6    0.007    0.001    0.456    0.076 /home/vm/dev/radiator/radiator/commands/services/data_service.py:41(get_tasks_for_period)
+     8194    0.006    0.000    0.006    0.000 {method 'append' of 'list' objects}
+      261    0.005    0.000    0.015    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:1310(_init_compiled)
+      260    0.005    0.000    0.014    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/query.py:556(_statement_20)
+      261    0.005    0.000    0.457    0.002 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:2138(_execute_internal)
+3720/3476    0.005    0.000    0.011    0.000 {built-in method builtins.hasattr}
+        1    0.005    0.005    0.953    0.953 /home/vm/dev/radiator/radiator/commands/generate_time_to_market_report.py:86(generate_report_data)
+      261    0.004    0.000    0.342    0.001 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1591(_execute_clauseelement)
+      124    0.004    0.000    0.010    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py:79(instances)
+      246    0.004    0.000    0.015    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py:208(chunks)
+      260    0.004    0.000    0.007    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py:491(orm_pre_session_exec)
+5642/5417    0.004    0.000    0.007    0.000 {built-in method builtins.getattr}
+      137    0.004    0.000    0.004    0.000 {method 'write' of '_io.TextIOWrapper' objects}
+      342    0.004    0.000    0.004    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+
+
+
+--------------------------------------------------------------------------------
+TOP 30 MOST CALLED FUNCTIONS:
+--------------------------------------------------------------------------------
+         270380 function calls (265661 primitive calls) in 0.943 seconds
+
+   Ordered by: call count
+   List reduced from 1098 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    67457    0.051    0.000    0.051    0.000 {method 'strip' of 'str' objects}
+28759/28715    0.013    0.000    0.013    0.000 {built-in method builtins.len}
+    22394    0.029    0.000    0.029    0.000 {method 'split' of 'str' objects}
+    10837    0.011    0.000    0.012    0.000 {built-in method builtins.isinstance}
+     8194    0.006    0.000    0.006    0.000 {method 'append' of 'list' objects}
+5642/5417    0.004    0.000    0.007    0.000 {built-in method builtins.getattr}
+     4717    0.008    0.000    0.009    0.000 {method 'get' of 'dict' objects}
+3720/3476    0.005    0.000    0.011    0.000 {built-in method builtins.hasattr}
+     3103    0.001    0.000    0.001    0.000 /home/vm/dev/radiator/radiator/commands/services/metrics_service.py:135(<lambda>)
+ 2658/261    0.043    0.000    0.065    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/cache_key.py:221(_gen_cache_key)
+     2415    0.003    0.000    0.003    0.000 {method 'total_seconds' of 'datetime.timedelta' objects}
+     2192    0.002    0.000    0.002    0.000 {method 'find' of 'str' objects}
+     2168    0.022    0.000    0.055    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/coercions.py:313(expect)
+     1901    0.001    0.000    0.001    0.000 {built-in method builtins.callable}
+     1750    0.000    0.000    0.000    0.000 /home/vm/dev/radiator/radiator/commands/services/metrics_service.py:236(<lambda>)
+     1726    0.002    0.000    0.002    0.000 {built-in method __new__ of type object at 0xa44b40}
+     1713    0.010    0.000    0.010    0.000 {built-in method _codecs.utf_8_decode}
+     1594    0.001    0.000    0.001    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:555(__get__)
+     1538    0.001    0.000    0.001    0.000 /usr/lib/python3.12/logging/__init__.py:1790(isEnabledFor)
+     1492    0.000    0.000    0.000    0.000 /home/vm/dev/radiator/radiator/commands/services/metrics_service.py:501(<lambda>)
+     1441    0.008    0.000    0.010    0.000 {built-in method builtins.sorted}
+     1333    0.001    0.000    0.001    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/schema.py:410(_gen_cache_key)
+     1325    0.001    0.000    0.003    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:1515(__getattr__)
+     1315    0.000    0.000    0.000    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/annotation.py:366(__hash__)
+     1291    0.001    0.000    0.001    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:380(__clause_element__)
+     1207    0.001    0.000    0.003    0.000 /usr/lib/python3.12/encodings/utf_8.py:15(decode)
+     1126    0.001    0.000    0.002    0.000 {method 'update' of 'dict' objects}
+     1093    0.001    0.000    0.002    0.000 /usr/lib/python3.12/logging/__init__.py:1517(debug)
+ 1040/260    0.003    0.000    0.035    0.000 /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/operators.py:577(__eq__)
+     1031    0.000    0.000    0.000    0.000 /usr/lib/python3.12/typing.py:2154(cast)
+
+
+
+================================================================================
+✅ Profiling complete!
+================================================================================

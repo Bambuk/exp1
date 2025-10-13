@@ -48,7 +48,7 @@ def save_profile_data(signum=None, frame=None):
 def run_report():
     """Run TTM report generation."""
     print("🔍 Starting TTM report generation with profiling...", flush=True)
-    print("⏱️  Timeout: 5 minutes (300 seconds)", flush=True)
+    print("⏱️  Timeout: 1 minute (60 seconds)", flush=True)
     print("📊 Профилировщик запущен...\n", flush=True)
 
     try:

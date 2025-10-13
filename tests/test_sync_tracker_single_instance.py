@@ -14,6 +14,7 @@ from radiator.core.single_instance import SingleInstance
 class TestSyncTrackerSingleInstance:
     """Test sync_tracker single instance functionality."""
 
+    @pytest.mark.slow
     def test_sync_tracker_single_instance_success(self):
         """Test successful sync_tracker execution."""
         # This test just verifies that the command runs without single instance errors
@@ -37,6 +38,7 @@ class TestSyncTrackerSingleInstance:
         assert "Another instance is already running" not in result.stderr
         assert "Failed to start sync tracker" not in result.stderr
 
+    @pytest.mark.slow
     def test_sync_tracker_single_instance_blocking(self):
         """Test that second sync_tracker instance is blocked."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -93,6 +95,7 @@ class TestSyncTrackerSingleInstance:
                 process1.terminate()
                 process1.wait(timeout=5)
 
+    @pytest.mark.slow
     def test_sync_tracker_lock_file_cleanup(self):
         """Test that lock file is cleaned up after sync completes."""
         with tempfile.TemporaryDirectory() as temp_dir:

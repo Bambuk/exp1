@@ -1,0 +1,713 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /home/vm/dev/radiator/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/vm/dev/radiator
+configfile: pytest.ini
+plugins: anyio-4.10.0, asyncio-1.1.0, cov-6.2.1
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 464 items
+
+tests/test_accidental_done_status.py::TestAccidentalDoneStatus::test_accidental_done_between_work_statuses PASSED [  0%]
+tests/test_accidental_done_status.py::TestAccidentalDoneStatus::test_real_done_after_accidental_done PASSED [  0%]
+tests/test_accidental_done_status.py::TestAccidentalDoneStatus::test_long_accidental_done_not_filtered PASSED [  0%]
+tests/test_accidental_done_status.py::TestAccidentalDoneStatus::test_no_done_status_in_history PASSED [  0%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_load_author_team_mapping_success PASSED [  1%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_load_author_team_mapping_empty_teams PASSED [  1%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_load_author_team_mapping_invalid_lines PASSED [  1%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_load_author_team_mapping_nonexistent_file PASSED [  1%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_get_team_by_author_existing PASSED [  1%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_get_team_by_author_nonexistent PASSED [  2%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_get_team_by_author_empty_team PASSED [  2%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_get_all_teams PASSED [  2%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_get_all_teams_empty_file PASSED [  2%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_file_validation_correct_format PASSED [  3%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_file_validation_mixed_format PASSED [  3%]
+tests/test_author_team_mapping_service.py::TestAuthorTeamMappingService::test_real_file_loading PASSED [  3%]
+tests/test_auto_scroll_detection.py::TestShouldUseScroll::test_should_use_scroll_returns_true_when_count_is_10000 PASSED [  3%]
+tests/test_auto_scroll_detection.py::TestShouldUseScroll::test_should_use_scroll_returns_true_when_count_greater_than_10000 PASSED [  3%]
+tests/test_auto_scroll_detection.py::TestShouldUseScroll::test_should_use_scroll_returns_false_when_count_less_than_10000 PASSED [  4%]
+tests/test_auto_scroll_detection.py::TestShouldUseScroll::test_should_use_scroll_returns_true_on_error PASSED [  4%]
+tests/test_auto_scroll_detection.py::TestAutoPaginationSelection::test_auto_uses_scroll_when_total_count_is_10000 PASSED [  4%]
+tests/test_auto_scroll_detection.py::TestAutoPaginationSelection::test_auto_uses_v2_when_total_count_less_than_10000 PASSED [  4%]
+tests/test_auto_scroll_detection.py::TestAutoPaginationSelection::test_explicit_limit_overrides_auto_detection PASSED [  4%]
+tests/test_auto_scroll_detection.py::TestScrollCompletion::test_scroll_stops_when_no_more_data PASSED [  5%]
+tests/test_auto_scroll_detection.py::TestScrollCompletion::test_scroll_stops_when_no_scroll_id PASSED [  5%]
+tests/test_auto_scroll_detection.py::TestIntegration::test_get_all_tasks_from_large_queue PASSED [  5%]
+tests/test_auto_scroll_detection.py::TestIntegration::test_scroll_ttl_fix PASSED [  5%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_create_multiple_markers PASSED [  6%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_same_file PASSED [  6%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_race_condition PASSED [  6%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_marker_file_creation_is_atomic PASSED [  6%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_requests_with_file_operations PASSED [  6%]
+tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_marker_file_naming_convention PASSED [  7%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_init PASSED     [  7%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_load_state_empty PASSED [  7%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_get_current_csv_files PASSED [  7%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_get_files_with_upload_markers PASSED [  7%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_get_unprocessed_files PASSED [  8%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_remove_upload_marker_success PASSED [  8%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_remove_upload_marker_not_found PASSED [  8%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_mark_file_processed PASSED [  8%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_cleanup_old_files PASSED [  9%]
+tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_get_stats PASSED [  9%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_get_files_with_pivot_markers_empty PASSED [  9%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_get_files_with_pivot_markers_single_file PASSED [  9%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_get_files_with_pivot_markers_multiple_files PASSED [  9%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_get_files_with_pivot_markers_missing_csv PASSED [ 10%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_get_files_with_pivot_markers_non_csv PASSED [ 10%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_remove_pivot_upload_marker_success PASSED [ 10%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_remove_pivot_upload_marker_not_exists PASSED [ 10%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_remove_pivot_upload_marker_error PASSED [ 10%]
+tests/test_csv_file_monitor_pivot_markers.py::TestCSVFileMonitorPivotMarkers::test_mixed_markers PASSED [ 11%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_author_grouping PASSED [ 11%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_team_grouping PASSED [ 11%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_team_grouping_without_mapping_service PASSED [ 11%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_team_grouping_empty_team_mapping PASSED [ 12%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_team_grouping_unknown_author PASSED [ 12%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_ttd_metric_type PASSED [ 12%]
+tests/test_data_service_with_author_team_mapping.py::TestDataServiceWithAuthorTeamMapping::test_data_service_ttm_metric_type PASSED [ 12%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_connection_error PASSED [ 12%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_http_error PASSED [ 13%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_timeout_error PASSED [ 13%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_invalid_json_response PASSED [ 13%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_empty_response PASSED [ 13%]
+tests/test_error_handling.py::TestErrorHandling::test_tracker_service_malformed_response PASSED [ 14%]
+tests/test_error_handling.py::TestErrorHandling::test_sync_command_database_error PASSED [ 14%]
+tests/test_error_handling.py::TestErrorHandling::test_sync_command_api_error PASSED [ 14%]
+tests/test_error_handling.py::TestErrorHandling::test_sync_command_partial_failure PASSED [ 14%]
+tests/test_error_handling.py::TestErrorHandling::test_report_generation_database_error PASSED [ 14%]
+tests/test_error_handling.py::TestErrorHandling::test_report_generation_config_error PASSED [ 15%]
+tests/test_error_handling.py::TestErrorHandling::test_report_generation_data_service_error PASSED [ 15%]
+tests/test_error_handling.py::TestErrorHandling::test_search_tasks_invalid_query PASSED [ 15%]
+tests/test_error_handling.py::TestErrorHandling::test_search_tasks_empty_result PASSED [ 15%]
+tests/test_error_handling.py::TestErrorHandling::test_metrics_calculation_edge_cases PASSED [ 15%]
+tests/test_error_handling.py::TestErrorHandling::test_pause_time_calculation_edge_cases PASSED [ 16%]
+tests/test_error_handling.py::TestErrorHandling::test_tail_metric_calculation_edge_cases PASSED [ 16%]
+tests/test_error_handling.py::TestErrorHandling::test_statistics_calculation_edge_cases PASSED [ 16%]
+tests/test_error_handling.py::TestErrorHandling::test_group_metrics_calculation_edge_cases PASSED [ 16%]
+tests/test_error_handling.py::TestErrorHandling::test_enhanced_group_metrics_calculation_edge_cases PASSED [ 17%]
+tests/test_error_handling.py::TestErrorHandling::test_file_operations_edge_cases PASSED [ 17%]
+tests/test_error_handling.py::TestErrorHandling::test_concurrent_operations PASSED [ 17%]
+tests/test_error_handling.py::TestErrorHandling::test_memory_usage_edge_cases PASSED [ 17%]
+tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_upload_markers_from_state PASSED [ 17%]
+tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_during_initialization PASSED [ 18%]
+tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_with_no_upload_markers PASSED [ 18%]
+tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_saves_state PASSED [ 18%]
+tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_with_mixed_files PASSED [ 18%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_current_files_excludes_upload_markers PASSED [ 18%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_new_files_excludes_upload_markers PASSED [ 19%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_file_path_works_with_upload_markers PASSED [ 19%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_file_info_works_with_upload_markers PASSED [ 19%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_upload_marker_files_are_ignored_in_monitoring PASSED [ 19%]
+tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_mixed_file_types_with_upload_markers PASSED [ 20%]
+tests/test_full_integration.py::TestFullIntegration::test_complete_time_to_market_report_generation PASSED [ 20%]
+tests/test_full_integration.py::TestFullIntegration::test_complete_status_change_report_generation PASSED [ 20%]
+tests/test_full_integration.py::TestFullIntegration::test_complete_tracker_sync_workflow PASSED [ 20%]
+tests/test_full_integration.py::TestFullIntegration::test_complete_search_tasks_workflow PASSED [ 20%]
+tests/test_full_integration.py::TestFullIntegration::test_end_to_end_workflow PASSED [ 21%]
+tests/test_full_integration.py::TestFullIntegration::test_error_handling_integration PASSED [ 21%]
+tests/test_full_integration.py::TestFullIntegration::test_performance_integration PASSED [ 21%]
+tests/test_full_integration.py::TestFullIntegration::test_data_consistency_integration PASSED [ 21%]
+tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_with_mock_data PASSED [ 21%]
+tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_handles_database_errors PASSED [ 22%]
+tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_handles_missing_history PASSED [ 22%]
+tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_creates_all_output_files PASSED [ 22%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_extract_fullstack_links_from_task FAILED [ 22%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_filter_inward_relates_only FAILED [ 23%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_no_fullstack_links_returns_empty PASSED [ 23%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_links_field_missing_returns_empty PASSED [ 23%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_task_not_found_returns_empty PASSED [ 23%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_empty_links_list_returns_empty PASSED [ 23%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_malformed_links_handled_gracefully PASSED [ 24%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_database_error_handled_gracefully PASSED [ 24%]
+tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_mixed_queue_types_filtered_correctly PASSED [ 24%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_init PASSED [ 24%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_context_manager PASSED [ 25%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_status_changes_by_author_success PASSED [ 25%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_status_changes_by_author_no_data PASSED [ 25%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_status_changes_by_author_exception PASSED [ 25%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_open_tasks_by_author_success PASSED [ 25%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_open_tasks_by_author_no_data PASSED [ 26%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_open_tasks_by_author_exception PASSED [ 26%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_load_status_mapping_success PASSED [ 26%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_load_status_mapping_file_not_found PASSED [ 26%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_load_status_mapping_parsing_error PASSED [ 26%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_generate_report_data PASSED [ 27%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_save_csv_report PASSED [ 27%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_save_csv_report_default_filename PASSED [ 27%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_generate_table PASSED [ 27%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_generate_table_default_filename PASSED [ 28%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_print_summary PASSED [ 28%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_print_summary_no_data PASSED [ 28%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_run_success PASSED [ 28%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_run_no_data PASSED [ 28%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_run_exception PASSED [ 29%]
+tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportIntegration::test_complete_report_generation_flow PASSED [ 29%]
+tests/test_generate_status_change_report.py::TestDateFormattingAndColumnOrdering::test_csv_headers_should_show_concrete_dates_not_week_labels PASSED [ 29%]
+tests/test_generate_status_change_report.py::TestDateFormattingAndColumnOrdering::test_table_headers_should_show_concrete_dates_not_week_labels PASSED [ 29%]
+tests/test_generate_status_change_report.py::TestDateFormattingAndColumnOrdering::test_earlier_week_should_be_left_column_later_week_right_column PASSED [ 29%]
+tests/test_generate_status_change_report.py::TestDateFormattingAndColumnOrdering::test_console_output_should_show_dates_not_week_labels PASSED [ 30%]
+tests/test_generate_status_change_report.py::TestExcludeDoneTasksAndFilterZeroRows::test_should_exclude_done_tasks_from_discovery_and_delivery_counts PASSED [ 30%]
+tests/test_generate_status_change_report.py::TestExcludeDoneTasksAndFilterZeroRows::test_should_filter_out_authors_with_all_zero_counts PASSED [ 30%]
+tests/test_generate_status_change_report.py::TestExcludeDoneTasksAndFilterZeroRows::test_should_keep_authors_with_some_non_zero_counts PASSED [ 30%]
+tests/test_generate_status_change_report.py::TestExcludeDoneTasksAndFilterZeroRows::test_should_handle_edge_case_all_authors_filtered PASSED [ 31%]
+tests/test_generate_status_change_report.py::TestExcludeDoneTasksAndFilterZeroRows::test_should_exclude_done_tasks_in_team_grouping PASSED [ 31%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_init_author_grouping PASSED [ 31%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_init_team_grouping PASSED [ 31%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_init_custom_config_dir PASSED [ 31%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_context_manager PASSED [ 32%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_report_data_success PASSED [ 32%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_report_data_no_quarters PASSED [ 32%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_report_data_no_statuses PASSED [ 32%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_csv_no_report_data PASSED [ 32%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_table_no_report_data PASSED [ 33%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_print_summary_no_report_data PASSED [ 33%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_csv_with_report_data PASSED [ 33%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_generate_table_with_report_data PASSED [ 33%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_print_summary_with_report_data PASSED [ 34%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_different_report_types PASSED [ 34%]
+tests/test_generate_time_to_market_report.py::TestGenerateTimeToMarketReportCommand::test_error_handling_in_generate_report_data PASSED [ 34%]
+tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_does_not_load_all_tasks PASSED [ 34%]
+tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_with_large_dataset PASSED [ 34%]
+tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_single_task_minimal_queries PASSED [ 35%]
+tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_circular_reference_performance PASSED [ 35%]
+tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_three_level_depth PASSED [ 35%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_sanitize_sheet_name_basic PASSED [ 35%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_sanitize_sheet_name_invalid_chars PASSED [ 35%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_sanitize_sheet_name_long PASSED [ 36%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_sanitize_sheet_name_empty PASSED [ 36%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_prepare_data_for_sheets PASSED [ 36%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_prepare_data_for_sheets_with_nan PASSED [ 36%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_read_csv_file_success PASSED [ 37%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_read_csv_file_encoding_fallback PASSED [ 37%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_get_sheet_id_success PASSED [ 37%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_get_sheet_id_not_found PASSED [ 37%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_auto_resize_columns PASSED [ 37%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_add_filter_to_all_data PASSED [ 38%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_test_connection_success PASSED [ 38%]
+tests/test_google_sheets_service.py::TestGoogleSheetsService::test_test_connection_failure PASSED [ 38%]
+tests/test_initial_status_from_changelog.py::TestInitialStatusFromChangelog::test_extract_status_history_should_use_from_field_for_initial_status PASSED [ 38%]
+tests/test_initial_status_from_changelog.py::TestInitialStatusFromChangelog::test_extract_status_history_should_handle_multiple_changes_correctly PASSED [ 39%]
+tests/test_initial_status_from_changelog.py::TestInitialStatusFromChangelog::test_extract_status_history_should_fallback_to_current_status_when_no_from_field PASSED [ 39%]
+tests/test_initial_status_from_changelog.py::TestInitialStatusFromChangelog::test_extract_status_history_should_handle_empty_changelog_with_current_status PASSED [ 39%]
+tests/test_initial_status_from_changelog.py::TestInitialStatusFromChangelog::test_extract_status_history_should_ignore_non_status_fields PASSED [ 39%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_default_limits_consistency PASSED [ 39%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_sync_tracker_cli_limit_parsing PASSED [ 40%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_sync_tracker_cli_default_behavior PASSED [ 40%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_search_tasks_cli_limit_parsing PASSED [ 40%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_limit_propagation_through_layers PASSED [ 40%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_unlimited_mode_handling PASSED [ 40%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_negative_limit_handling PASSED [ 41%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_large_limit_handling PASSED [ 41%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_limit_validation_consistency PASSED [ 41%]
+tests/test_limit_consistency.py::TestLimitConsistency::test_limit_documentation_consistency PASSED [ 41%]
+tests/test_limit_consistency.py::TestLimitEdgeCases::test_zero_limit_behavior PASSED [ 42%]
+tests/test_limit_consistency.py::TestLimitEdgeCases::test_boundary_limit_values PASSED [ 42%]
+tests/test_limit_consistency.py::TestLimitEdgeCases::test_limit_type_handling PASSED [ 42%]
+tests/test_optimized_sync.py::TestOptimizedSync::test_sync_uses_search_data_directly PASSED [ 42%]
+tests/test_optimized_sync.py::TestOptimizedSync::test_sync_with_multiple_tasks_from_search PASSED [ 42%]
+tests/test_optimized_sync.py::TestOptimizedSync::test_sync_backwards_compatibility PASSED [ 43%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_ttd_pause_calculation_single_pause PASSED [ 43%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_ttd_pause_calculation_multiple_pauses PASSED [ 43%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_ttd_pause_no_pause PASSED [ 43%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_ttd_pause_no_ready_status PASSED [ 43%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_pause_calculation_with_empty_history PASSED [ 44%]
+tests/test_pause_columns_in_details.py::TestPauseColumnsInDetails::test_pause_calculation_with_exception PASSED [ 44%]
+tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_full_report_generation_with_pause_time PASSED [ 44%]
+tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_csv_rendering_with_pause_time PASSED [ 44%]
+tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_console_rendering_with_pause_time PASSED [ 45%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_single_pause_period PASSED [ 45%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_multiple_pause_periods PASSED [ 45%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_no_pause PASSED [ 45%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_ends_in_pause PASSED [ 45%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_time_to_delivery_excludes_pause_time PASSED [ 46%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_time_to_market_excludes_pause_time PASSED [ 46%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_enhanced_statistics_with_pause_time PASSED [ 46%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_enhanced_group_metrics_with_pause_time PASSED [ 46%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_empty_history PASSED [ 46%]
+tests/test_pause_time_metrics.py::TestPauseTimeMetrics::test_calculate_pause_time_single_entry PASSED [ 47%]
+tests/test_pause_time_metrics.py::TestPauseTimeIntegration::test_full_workflow_with_pause_time PASSED [ 47%]
+tests/test_pause_time_metrics.py::TestPauseTimeIntegration::test_pause_time_up_to_date_excludes_later_pauses PASSED [ 47%]
+tests/test_pause_time_metrics.py::TestPauseTimeIntegration::test_pause_time_statistics_match_calculation PASSED [ 47%]
+tests/test_png_rendering.py::TestPNGRendering::test_ttm_with_tail_table_rendering PASSED [ 48%]
+tests/test_png_rendering.py::TestPNGRendering::test_both_report_rendering PASSED [ 48%]
+tests/test_png_rendering.py::TestPNGRendering::test_ttm_with_tail_table_data_structure PASSED [ 48%]
+tests/test_png_rendering.py::TestPNGRendering::test_tail_metrics_calculation PASSED [ 48%]
+tests/test_png_rendering.py::TestPNGRendering::test_pause_metrics_not_duplicated PASSED [ 48%]
+tests/test_png_rendering.py::TestPNGRendering::test_png_file_creation PASSED [ 49%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_empty_metrics PASSED [ 49%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_missing_group_metrics PASSED [ 49%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_missing_quarter_report PASSED [ 49%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_none_values_in_testing_returns PASSED [ 50%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_full_ttm_rendering_with_empty_cells PASSED [ 50%]
+tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_cell_text_formatting PASSED [ 50%]
+tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_handles_mixed_empty_and_filled_data PASSED [ 50%]
+tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_no_empty_strings_in_cells PASSED [ 50%]
+tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_handles_zero_values_correctly PASSED [ 51%]
+tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_full_ttm_rendering_with_mixed_data PASSED [ 51%]
+tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_column_widths_are_correct PASSED [ 51%]
+tests/test_restart_service_command.py::TestRestartServiceCommand::test_handle_restart_service_command PASSED [ 51%]
+tests/test_restart_service_command.py::TestRestartServiceCommand::test_restart_service_command_in_handle_command PASSED [ 51%]
+tests/test_restart_service_command.py::TestRestartServiceCommand::test_restart_service_in_available_commands PASSED [ 52%]
+tests/test_restart_service_command.py::TestRestartServiceCommand::test_restart_service_in_bot_commands PASSED [ 52%]
+tests/test_scroll_pagination.py::TestScrollPaginationBasicFunctionality::test_search_tasks_with_scroll_first_page PASSED [ 52%]
+tests/test_scroll_pagination.py::TestScrollPaginationBasicFunctionality::test_search_tasks_with_scroll_multiple_pages PASSED [ 52%]
+tests/test_scroll_pagination.py::TestScrollPaginationBasicFunctionality::test_search_tasks_with_scroll_respects_limit PASSED [ 53%]
+tests/test_scroll_pagination.py::TestScrollPaginationDataExtraction::test_search_tasks_with_scroll_extract_ids PASSED [ 53%]
+tests/test_scroll_pagination.py::TestScrollPaginationDataExtraction::test_search_tasks_with_scroll_extract_full_data PASSED [ 53%]
+tests/test_scroll_pagination.py::TestScrollPaginationEdgeCases::test_search_tasks_with_scroll_empty_results PASSED [ 53%]
+tests/test_scroll_pagination.py::TestScrollPaginationEdgeCases::test_search_tasks_with_scroll_no_scroll_id_in_response PASSED [ 53%]
+tests/test_scroll_pagination.py::TestAutomaticPaginationSelection::test_search_tasks_uses_regular_pagination_under_10k PASSED [ 54%]
+tests/test_scroll_pagination.py::TestAutomaticPaginationSelection::test_search_tasks_uses_scroll_pagination_over_10k PASSED [ 54%]
+tests/test_scroll_pagination.py::TestAutomaticPaginationSelection::test_search_tasks_with_data_uses_regular_pagination_under_10k PASSED [ 54%]
+tests/test_scroll_pagination.py::TestAutomaticPaginationSelection::test_search_tasks_with_data_uses_scroll_pagination_over_10k PASSED [ 54%]
+tests/test_scroll_pagination.py::TestScrollPaginationAuthorization::test_scroll_pagination_uses_authorization_headers PASSED [ 54%]
+tests/test_scroll_pagination.py::TestScrollPaginationIntegration::test_scroll_pagination_integration_with_real_api PASSED [ 55%]
+tests/test_scroll_pagination.py::TestScrollPaginationParallelRequests::test_scroll_pagination_no_duplicates_in_parallel_requests PASSED [ 55%]
+tests/test_scroll_pagination.py::TestScrollPaginationParallelRequests::test_scroll_pagination_race_condition_protection PASSED [ 55%]
+tests/test_services_time_to_market.py::TestConfigService::test_init PASSED [ 55%]
+tests/test_services_time_to_market.py::TestConfigService::test_load_quarters_success PASSED [ 56%]
+tests/test_services_time_to_market.py::TestConfigService::test_load_quarters_file_not_found PASSED [ 56%]
+tests/test_services_time_to_market.py::TestConfigService::test_load_quarters_parsing_error PASSED [ 56%]
+tests/test_services_time_to_market.py::TestConfigService::test_load_status_mapping_success PASSED [ 56%]
+tests/test_services_time_to_market.py::TestConfigService::test_load_status_mapping_file_not_found PASSED [ 56%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_time_to_delivery_success PASSED [ 57%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_time_to_delivery_with_intermediate_status PASSED [ 57%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_time_to_delivery_no_target_status PASSED [ 57%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_time_to_market_success PASSED [ 57%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_time_to_market_no_target_status PASSED [ 57%]
+tests/test_services_time_to_market.py::TestMetricsService::test_calculate_statistics_success PASSED [ 58%]
+tests/test_services_time_to_market.py::TestStartDateStrategies::test_creation_date_strategy PASSED [ 58%]
+tests/test_services_time_to_market.py::TestStartDateStrategies::test_first_change_strategy PASSED [ 58%]
+tests/test_services_time_to_market.py::TestStartDateStrategies::test_first_change_strategy_no_changes PASSED [ 58%]
+tests/test_services_time_to_market.py::TestMetricsServiceWithStrategies::test_ttd_with_first_change_strategy PASSED [ 59%]
+tests/test_services_time_to_market.py::TestMetricsServiceWithStrategies::test_ttd_with_creation_date_strategy PASSED [ 59%]
+tests/test_services_time_to_market.py::TestMetricsServiceWithStrategies::test_ttm_with_creation_date_strategy PASSED [ 59%]
+tests/test_services_time_to_market.py::TestMetricsServiceWithStrategies::test_calculate_statistics_empty_list PASSED [ 59%]
+tests/test_services_time_to_market.py::TestMetricsServiceWithStrategies::test_calculate_group_metrics PASSED [ 59%]
+tests/test_services_time_to_market.py::TestDataService::test_init PASSED [ 60%]
+tests/test_services_time_to_market.py::TestDataService::test_get_tasks_for_period_author_grouping PASSED [ 60%]
+tests/test_services_time_to_market.py::TestDataService::test_get_task_history PASSED [ 60%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_filter_removes_short_transitions PASSED [ 60%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_filter_keeps_first_entry_always PASSED [ 60%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_filter_integration_with_ttd PASSED [ 61%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_filter_excludes_false_clicks PASSED [ 61%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_min_duration_from_env_variable PASSED [ 61%]
+tests/test_short_status_filter.py::TestShortStatusFilter::test_filter_with_empty_history PASSED [ 61%]
+tests/test_single_instance.py::TestSingleInstance::test_single_instance_success PASSED [ 62%]
+tests/test_single_instance.py::TestSingleInstance::test_single_instance_already_running PASSED [ 62%]
+tests/test_single_instance.py::TestSingleInstance::test_single_instance_cleanup PASSED [ 62%]
+tests/test_single_instance.py::TestSingleInstance::test_is_running_no_lock_file PASSED [ 62%]
+tests/test_single_instance.py::TestSingleInstance::test_is_running_stale_lock_file PASSED [ 62%]
+tests/test_single_instance.py::TestSingleInstance::test_is_running_valid_lock_file PASSED [ 63%]
+tests/test_single_instance.py::TestSingleInstance::test_is_running_invalid_lock_file PASSED [ 63%]
+tests/test_single_instance.py::TestSingleInstance::test_default_lock_directory PASSED [ 63%]
+tests/test_single_instance.py::TestSingleInstance::test_custom_lock_directory PASSED [ 63%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_command_init_with_team_grouping_and_mapping_file PASSED [ 64%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_get_status_changes_by_group_with_team_mapping PASSED [ 64%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_get_open_tasks_by_group_with_team_mapping PASSED [ 64%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_team_grouping_without_mapping_file PASSED [ 64%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_team_grouping_with_empty_team_mapping PASSED [ 64%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_author_grouping_unchanged PASSED [ 65%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_cli_with_config_dir_argument PASSED [ 65%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_integration_with_real_mapping_file PASSED [ 65%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_build_report_data_shows_only_teams_not_authors PASSED [ 65%]
+tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_png_table_generation_has_readable_height PASSED [ 65%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_discovery_backlog_duration_single_period PASSED [ 66%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_discovery_backlog_duration_multiple_periods PASSED [ 66%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_ready_for_development_duration_single_period PASSED [ 66%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_ready_for_development_duration_multiple_periods PASSED [ 66%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_with_pause PASSED [ 67%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_status_not_found PASSED [ 67%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_empty_history PASSED [ 67%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_single_entry PASSED [ 67%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_last_status PASSED [ 67%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_with_same_status_consecutive PASSED [ 68%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_edge_case_same_day PASSED [ 68%]
+tests/test_status_duration_metrics.py::TestStatusDurationMetrics::test_calculate_status_duration_negative_duration PASSED [ 68%]
+tests/test_status_duration_metrics.py::TestStatusDurationIntegration::test_status_duration_with_ttd_calculation PASSED [ 68%]
+tests/test_status_duration_metrics.py::TestStatusDurationIntegration::test_status_duration_with_ttm_calculation PASSED [ 68%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_sync_tracker_with_real_database PASSED [ 69%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_bulk_create_or_update_tasks PASSED [ 69%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_get_task_by_tracker_id PASSED [ 69%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_bulk_create_history PASSED [ 69%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_cleanup_duplicate_history PASSED [ 70%]
+tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_sync_tracker_fails_without_crud_methods PASSED [ 70%]
+tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_single_instance_success PASSED [ 70%]
+tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_single_instance_blocking PASSED [ 70%]
+tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_lock_file_cleanup PASSED [ 70%]
+tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_help_works_without_lock PASSED [ 71%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_success PASSED [ 71%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_multiple_mp_external_test PASSED [ 71%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_with_pause_time PASSED [ 71%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_no_mp_external_test PASSED [ 71%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_no_done_status PASSED [ 72%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_ends_in_mp_external_test PASSED [ 72%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_empty_history PASSED [ 72%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_multiple_done_statuses PASSED [ 72%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_complex_pause_scenario PASSED [ 73%]
+tests/test_tail_metric.py::TestTailMetric::test_calculate_tail_metric_unsorted_history PASSED [ 73%]
+tests/test_tail_metric.py::TestTailMetricIntegration::test_tail_metric_with_ttd_and_ttm PASSED [ 73%]
+tests/test_tail_metric.py::TestTailMetricIntegration::test_tail_metric_with_pause_time_integration PASSED [ 73%]
+tests/test_tail_metric.py::TestTailMetricGroupMetrics::test_calculate_enhanced_group_metrics_with_tail PASSED [ 73%]
+tests/test_tail_metric.py::TestTailMetricGroupMetrics::test_calculate_group_metrics_with_tail PASSED [ 74%]
+tests/test_tail_metric.py::TestTailMetricGroupMetrics::test_calculate_enhanced_group_metrics_empty_tail_times PASSED [ 74%]
+tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_ttm_with_tail_metric PASSED [ 74%]
+tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_both_with_tail_metric PASSED [ 74%]
+tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_ttd_without_tail_metric PASSED [ 75%]
+tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_ttm_with_tail_table PASSED [ 75%]
+tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_both_with_tail_table PASSED [ 75%]
+tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_ttd_without_tail_table PASSED [ 75%]
+tests/test_tail_metric_renderers.py::TestTailMetricConsoleRenderer::test_render_ttm_with_tail_section PASSED [ 75%]
+tests/test_tail_metric_renderers.py::TestTailMetricConsoleRenderer::test_render_both_with_tail_section PASSED [ 76%]
+tests/test_tail_metric_renderers.py::TestTailMetricConsoleRenderer::test_render_ttd_without_tail_section PASSED [ 76%]
+tests/test_tail_metric_renderers.py::TestTailMetricRendererIntegration::test_all_renderers_handle_tail_metric PASSED [ 76%]
+tests/test_tail_metric_renderers.py::TestTailMetricRendererIntegration::test_renderers_with_empty_tail_metrics PASSED [ 76%]
+tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_structure PASSED [ 76%]
+tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_ttd_only PASSED [ 77%]
+tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_ttm_only PASSED [ 77%]
+tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_wide_format_default PASSED [ 77%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_basic PASSED [ 77%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_data_content PASSED [ 78%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_empty_metrics PASSED [ 78%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_no_report_data PASSED [ 78%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_default_filename PASSED [ 78%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_multiple_quarters PASSED [ 78%]
+tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_error_handling PASSED [ 79%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_no_report_data PASSED [ 79%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_with_mock_data PASSED [ 79%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_database_error_handling PASSED [ 79%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_history_error_handling PASSED [ 79%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_custom_filepath PASSED [ 80%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_creates_directory PASSED [ 80%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_includes_testing_returns PASSED [ 80%]
+tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_handles_empty_tasks PASSED [ 80%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_single_task PASSED [ 81%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_with_subtasks PASSED [ 81%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_nested_3_levels PASSED [ 81%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_circular_protection PASSED [ 81%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_empty_visited_set PASSED [ 81%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_database_error_handled PASSED [ 82%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_none_visited_parameter PASSED [ 82%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_malformed_links_handled PASSED [ 82%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_no_fullstack_tasks PASSED [ 82%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_wrong_link_type_ignored PASSED [ 82%]
+tests/test_task_hierarchy.py::TestTaskHierarchy::test_get_task_hierarchy_wrong_direction_ignored PASSED [ 83%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_converts_task_keys_to_hyperlinks PASSED [ 83%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_handles_empty_task_keys PASSED [ 83%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_without_task_key_column PASSED [ 83%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_with_special_characters_in_task_key PASSED [ 84%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_preserves_other_columns PASSED [ 84%]
+tests/test_task_key_hyperlinks.py::TestTaskKeyHyperlinks::test_prepare_data_with_multiple_task_keys PASSED [ 84%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_callback_query_upload_csv PASSED [ 84%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_callback_query_upload_csv_with_pivots PASSED [ 84%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_callback_query_unknown PASSED [ 85%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_callback_query_error PASSED [ 85%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_request_success PASSED [ 85%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_request_file_not_exists PASSED [ 85%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_request_error PASSED [ 85%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_csv PASSED [ 86%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_non_csv PASSED [ 86%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_error PASSED [ 86%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_message_success PASSED [ 86%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_message_error PASSED [ 87%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_test_connection_success PASSED [ 87%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_test_connection_failure PASSED [ 87%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_with_pivots_request_success PASSED [ 87%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_with_pivots_request_file_not_found PASSED [ 87%]
+tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_with_pivots_request_error PASSED [ 88%]
+tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_upload_me_markers PASSED [ 88%]
+tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_upload_with_pivots_markers PASSED [ 88%]
+tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_both_marker_types PASSED [ 88%]
+tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_detect_new_files_without_markers PASSED [ 89%]
+tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_png_files_not_affected PASSED [ 89%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_telegram_callback_creates_marker PASSED [ 89%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_csv_monitor_detects_marker PASSED [ 89%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_csv_monitor_removes_marker_after_processing PASSED [ 89%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_end_to_end_workflow PASSED [ 90%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_error_handling_in_callback PASSED [ 90%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_state_persistence PASSED [ 90%]
+tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_multiple_files_processing PASSED [ 90%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_count_single_testing_entry_no_returns PASSED [ 90%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_count_multiple_testing_entries PASSED [ 91%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_count_external_test_returns PASSED [ 91%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_count_both_statuses PASSED [ 91%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_empty_history PASSED [ 91%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_no_testing_statuses PASSED [ 92%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_consecutive_duplicate_statuses PASSED [ 92%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_unsorted_history PASSED [ 92%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_none_history PASSED [ 92%]
+tests/test_testing_returns_calculation.py::TestTestingReturnsCalculation::test_status_case_sensitivity PASSED [ 92%]
+tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_ttm_report_finds_testing_returns_in_real_data PASSED [ 93%]
+tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_get_fullstack_links_parses_real_db_structure PASSED [ 93%]
+tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_get_fullstack_links_handles_malformed_links PASSED [ 93%]
+tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_external_test_returns_counted_correctly PASSED [ 93%]
+tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_both_testing_and_external_test_returns PASSED [ 93%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_calculate_enhanced_statistics_with_testing_returns PASSED [ 94%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_calculate_enhanced_statistics_with_empty_testing_returns PASSED [ 94%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_calculate_enhanced_group_metrics_with_testing_returns PASSED [ 94%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_calculate_enhanced_group_metrics_with_empty_data PASSED [ 94%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_metrics_service_methods_exist PASSED [ 95%]
+tests/test_testing_returns_integration.py::TestTestingReturnsIntegration::test_numpy_functions_work_correctly PASSED [ 95%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_full_workflow_author_grouping PASSED [ 95%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_full_workflow_team_grouping PASSED [ 95%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_generate_csv_integration PASSED [ 95%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_generate_table_integration PASSED [ 96%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_print_summary_integration PASSED [ 96%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_different_report_types PASSED [ 96%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_context_manager_cleanup PASSED [ 96%]
+tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_error_handling_integration PASSED [ 96%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_service_initialization PASSED [ 97%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_make_request_with_real_http_call PASSED [ 97%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_search_tasks_integration PASSED [ 97%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_task_integration PASSED [ 97%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_task_changelog_integration PASSED [ 98%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_extract_task_data_real_structure PASSED [ 98%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_extract_status_history_real_structure PASSED [ 98%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_error_handling_integration PASSED [ 98%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_rate_limiting_integration PASSED [ 98%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_parallel_processing_integration PASSED [ 99%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_pagination_integration PASSED [ 99%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_active_tasks_fallback_integration PASSED [ 99%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_tasks_by_filter_integration PASSED [ 99%]
+tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_recent_tasks_integration PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ TestFullstackLinksExtraction.test_extract_fullstack_links_from_task ______
+tests/test_fullstack_links_extraction.py:53: in test_extract_fullstack_links_from_task
+    assert result == ["FULLSTACK-123", "FULLSTACK-456"]
+E   AssertionError: assert ['FULLSTACK-1...ULLSTACK-999'] == ['FULLSTACK-1...ULLSTACK-456']
+E
+E     Left contains one more item: 'FULLSTACK-999'
+E
+E     Full diff:
+E       [
+E           'FULLSTACK-123',
+E           'FULLSTACK-456',
+E     +     'FULLSTACK-999',
+E       ]
+_________ TestFullstackLinksExtraction.test_filter_inward_relates_only _________
+tests/test_fullstack_links_extraction.py:82: in test_filter_inward_relates_only
+    assert result == ["FULLSTACK-123"]
+E   AssertionError: assert ['FULLSTACK-1...ULLSTACK-456'] == ['FULLSTACK-123']
+E
+E     Left contains one more item: 'FULLSTACK-456'
+E
+E     Full diff:
+E       [
+E           'FULLSTACK-123',
+E     +     'FULLSTACK-456',
+E       ]
+=============================== warnings summary ===============================
+venv/lib/python3.12/site-packages/pydantic/fields.py:1093: 29 warnings
+  /home/vm/dev/radiator/venv/lib/python3.12/site-packages/pydantic/fields.py:1093: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warn(
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_fullstack_links_extraction.py)
+    class TestingReturnsService:
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_get_task_hierarchy_performance.py)
+    class TestingReturnsService:
+
+tests/test_scroll_pagination.py:346
+  /home/vm/dev/radiator/tests/test_scroll_pagination.py:346: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_task_details_csv_generation.py)
+    class TestingReturnsService:
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_task_hierarchy.py)
+    class TestingReturnsService:
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_testing_returns_calculation.py)
+    class TestingReturnsService:
+
+radiator/commands/services/testing_returns_service.py:11
+  /home/vm/dev/radiator/radiator/commands/services/testing_returns_service.py:11: PytestCollectionWarning: cannot collect test class 'TestingReturnsService' because it has a __init__ constructor (from: tests/test_testing_returns_integration.py)
+    class TestingReturnsService:
+
+tests/test_get_task_hierarchy_performance.py: 354 warnings
+tests/test_optimized_sync.py: 5 warnings
+tests/test_sync_tracker_integration.py: 19 warnings
+tests/test_testing_returns_e2e.py: 42 warnings
+  /home/vm/dev/radiator/venv/lib/python3.12/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================== slowest durations ===============================
+45.47s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_generate_table_integration
+38.08s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_full_workflow_author_grouping
+37.71s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_full_workflow_team_grouping
+37.63s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_print_summary_integration
+37.53s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_context_manager_cleanup
+37.16s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_error_handling_integration
+36.45s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_different_report_types
+36.34s call     tests/test_time_to_market_integration.py::TestTimeToMarketReportIntegration::test_generate_csv_integration
+12.60s call     tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_single_instance_success
+12.49s call     tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_lock_file_cleanup
+3.78s call     tests/test_full_integration.py::TestFullIntegration::test_complete_search_tasks_workflow
+3.65s call     tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_single_instance_blocking
+3.01s call     tests/test_restart_service_command.py::TestRestartServiceCommand::test_handle_restart_service_command
+2.31s call     tests/test_error_handling.py::TestErrorHandling::test_search_tasks_invalid_query
+2.17s call     tests/test_error_handling.py::TestErrorHandling::test_memory_usage_edge_cases
+1.88s call     tests/test_error_handling.py::TestErrorHandling::test_search_tasks_empty_result
+1.65s call     tests/test_sync_tracker_single_instance.py::TestSyncTrackerSingleInstance::test_sync_tracker_help_works_without_lock
+1.47s call     tests/test_scroll_pagination.py::TestScrollPaginationIntegration::test_scroll_pagination_integration_with_real_api
+1.43s call     tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_cli_with_config_dir_argument
+0.69s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_rate_limiting_integration
+0.61s call     tests/test_status_change_report_team_mapping.py::TestStatusChangeReportTeamMapping::test_png_table_generation_has_readable_height
+0.51s call     tests/test_single_instance.py::TestSingleInstance::test_is_running_valid_lock_file
+0.46s setup    tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_create_multiple_markers
+0.37s setup    tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_same_file
+0.37s setup    tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_marker_file_creation_is_atomic
+0.36s setup    tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_requests_with_file_operations
+0.36s setup    tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_race_condition
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_state_persistence
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_csv_monitor_detects_marker
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_end_to_end_workflow
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_telegram_callback_creates_marker
+0.33s setup    tests/test_restart_service_command.py::TestRestartServiceCommand::test_handle_restart_service_command
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_error_handling_in_callback
+0.33s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_multiple_files_processing
+0.32s call     tests/test_restart_service_command.py::TestRestartServiceCommand::test_restart_service_in_bot_commands
+0.32s setup    tests/test_telegram_sheets_integration.py::TestTelegramSheetsIntegration::test_csv_monitor_removes_marker_after_processing
+0.32s setup    tests/test_restart_service_command.py::TestRestartServiceCommand::test_restart_service_command_in_handle_command
+0.28s call     tests/test_error_handling.py::TestErrorHandling::test_concurrent_operations
+0.23s setup    tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_does_not_load_all_tasks
+0.23s call     tests/test_full_integration.py::TestFullIntegration::test_complete_tracker_sync_workflow
+0.21s call     tests/test_error_handling.py::TestErrorHandling::test_tracker_service_invalid_json_response
+0.21s call     tests/test_error_handling.py::TestErrorHandling::test_tracker_service_malformed_response
+0.21s call     tests/test_error_handling.py::TestErrorHandling::test_tracker_service_empty_response
+0.20s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_pagination_integration
+0.14s call     tests/test_single_instance.py::TestSingleInstance::test_single_instance_already_running
+0.10s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_task_changelog_integration
+0.10s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_search_tasks_integration
+0.10s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_make_request_with_real_http_call
+0.10s call     tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_task_integration
+0.10s call     tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_full_report_generation_with_pause_time
+0.09s call     tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_csv_rendering_with_pause_time
+0.09s call     tests/test_pause_time_integration.py::TestPauseTimeIntegration::test_console_rendering_with_pause_time
+0.09s call     tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_multiple_quarters
+0.09s call     tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_default_filename
+0.06s call     tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_with_large_dataset
+0.06s teardown tests/test_tracker_api.py::TestTrackerAPIServiceIntegration::test_get_recent_tasks_integration
+0.05s call     tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_upload_markers_from_state
+0.05s call     tests/test_optimized_sync.py::TestOptimizedSync::test_sync_uses_search_data_directly
+0.04s call     tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_does_not_load_all_tasks
+0.04s call     tests/test_full_integration.py::TestFullIntegration::test_data_consistency_integration
+0.04s call     tests/test_png_rendering.py::TestPNGRendering::test_both_report_rendering
+0.04s call     tests/test_full_integration.py::TestFullIntegration::test_end_to_end_workflow
+0.03s call     tests/test_limit_consistency.py::TestLimitConsistency::test_sync_tracker_cli_limit_parsing
+0.03s call     tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_full_ttm_rendering_with_mixed_data
+0.03s call     tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_upload_requests_race_condition
+0.03s call     tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_detect_new_files_without_markers
+0.03s call     tests/test_optimized_sync.py::TestOptimizedSync::test_sync_with_multiple_tasks_from_search
+0.03s call     tests/test_error_handling.py::TestErrorHandling::test_sync_command_partial_failure
+0.03s call     tests/test_png_rendering.py::TestPNGRendering::test_ttm_with_tail_table_rendering
+0.03s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_missing_quarter_report
+0.03s call     tests/test_auto_scroll_detection.py::TestAutoPaginationSelection::test_auto_uses_v2_when_total_count_less_than_10000
+0.03s call     tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_ttm_report_finds_testing_returns_in_real_data
+0.02s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_sync_tracker_fails_without_crud_methods
+0.02s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_full_ttm_rendering_with_empty_cells
+0.02s call     tests/test_png_rendering.py::TestPNGRendering::test_png_file_creation
+0.02s call     tests/test_png_rendering.py::TestPNGRendering::test_pause_metrics_not_duplicated
+0.02s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_sync_tracker_with_real_database
+0.02s call     tests/test_full_integration.py::TestFullIntegration::test_performance_integration
+0.02s call     tests/test_optimized_sync.py::TestOptimizedSync::test_sync_backwards_compatibility
+0.02s call     tests/test_png_rendering.py::TestPNGRendering::test_tail_metrics_calculation
+0.02s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_missing_group_metrics
+0.02s call     tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_handles_mixed_empty_and_filled_data
+0.02s call     tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_no_empty_strings_in_cells
+0.02s call     tests/test_png_rendering.py::TestPNGRendering::test_ttm_with_tail_table_data_structure
+0.02s call     tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_handles_zero_values_correctly
+0.02s call     tests/test_tail_metric_renderers.py::TestTailMetricRendererIntegration::test_all_renderers_handle_tail_metric
+0.02s call     tests/test_png_rendering_real_empty_cells.py::TestPNGRenderingRealEmptyCells::test_ttm_table_column_widths_are_correct
+0.02s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_bulk_create_history
+0.02s call     tests/test_error_handling.py::TestErrorHandling::test_sync_command_database_error
+0.02s call     tests/test_auto_scroll_detection.py::TestAutoPaginationSelection::test_explicit_limit_overrides_auto_detection
+0.02s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_cell_text_formatting
+0.02s call     tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_both_with_tail_table
+0.02s call     tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_upload_marker_files_are_ignored_in_monitoring
+0.02s call     tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_new_files_excludes_upload_markers
+0.02s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_none_values_in_testing_returns
+0.01s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_cleanup_duplicate_history
+0.01s call     tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_ttd_without_tail_table
+0.01s call     tests/test_png_rendering_empty_cells.py::TestPNGRenderingEmptyCells::test_ttm_table_handles_empty_metrics
+0.01s call     tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_saves_state
+0.01s call     tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_both_testing_and_external_test_returns
+0.01s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_bulk_create_or_update_tasks
+0.01s call     tests/test_limit_consistency.py::TestLimitConsistency::test_limit_validation_consistency
+0.01s call     tests/test_tail_metric_renderers.py::TestTailMetricTableRenderer::test_render_ttm_with_tail_table
+0.01s call     tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_external_test_returns_counted_correctly
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_tracker_service_connection_error
+0.01s call     tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportIntegration::test_complete_report_generation_flow
+0.01s call     tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_with_mock_data
+0.01s call     tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_basic
+0.01s call     tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_ttm_with_tail_metric
+0.01s call     tests/test_full_report_generation_integration.py::TestFullReportGenerationIntegration::test_full_report_generation_creates_all_output_files
+0.01s call     tests/test_full_integration.py::TestFullIntegration::test_complete_status_change_report_generation
+0.01s call     tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_non_csv
+0.01s call     tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_with_mixed_files
+0.01s call     tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_csv
+0.01s setup    tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_with_mock_data
+0.01s call     tests/test_limit_consistency.py::TestLimitConsistency::test_sync_tracker_cli_default_behavior
+0.01s call     tests/test_telegram_bot.py::TestReportsTelegramBot::test_send_file_with_upload_button_error
+0.01s call     tests/test_limit_consistency.py::TestLimitEdgeCases::test_boundary_limit_values
+0.01s call     tests/test_scroll_pagination.py::TestScrollPaginationBasicFunctionality::test_search_tasks_with_scroll_respects_limit
+0.01s call     tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_three_level_depth
+0.01s setup    tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_both_marker_types
+0.01s call     tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_with_pivots_request_success
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_report_generation_database_error
+0.01s setup    tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_upload_me_markers
+0.01s call     tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_empty_metrics
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_upload_marker_files_are_ignored_in_monitoring
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_tracker_service_timeout_error
+0.01s setup    tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_handles_empty_tasks
+0.01s call     tests/test_concurrent_upload_requests.py::TestConcurrentUploadRequests::test_concurrent_requests_with_file_operations
+0.01s call     tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_get_status_changes_by_author_success
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_mixed_file_types_with_upload_markers
+0.01s call     tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_during_initialization
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_sync_command_api_error
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_file_info_works_with_upload_markers
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_new_files_excludes_upload_markers
+0.01s setup    tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_with_pivots_request_success
+0.01s call     tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_ttd_without_tail_metric
+0.01s call     tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_ttd_only
+0.01s call     tests/test_file_monitor_cleanup_markers.py::TestFileMonitorCleanupMarkers::test_cleanup_with_no_upload_markers
+0.01s call     tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_ttm_only
+0.01s call     tests/test_generate_status_change_report.py::TestDateFormattingAndColumnOrdering::test_csv_headers_should_show_concrete_dates_not_week_labels
+0.01s call     tests/test_task_details_csv.py::TestTaskDetailsCSV::test_generate_task_details_csv_data_content
+0.01s call     tests/test_get_task_hierarchy_performance.py::TestGetTaskHierarchyPerformance::test_get_task_hierarchy_circular_reference_performance
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_file_path_works_with_upload_markers
+0.01s call     tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_long_format_structure
+0.01s call     tests/test_tail_metric_renderers.py::TestTailMetricCSVRenderer::test_render_both_with_tail_metric
+0.01s setup    tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_png_files_not_affected
+0.01s call     tests/test_tail_metric_renderers.py::TestCSVLongFormat::test_render_wide_format_default
+0.01s setup    tests/test_file_monitor_upload_markers.py::TestFileMonitorUploadMarkers::test_get_current_files_excludes_upload_markers
+0.01s setup    tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_detect_new_files_without_markers
+0.01s setup    tests/test_telegram_file_monitor_markers.py::TestFileMonitorMarkerSkipping::test_skip_upload_with_pivots_markers
+0.01s setup    tests/test_telegram_bot.py::TestReportsTelegramBot::test_handle_upload_csv_request_file_not_exists
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_file_operations_edge_cases
+0.01s call     tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_load_status_mapping_parsing_error
+0.01s call     tests/test_generate_status_change_report.py::TestGenerateStatusChangeReportCommand::test_load_status_mapping_success
+0.01s call     tests/test_full_integration.py::TestFullIntegration::test_error_handling_integration
+0.01s call     tests/test_scroll_pagination.py::TestScrollPaginationBasicFunctionality::test_search_tasks_with_scroll_multiple_pages
+0.01s call     tests/test_sync_tracker_integration.py::TestSyncTrackerIntegration::test_get_task_by_tracker_id
+0.01s call     tests/test_error_handling.py::TestErrorHandling::test_report_generation_data_service_error
+0.01s call     tests/test_scroll_pagination.py::TestScrollPaginationParallelRequests::test_scroll_pagination_race_condition_protection
+0.01s setup    tests/test_csv_file_monitor.py::TestCSVFileMonitor::test_get_current_csv_files
+0.01s call     tests/test_auto_scroll_detection.py::TestShouldUseScroll::test_should_use_scroll_returns_true_on_error
+0.01s call     tests/test_scroll_pagination.py::TestScrollPaginationParallelRequests::test_scroll_pagination_no_duplicates_in_parallel_requests
+0.01s call     tests/test_testing_returns_e2e.py::TestTestingReturnsE2E::test_get_fullstack_links_handles_malformed_links
+0.01s setup    tests/test_task_details_csv_generation.py::TestTaskDetailsCSVGeneration::test_generate_task_details_csv_includes_testing_returns
+
+(1227 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ============================
+FAILED tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_extract_fullstack_links_from_task
+FAILED tests/test_fullstack_links_extraction.py::TestFullstackLinksExtraction::test_filter_inward_relates_only
+=========== 2 failed, 462 passed, 456 warnings in 369.71s (0:06:09) ============

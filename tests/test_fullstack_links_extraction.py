@@ -49,11 +49,11 @@ class TestFullstackLinksExtraction:
 
         result = self.service.get_fullstack_links("CPO-123")
 
-        # Should only return inward relates links
-        assert result == ["FULLSTACK-123", "FULLSTACK-456"]
+        # Should return both inward and outward relates links (not depends)
+        assert result == ["FULLSTACK-123", "FULLSTACK-456", "FULLSTACK-999"]
 
-    def test_filter_inward_relates_only(self):
-        """Test: only inward relates links are returned."""
+    def test_filter_relates_only(self):
+        """Test: only relates links are returned (both directions)."""
         mock_task = Mock()
         mock_task.links = [
             {
@@ -63,11 +63,11 @@ class TestFullstackLinksExtraction:
             },
             {
                 "type": {"id": "relates"},
-                "direction": "outward",  # Should be ignored
+                "direction": "outward",  # Should be included
                 "object": {"key": "FULLSTACK-456", "queue": {"key": "FULLSTACK"}},
             },
             {
-                "type": {"id": "depends"},  # Should be ignored
+                "type": {"id": "depends"},  # Should be ignored (wrong type)
                 "direction": "inward",
                 "object": {"key": "FULLSTACK-789", "queue": {"key": "FULLSTACK"}},
             },
@@ -79,7 +79,8 @@ class TestFullstackLinksExtraction:
 
         result = self.service.get_fullstack_links("CPO-123")
 
-        assert result == ["FULLSTACK-123"]
+        # Should return both inward and outward relates, but not depends
+        assert result == ["FULLSTACK-123", "FULLSTACK-456"]
 
     def test_no_fullstack_links_returns_empty(self):
         """Test: task with no FULLSTACK links returns empty list."""
