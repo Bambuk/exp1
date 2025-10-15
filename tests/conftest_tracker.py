@@ -19,13 +19,26 @@ def test_db_engine():
     # Always use test database for tests, regardless of ENVIRONMENT
     import os
 
-    # Force test environment
+    # Force test environment BEFORE any radiator imports
     os.environ["ENVIRONMENT"] = "test"
 
-    # Import after setting environment
+    # Force DATABASE_URL_SYNC for tests
+    os.environ[
+        "DATABASE_URL_SYNC"
+    ] = "postgresql://postgres:12345@192.168.1.108:5432/radiator_test"
+
+    # Now import database and force reload settings
+    import importlib
+
+    import radiator.core.config
+
+    importlib.reload(radiator.core.config)
+
+    from radiator.core.config import settings
     from radiator.core.database import get_test_database_url_sync
 
     database_url = get_test_database_url_sync()
+    print(f"✅ Test DB Engine using: {database_url}")
     engine = create_engine(database_url, echo=False)
 
     # Create all tables

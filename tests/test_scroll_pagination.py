@@ -574,3 +574,36 @@ class TestScrollPaginationParallelRequests:
         print(
             f"✅ Race condition защита работает: все {len(results)} параллельных запросов завершились корректно"
         )
+
+
+class TestScrollPaginationWithMaxUnlimitedLimit:
+    """Tests for scroll pagination when limit=MAX_UNLIMITED_LIMIT."""
+
+    def test_scroll_pagination_with_max_unlimited_limit(self):
+        """Test scroll activates when limit=MAX_UNLIMITED_LIMIT and X-Total-Count >= 10000."""
+        from radiator.core.config import settings
+
+        service = TrackerAPIService()
+
+        # Mock get_total_tasks_count to return 10000 (triggers scroll)
+        with patch.object(service, "get_total_tasks_count", return_value=10000):
+            # Mock should_use_scroll to return True
+            with patch.object(service, "should_use_scroll", return_value=True):
+                # Mock _search_tasks_with_scroll to return test data
+                with patch.object(
+                    service,
+                    "_search_tasks_with_scroll",
+                    return_value=["task1", "task2"],
+                ) as mock_scroll:
+                    # Act: call search_tasks_with_data with MAX_UNLIMITED_LIMIT
+                    result = service.search_tasks_with_data(
+                        query="test query", limit=settings.MAX_UNLIMITED_LIMIT
+                    )
+
+                    # Assert: verify _search_tasks_with_scroll was called
+                    mock_scroll.assert_called_once()
+                    call_args = mock_scroll.call_args
+                    assert call_args[0][0] == "test query"  # query
+                    assert call_args[1]["limit"] == 999999  # very large limit
+                    assert call_args[1]["extract_full_data"] == True
+                    assert result == ["task1", "task2"]

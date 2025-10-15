@@ -19,11 +19,11 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres:12345@localhost:5432/radiator",
+        default="postgresql+asyncpg://postgres:12345@192.168.1.108:5432/radiator",
         env="DATABASE_URL",
     )
     DATABASE_URL_SYNC: str = Field(
-        default="postgresql://postgres:12345@localhost:5432/radiator",
+        default="postgresql://postgres:12345@192.168.1.108:5432/radiator",
         env="DATABASE_URL_SYNC",
     )
     DATABASE_POOL_SIZE: int = Field(default=20, env="DATABASE_POOL_SIZE")
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     DEFAULT_LARGE_LIMIT: int = Field(default=1000, env="DEFAULT_LARGE_LIMIT")
     DEFAULT_SEARCH_LIMIT: int = Field(default=100, env="DEFAULT_SEARCH_LIMIT")
     MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
-    API_PAGE_SIZE: int = Field(default=1000, env="API_PAGE_SIZE")
+    API_PAGE_SIZE: int = Field(default=100, env="API_PAGE_SIZE")
 
     # Reports Configuration
     REPORTS_DIR: str = Field(default="data/reports", env="REPORTS_DIR")

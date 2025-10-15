@@ -203,7 +203,11 @@ class TestCacheIntegration:
             cmd = GenerateTimeToMarketReportCommand(
                 group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
             )
+            # Replace db session and reinitialize data_service with test session
+            cmd.db.close()
             cmd.db = db_session
+            cmd.data_service.db = db_session
+            cmd.testing_returns_service.db = db_session
             cmd.generate_report_data()
 
             # Then: _task_history_by_key_cache should be populated

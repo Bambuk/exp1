@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-time-to-market-report generate-time-to-market-report-teams generate-time-to-market-report-long generate-time-to-market-report-teams-long
+.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-time-to-market-report generate-time-to-market-report-teams generate-time-to-market-report-long generate-time-to-market-report-teams-long db-snapshot db-snapshot-prod db-snapshot-test db-restore db-list-snapshots
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -9,6 +9,9 @@ help:  ## Show this help message
 	@echo 'Database Commands:'
 	@echo '  db-init*           - Initialize main database'
 	@echo '  test-db-*          - Manage test database (create, drop, reset)'
+	@echo '  db-snapshot*       - Create database snapshots (both, prod-only, test-only)'
+	@echo '  db-restore         - Restore database from snapshot (interactive)'
+	@echo '  db-list-snapshots  - List all available snapshots'
 	@echo ''
 	@echo 'Tracker Sync Commands:'
 	@echo '  sync-tracker       - Sync tracker tasks with custom filter, optional skip-history and limit'
@@ -256,3 +259,97 @@ generate-time-to-market-report-teams-long:  ## Generate Time To Delivery and Tim
 	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both --csv-format long
 	@echo ""
 	@echo "✅ Time To Market report by teams (long format) generated successfully!"
+
+# Database snapshot and restore commands
+db-snapshot:  ## Create snapshot of both production and test databases
+	@echo "📸 Creating snapshot of both databases..."
+	@mkdir -p .snapshots
+	@TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	SNAPSHOT_DIR=".snapshots/snapshot_$$TIMESTAMP"; \
+	mkdir -p "$$SNAPSHOT_DIR"; \
+	set -a; [ -f env.local ] && . ./env.local || . ./.env; set +a; \
+	DB_URL="$$DATABASE_URL_SYNC"; \
+	DB_HOST=$$(echo $$DB_URL | sed -n 's|.*@\([^:]*\):.*|\1|p'); \
+	DB_PORT=$$(echo $$DB_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p'); \
+	DB_USER=$$(echo $$DB_URL | sed -n 's|.*//\([^:]*\):.*|\1|p'); \
+	DB_PASS=$$(echo $$DB_URL | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p'); \
+	DB_NAME=$$(echo $$DB_URL | sed -n 's|.*/\([^?]*\).*|\1|p'); \
+	echo "📦 Dumping $$DB_NAME..."; \
+	PGPASSWORD=$$DB_PASS pg_dump -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d $$DB_NAME -F c -f "$$SNAPSHOT_DIR/$$DB_NAME.dump"; \
+	echo "📦 Dumping radiator_test..."; \
+	PGPASSWORD=$$DB_PASS pg_dump -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d radiator_test -F c -f "$$SNAPSHOT_DIR/radiator_test.dump" || echo "⚠️  radiator_test not found, skipping"; \
+	echo "🗜️  Creating archive..."; \
+	tar -czf ".snapshots/snapshot_$$TIMESTAMP.tar.gz" -C .snapshots "snapshot_$$TIMESTAMP"; \
+	rm -rf "$$SNAPSHOT_DIR"; \
+	echo "✅ Snapshot created: .snapshots/snapshot_$$TIMESTAMP.tar.gz"
+
+db-snapshot-prod:  ## Create snapshot of production database only
+	@echo "📸 Creating snapshot of production database..."
+	@mkdir -p .snapshots
+	@TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	SNAPSHOT_DIR=".snapshots/snapshot_$$TIMESTAMP"; \
+	mkdir -p "$$SNAPSHOT_DIR"; \
+	set -a; [ -f env.local ] && . ./env.local || . ./.env; set +a; \
+	DB_URL="$$DATABASE_URL_SYNC"; \
+	DB_HOST=$$(echo $$DB_URL | sed -n 's|.*@\([^:]*\):.*|\1|p'); \
+	DB_PORT=$$(echo $$DB_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p'); \
+	DB_USER=$$(echo $$DB_URL | sed -n 's|.*//\([^:]*\):.*|\1|p'); \
+	DB_PASS=$$(echo $$DB_URL | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p'); \
+	DB_NAME=$$(echo $$DB_URL | sed -n 's|.*/\([^?]*\).*|\1|p'); \
+	echo "📦 Dumping $$DB_NAME..."; \
+	PGPASSWORD=$$DB_PASS pg_dump -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d $$DB_NAME -F c -f "$$SNAPSHOT_DIR/$$DB_NAME.dump"; \
+	echo "🗜️  Creating archive..."; \
+	tar -czf ".snapshots/snapshot_$$TIMESTAMP.tar.gz" -C .snapshots "snapshot_$$TIMESTAMP"; \
+	rm -rf "$$SNAPSHOT_DIR"; \
+	echo "✅ Snapshot created: .snapshots/snapshot_$$TIMESTAMP.tar.gz"
+
+db-snapshot-test:  ## Create snapshot of test database only
+	@echo "📸 Creating snapshot of test database..."
+	@mkdir -p .snapshots
+	@TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	SNAPSHOT_DIR=".snapshots/snapshot_$$TIMESTAMP"; \
+	mkdir -p "$$SNAPSHOT_DIR"; \
+	set -a; [ -f env.local ] && . ./env.local || . ./.env; set +a; \
+	DB_URL="$$DATABASE_URL_SYNC"; \
+	DB_HOST=$$(echo $$DB_URL | sed -n 's|.*@\([^:]*\):.*|\1|p'); \
+	DB_PORT=$$(echo $$DB_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p'); \
+	DB_USER=$$(echo $$DB_URL | sed -n 's|.*//\([^:]*\):.*|\1|p'); \
+	DB_PASS=$$(echo $$DB_URL | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p'); \
+	echo "📦 Dumping radiator_test..."; \
+	PGPASSWORD=$$DB_PASS pg_dump -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d radiator_test -F c -f "$$SNAPSHOT_DIR/radiator_test.dump"; \
+	echo "🗜️  Creating archive..."; \
+	tar -czf ".snapshots/snapshot_$$TIMESTAMP.tar.gz" -C .snapshots "snapshot_$$TIMESTAMP"; \
+	rm -rf "$$SNAPSHOT_DIR"; \
+	echo "✅ Snapshot created: .snapshots/snapshot_$$TIMESTAMP.tar.gz"
+
+db-restore:  ## Restore database from snapshot (interactive selection)
+	@echo "🔄 Available snapshots:"
+	@ls -1t .snapshots/*.tar.gz 2>/dev/null | nl || echo "No snapshots found"
+	@read -p "Enter snapshot number: " NUM; \
+	SNAPSHOT=$$(ls -1t .snapshots/*.tar.gz | sed -n "$${NUM}p"); \
+	if [ -z "$$SNAPSHOT" ]; then echo "❌ Invalid selection"; exit 1; fi; \
+	echo "📦 Extracting $$SNAPSHOT..."; \
+	TEMP_DIR=$$(mktemp -d); \
+	tar -xzf "$$SNAPSHOT" -C "$$TEMP_DIR"; \
+	SNAPSHOT_NAME=$$(basename "$$SNAPSHOT" .tar.gz); \
+	set -a; [ -f env.local ] && . ./env.local || . ./.env; set +a; \
+	DB_URL="$$DATABASE_URL_SYNC"; \
+	DB_HOST=$$(echo $$DB_URL | sed -n 's|.*@\([^:]*\):.*|\1|p'); \
+	DB_PORT=$$(echo $$DB_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p'); \
+	DB_USER=$$(echo $$DB_URL | sed -n 's|.*//\([^:]*\):.*|\1|p'); \
+	DB_PASS=$$(echo $$DB_URL | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p'); \
+	DB_NAME=$$(echo $$DB_URL | sed -n 's|.*/\([^?]*\).*|\1|p'); \
+	if [ -f "$$TEMP_DIR/$$SNAPSHOT_NAME/$$DB_NAME.dump" ]; then \
+		echo "🔄 Restoring $$DB_NAME..."; \
+		PGPASSWORD=$$DB_PASS pg_restore -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d $$DB_NAME -c "$$TEMP_DIR/$$SNAPSHOT_NAME/$$DB_NAME.dump" 2>/dev/null || true; \
+	fi; \
+	if [ -f "$$TEMP_DIR/$$SNAPSHOT_NAME/radiator_test.dump" ]; then \
+		echo "🔄 Restoring radiator_test..."; \
+		PGPASSWORD=$$DB_PASS pg_restore -h $$DB_HOST -p $$DB_PORT -U $$DB_USER -d radiator_test -c "$$TEMP_DIR/$$SNAPSHOT_NAME/radiator_test.dump" 2>/dev/null || true; \
+	fi; \
+	rm -rf "$$TEMP_DIR"; \
+	echo "✅ Restore complete"
+
+db-list-snapshots:  ## List all available snapshots
+	@echo "📸 Available snapshots:"
+	@ls -lht .snapshots/*.tar.gz 2>/dev/null | awk '{print $$9, "(" $$5 ")", $$6, $$7, $$8}' || echo "No snapshots found"

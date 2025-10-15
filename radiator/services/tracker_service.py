@@ -797,7 +797,7 @@ class TrackerAPIService:
         """
         try:
             # Если limit не указан, проверяем total count для автоопределения
-            if limit is None:
+            if limit is None or limit == settings.MAX_UNLIMITED_LIMIT:
                 if self.should_use_scroll(query):
                     # API показывает 10000 - может быть больше, используем scroll
                     logger.info(
@@ -902,8 +902,8 @@ class TrackerAPIService:
             List of full task data dictionaries
         """
         try:
-            # Если limit не указан, проверяем total count для автоопределения
-            if limit is None:
+            # Если limit не указан или равен MAX_UNLIMITED_LIMIT, проверяем total count для автоопределения
+            if limit is None or limit == settings.MAX_UNLIMITED_LIMIT:
                 if self.should_use_scroll(query):
                     # API показывает 10000 - может быть больше, используем scroll
                     logger.info(
@@ -951,7 +951,15 @@ class TrackerAPIService:
                 response = self._make_request(
                     url, method="POST", json=post_data, params=params
                 )
-                data = response.json()
+
+                try:
+                    data = response.json()
+                except requests.exceptions.JSONDecodeError as e:
+                    logger.error(f"❌ Ошибка парсинга JSON на странице {page}: {e}")
+                    logger.error(f"   Размер ответа: {len(response.text)} символов")
+                    logger.error(f"   Первые 500 символов: {response.text[:500]}")
+                    logger.error(f"   Последние 500 символов: {response.text[-500:]}")
+                    raise
 
                 # Extract full task data from response
                 page_tasks = self._extract_tasks_from_response(data)

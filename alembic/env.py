@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import your models here to ensure they are registered
-from radiator.core.database import Base
-from radiator.models import tracker  # noqa: F401
+from alembic_base import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -61,7 +60,6 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        transaction_per_migration=True,  # Each migration in its own transaction
         compare_type=True,  # Compare column types
         compare_server_default=True,  # Compare server defaults
     )
@@ -95,15 +93,21 @@ def run_migrations_online() -> None:
 
     """
     # Use synchronous connection for migrations
+    import os
+
     from sqlalchemy import create_engine
 
-    from radiator.core.config import settings
+    # Get database URL from environment variable or settings
+    url = os.getenv("DATABASE_URL_SYNC")
+    if not url:
+        from radiator.core.config import settings
 
-    # Get database URL from environment-specific settings
-    url = settings.DATABASE_URL_SYNC
+        url = settings.DATABASE_URL_SYNC
+
+    print(f"🔍 Using database URL: {url}")
     engine = create_engine(url, echo=False)
 
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Ensure we're in the right database
         from sqlalchemy import text
 
@@ -112,6 +116,8 @@ def run_migrations_online() -> None:
 
 
 if context.is_offline_mode():
+    print("🔍 Running in offline mode")
     run_migrations_offline()
 else:
+    print("🔍 Running in online mode")
     run_migrations_online()

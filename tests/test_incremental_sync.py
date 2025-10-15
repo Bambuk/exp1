@@ -113,6 +113,9 @@ class TestIncrementalSync:
     def test_incremental_history_update_empty_changelog(self, db_session):
         """Test incremental history update with empty changelog."""
         with TrackerSyncCommand() as sync_cmd:
+            # Replace the command's db session with test session
+            sync_cmd.db.close()
+            sync_cmd.db = db_session
             # Create a test task in sync_cmd's database session
             import uuid
 
@@ -135,6 +138,9 @@ class TestIncrementalSync:
     def test_process_single_task_history_incremental_mode(self, db_session):
         """Test _process_single_task_history in incremental mode."""
         with TrackerSyncCommand() as sync_cmd:
+            # Replace the command's db session with test session
+            sync_cmd.db.close()
+            sync_cmd.db = db_session
             # Create a test task with last_changelog_id in sync_cmd's database session
             import uuid
 
@@ -221,6 +227,9 @@ class TestIncrementalSync:
         db_session.commit()
 
         with TrackerSyncCommand() as sync_cmd:
+            # Replace the command's db session with test session
+            sync_cmd.db.close()
+            sync_cmd.db = db_session
             # Create a test task with existing history
             import uuid
 
