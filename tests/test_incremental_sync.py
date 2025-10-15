@@ -16,7 +16,7 @@ import pytest
 from radiator.commands.sync_tracker import TrackerSyncCommand
 from radiator.core.database import SessionLocal
 from radiator.models.tracker import TrackerTask, TrackerTaskHistory
-from radiator.services.tracker_service import TrackerAPIService
+from radiator.services.tracker_service import TrackerAPIService, tracker_service
 
 
 class TestIncrementalSync:
@@ -264,18 +264,22 @@ class TestIncrementalSync:
             new_changelog = [
                 {
                     "id": "changelog_2",
-                    "createdAt": "2024-01-02T10:00:00.000+0000",
+                    "updatedAt": "2024-01-02T10:00:00.000+0000",
                     "type": "IssueWorkflow",
-                    "field": {"id": "status", "display": "Status"},
-                    "to": {"id": "in_progress", "display": "In Progress"},
-                    "from": {"id": "open", "display": "Open"},
+                    "fields": [
+                        {
+                            "field": {"id": "status", "display": "Status"},
+                            "to": {"id": "in_progress", "display": "In Progress"},
+                            "from": {"id": "open", "display": "Open"},
+                        }
+                    ],
                     "issue": {"id": tracker_id},
                 }
             ]
 
             # Mock the extract_status_history method to return new history entry
             with patch(
-                "radiator.services.tracker_service.tracker_service.extract_status_history"
+                "radiator.commands.sync_tracker.tracker_service.extract_status_history"
             ) as mock_extract:
                 mock_extract.return_value = [
                     {
