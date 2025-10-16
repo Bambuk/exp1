@@ -1,0 +1,49 @@
+Открыт;backlog
+Беклог;backlog
+Backlog;backlog
+Идея;backlog
+To Do;discovery
+Discovery backlog;backlog
+Приостановлено;pause
+Требуется информация;discovery
+Гипотеза;discovery
+Аналитика / Бэклог;discovery
+Analytics ToDo;discovery
+Analytics Backlog;discovery
+Аналитика / Метеор;discovery
+Аналитика / В работе;discovery
+Analytics InProgress;discovery
+Analytics Review;discovery
+Analytics Cancel;discovery
+Analytics Done;discovery
+В работе;discovery
+Можно тестировать;discovery
+Тестируется;discovery
+Сбор данных;discovery
+Оценка задачи;discovery
+Ревью;discovery
+Подготовка документации;discovery
+Дизайн;discovery
+Согласование результата;discovery
+Арх. ревью;discovery
+Арх. ревью завершено;discovery
+Приоритизация;discovery
+Analysis;discovery
+Готова к разработке;discovery
+МП / В работе;delivery
+МП / Внешний тест;delivery
+Готово к релизу;delivery
+Раскатка релиза;delivery
+Выпущено в продуктив;delivery
+На A/B тесте;delivery
+A/B-тест завершен;delivery
+Подведение итогов A/B;delivery
+Раскатить на всех;delivery
+Раскатано на всех;done
+Выпилить;delivery
+Выпилено;done
+Выполнено с ИТ;done
+Выполнено без ИТ;done
+Отменено;cancelled
+Done;done
+Закрыт;done

@@ -1,0 +1,13 @@
+[Unit]
+Description=Yandex API Routes (Bypass VPN)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/vm/dev/radiator/setup_yandex_routes.sh
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+# Test data for author-team mapping
+Author A;Team Alpha
+Author B;Team Beta
+Author C;
+Author D;Team Alpha
+Author E;Team Gamma
+Author F;
+Invalid Line
+Author G;Team Beta
