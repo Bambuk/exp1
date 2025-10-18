@@ -15,7 +15,11 @@ sys.path.insert(0, str(project_root))
 
 from scripts.sync_by_keys import (
     build_sync_command,
+    clear_progress,
+    get_progress_file_path,
+    load_progress,
     read_keys_from_file,
+    save_progress,
     split_into_batches,
     sync_batch,
     validate_key,
@@ -284,14 +288,198 @@ class TestMainLogic:
         mock_split.return_value = [["A-1", "A-2"], ["A-3", "A-4"]]
         mock_sync.return_value = None  # success
 
+        # Mock no saved progress
+        with patch("scripts.sync_by_keys.load_progress") as mock_load:
+            mock_load.return_value = None  # no saved progress
+
+            # Import and test main function
+            from scripts.sync_by_keys import main
+
+            # Mock sys.argv
+            with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
+                main()  # Should not raise exception
+
+            # Verify both batches were processed
+            assert mock_sync.call_count == 2
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+
+
+class TestProgressFunctions:
+    """Test progress tracking functions."""
+
+    def test_get_progress_file_path(self):
+        """Test progress file path generation."""
+        # Test with relative path
+        path = get_progress_file_path("data/input/keys.txt")
+        assert str(path).startswith("data/.progress/keys.txt.")
+        assert str(path).endswith(".progress")
+
+        # Test with absolute path
+        abs_path = Path("/home/user/data/input/keys.txt").absolute()
+        path = get_progress_file_path(str(abs_path))
+        assert str(path).startswith("data/.progress/keys.txt.")
+        assert str(path).endswith(".progress")
+
+    def test_save_and_load_progress(self):
+        """Test saving and loading progress."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+            temp_file = f.name
+
+        try:
+            # Save progress
+            save_progress(temp_file, 5, 10)
+
+            # Load progress
+            progress = load_progress(temp_file)
+            assert progress == (5, 10)
+
+            # Test non-existent file
+            progress = load_progress("non_existent_file.txt")
+            assert progress is None
+
+        finally:
+            # Clean up progress file
+            progress_file = get_progress_file_path(temp_file)
+            if progress_file.exists():
+                progress_file.unlink()
+
+    def test_clear_progress(self):
+        """Test clearing progress."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+            temp_file = f.name
+
+        try:
+            # Save progress first
+            save_progress(temp_file, 3, 8)
+            progress_file = get_progress_file_path(temp_file)
+            assert progress_file.exists()
+
+            # Clear progress
+            clear_progress(temp_file)
+            assert not progress_file.exists()
+
+            # Clear non-existent progress (should not fail)
+            clear_progress("non_existent_file.txt")
+
+        finally:
+            # Clean up if needed
+            progress_file = get_progress_file_path(temp_file)
+            if progress_file.exists():
+                progress_file.unlink()
+
+
+class TestMainWithProgress:
+    """Test main function with progress tracking."""
+
+    @patch("scripts.sync_by_keys.sync_batch")
+    @patch("scripts.sync_by_keys.split_into_batches")
+    @patch("scripts.sync_by_keys.read_keys_from_file")
+    def test_main_continues_from_saved_progress(self, mock_read, mock_split, mock_sync):
+        """Test that main continues from saved progress."""
+        # Setup mocks
+        mock_read.return_value = ["A-1", "A-2", "A-3", "A-4", "A-5", "A-6"]
+        mock_split.return_value = [["A-1", "A-2"], ["A-3", "A-4"], ["A-5", "A-6"]]
+        mock_sync.return_value = None  # success
+
+        # Mock saved progress: completed 1 batch out of 3
+        with patch("scripts.sync_by_keys.load_progress") as mock_load:
+            mock_load.return_value = (1, 3)  # completed batch 1, total 3
+
+            # Import and test main function
+            from scripts.sync_by_keys import main
+
+            # Mock sys.argv
+            with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
+                main()
+
+            # Should start from batch 2 (index 1)
+            assert mock_sync.call_count == 2  # batches 2 and 3
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            mock_sync.assert_any_call(["A-5", "A-6"], False, None)
+
+    @patch("scripts.sync_by_keys.sync_batch")
+    @patch("scripts.sync_by_keys.split_into_batches")
+    @patch("scripts.sync_by_keys.read_keys_from_file")
+    def test_main_resets_progress_with_flag(self, mock_read, mock_split, mock_sync):
+        """Test that --reset-progress flag resets progress."""
+        # Setup mocks
+        mock_read.return_value = ["A-1", "A-2", "A-3", "A-4"]
+        mock_split.return_value = [["A-1", "A-2"], ["A-3", "A-4"]]
+        mock_sync.return_value = None  # success
+
+        # Mock saved progress exists
+        with patch("scripts.sync_by_keys.load_progress") as mock_load, patch(
+            "scripts.sync_by_keys.clear_progress"
+        ) as mock_clear:
+            mock_load.return_value = (1, 2)  # completed batch 1
+
+            # Import and test main function
+            from scripts.sync_by_keys import main
+
+            # Mock sys.argv with --reset-progress
+            with patch(
+                "sys.argv",
+                ["sync_by_keys.py", "--file", "test.txt", "--reset-progress"],
+            ):
+                main()
+
+            # Should clear progress and start from beginning (called twice: reset + success)
+            assert mock_clear.call_count == 2
+            mock_clear.assert_any_call("test.txt")
+            assert mock_sync.call_count == 2  # both batches
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+
+    @patch("scripts.sync_by_keys.sync_batch")
+    @patch("scripts.sync_by_keys.split_into_batches")
+    @patch("scripts.sync_by_keys.read_keys_from_file")
+    def test_progress_cleared_on_success(self, mock_read, mock_split, mock_sync):
+        """Test that progress is cleared on successful completion."""
+        # Setup mocks
+        mock_read.return_value = ["A-1", "A-2"]
+        mock_split.return_value = [["A-1", "A-2"]]
+        mock_sync.return_value = None  # success
+
         # Import and test main function
         from scripts.sync_by_keys import main
 
-        # Mock sys.argv
-        with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
-            main()  # Should not raise exception
+        with patch("scripts.sync_by_keys.clear_progress") as mock_clear:
+            # Mock sys.argv
+            with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
+                main()
 
-        # Verify both batches were processed
-        assert mock_sync.call_count == 2
-        mock_sync.assert_any_call(["A-1", "A-2"], False, None)
-        mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            # Should clear progress on success
+            mock_clear.assert_called_once_with("test.txt")
+
+    @patch("scripts.sync_by_keys.sync_batch")
+    @patch("scripts.sync_by_keys.split_into_batches")
+    @patch("scripts.sync_by_keys.read_keys_from_file")
+    def test_batch_count_changed_resets_progress(
+        self, mock_read, mock_split, mock_sync
+    ):
+        """Test that changed batch count resets progress."""
+        # Setup mocks
+        mock_read.return_value = ["A-1", "A-2", "A-3", "A-4", "A-5", "A-6"]
+        mock_split.return_value = [
+            ["A-1", "A-2"],
+            ["A-3", "A-4"],
+            ["A-5", "A-6"],
+        ]  # 3 batches
+
+        # Mock saved progress with different batch count
+        with patch("scripts.sync_by_keys.load_progress") as mock_load:
+            mock_load.return_value = (2, 2)  # saved: 2 batches, current: 3 batches
+
+            # Import and test main function
+            from scripts.sync_by_keys import main
+
+            # Mock sys.argv
+            with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
+                main()
+
+            # Should start from beginning due to batch count mismatch
+            assert mock_sync.call_count == 3  # all 3 batches
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            mock_sync.assert_any_call(["A-5", "A-6"], False, None)

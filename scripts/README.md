@@ -34,6 +34,7 @@
 - `--batch-size` / `-b`: размер батча (по умолчанию 200)
 - `--skip-history`: флаг для sync-tracker
 - `--limit`: лимит для sync-tracker
+- `--reset-progress`: сбросить прогресс и начать с начала
 
 **Примеры:**
 ```bash
@@ -42,6 +43,12 @@ python scripts/sync_by_keys.py --file data/input/my_keys.txt
 
 # С кастомным размером батча
 python scripts/sync_by_keys.py --file data/input/my_keys.txt --batch-size 100
+
+# При прерывании - просто запустите снова
+python scripts/sync_by_keys.py --file data/input/my_keys.txt
+
+# Сбросить прогресс и начать заново
+python scripts/sync_by_keys.py --file data/input/my_keys.txt --reset-progress
 
 # Через Makefile
 make sync-tracker-by-keys FILE=data/input/my_keys.txt
@@ -60,6 +67,13 @@ CPO-789
 - Валидирует формат ключей (QUEUE-NUMBER)
 - При ошибке батча прерывает работу с exit code 1
 - Показывает прогресс с помощью tqdm
+
+**Отслеживание прогресса:**
+- Прогресс сохраняется в `data/.progress/` после каждого успешного батча
+- При повторном запуске автоматически продолжает с места остановки
+- При успешном завершении файл прогресса удаляется
+- Для каждого файла с ключами свой файл прогресса
+- При изменении количества батчей (изменение файла) начинается с начала
 
 ### Другие скрипты
 
