@@ -224,7 +224,9 @@ class TrackerSyncCommand:
                 self.db.add(new_task)
                 created += 1
 
+        logger.info("💾 Сохранение задач в базу данных...")
         self.db.commit()
+        logger.info("✅ Задачи успешно сохранены")
         return {"created": created, "updated": updated}
 
     def sync_task_history(
@@ -433,7 +435,9 @@ class TrackerSyncCommand:
                 f"Set last_changelog_id to {changelog[-1]['id']} for task {db_task.tracker_id}"
             )
 
+        logger.debug("💾 Сохранение истории задачи в базу данных...")
         self.db.commit()
+        logger.debug("✅ История задачи сохранена")
         return created_count
 
     def _incremental_history_update(
@@ -530,9 +534,10 @@ class TrackerSyncCommand:
                     f"Updated last_changelog_id to {new_changelog_entries[-1]['id']} for task {db_task.tracker_id}"
                 )
 
+            logger.debug("💾 Сохранение инкрементальной истории в базу данных...")
             self.db.commit()
             logger.debug(
-                f"Committed {added_count} new history entries for task {task_id}"
+                f"✅ Сохранено {added_count} новых записей истории для задачи {task_id}"
             )
 
         return added_count
@@ -558,7 +563,9 @@ class TrackerSyncCommand:
             self.db.delete(duplicate)
 
         if duplicates_to_remove:
+            logger.info("💾 Сохранение очистки дубликатов в базу данных...")
             self.db.commit()
+            logger.info("✅ Очистка дубликатов сохранена")
 
         return len(duplicates_to_remove)
 
@@ -669,11 +676,13 @@ class TrackerSyncCommand:
             total_api_errors = tasks_api_errors + history_api_errors
 
             # Mark sync as completed
+            print("💾 Сохранение результатов синхронизации в базу данных...")
             self.update_sync_log(
                 status="completed",
                 sync_completed_at=datetime.now(timezone.utc),
                 errors_count=total_api_errors,
             )
+            print("✅ Результаты успешно сохранены")
 
             # Print final summary to stdout (works even with disabled logging)
             print(f"\n🎉 Синхронизация завершена успешно!")
