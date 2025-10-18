@@ -106,6 +106,8 @@ class TestTaskDetailsCSV:
                 summary="Test Task 2",
             ),
         ]
+        self._set_quarter_bounds(datetime(2024, 1, 1), datetime(2024, 3, 31))
+
         # Mock tasks for both TTD and TTM calls
         self.data_service.get_tasks_for_period.side_effect = [
             mock_tasks,
@@ -122,8 +124,21 @@ class TestTaskDetailsCSV:
         # Mock task history
         self.data_service.get_task_history.return_value = [
             Mock(status="New", start_date=datetime(2024, 1, 1), end_date=None),
+            Mock(
+                status="Готова к разработке",
+                start_date=datetime(2024, 1, 3),
+                end_date=None,
+            ),
             Mock(status="Done", start_date=datetime(2024, 1, 5), end_date=None),
         ]
+
+    def _set_quarter_bounds(self, start_date: datetime, end_date: datetime) -> None:
+        for quarter in self.report.quarters:
+            quarter.start_date = start_date
+            quarter.end_date = end_date
+        for report in self.report.quarter_reports.values():
+            report.quarter.start_date = start_date
+            report.quarter.end_date = end_date
 
     def test_generate_task_details_csv_basic(self, test_reports_dir):
         """Test basic CSV generation functionality."""
@@ -511,6 +526,113 @@ class TestTaskDetailsCSV:
             # Clean up
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
+
+    def test_generate_task_details_csv_quarter_scoping(self, test_reports_dir):
+        """TTD и TTM должны отображаться только в соответствующих кварталах."""
+        command = GenerateTimeToMarketReportCommand(
+            group_by=GroupBy.AUTHOR, output_dir=test_reports_dir
+        )
+        command.report = self.report
+        command.group_by = GroupBy.AUTHOR
+        updated_mapping = StatusMapping(
+            ["Готова к разработке", "Discovery backlog"], ["Выполнено"]
+        )
+        command.status_mapping = updated_mapping
+        command.report.status_mapping = updated_mapping
+        command.data_service = self.data_service
+        command.metrics_service = self.metrics_service
+
+        # Обновляем кварталы и их диапазоны
+        quarter1 = Mock()
+        quarter1.name = "Q1 2024"
+        quarter1.start_date = datetime(2024, 1, 1)
+        quarter1.end_date = datetime(2024, 3, 31)
+        quarter2 = Mock()
+        quarter2.name = "Q3 2024"
+        quarter2.start_date = datetime(2024, 7, 1)
+        quarter2.end_date = datetime(2024, 9, 30)
+        command.report.quarters = [quarter1, quarter2]
+
+        # Подготовка задач: одна задача участвует в обоих выборках
+        task = TaskData(
+            id=1,
+            key="CPO-9999",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime(2024, 1, 15),
+            summary="Cross-quarter task",
+        )
+
+        command.data_service.get_tasks_for_period.side_effect = [
+            [task],  # Q1 TTD
+            [task],  # Q1 TTM
+            [task],  # Q3 TTD
+            [task],  # Q3 TTM
+        ]
+
+        # История статусов: TTD в феврале, TTM в августе
+        command.data_service.get_task_history.return_value = [
+            Mock(
+                status="Discovery backlog",
+                start_date=datetime(2024, 1, 10),
+                end_date=datetime(2024, 1, 20),
+            ),
+            Mock(
+                status="Готова к разработке",
+                start_date=datetime(2024, 2, 15),
+                end_date=datetime(2024, 2, 16),
+            ),
+            Mock(
+                status="Development",
+                start_date=datetime(2024, 2, 16),
+                end_date=datetime(2024, 8, 10),
+            ),
+            Mock(status="Выполнено", start_date=datetime(2024, 8, 15), end_date=None),
+        ]
+
+        # Метрики должны возвращать значения при полном расчёте
+        command.metrics_service.calculate_time_to_delivery.return_value = 12
+        command.metrics_service.calculate_time_to_market.return_value = 180
+        command.metrics_service.calculate_tail_metric.return_value = 30
+        command.metrics_service.calculate_pause_time.return_value = 5
+        command._calculate_ttd_pause = Mock(return_value=2)
+        command.metrics_service.calculate_status_duration.side_effect = [
+            4,
+            1,
+            4,
+            1,
+        ]
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as temp_file:
+            temp_path = temp_file.name
+
+        try:
+            command.generate_task_details_csv(temp_path)
+            with open(temp_path, "r", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+
+            assert len(rows) == 2
+
+            q1_row = next(row for row in rows if row["Квартал"] == "Q1 2024")
+            q3_row = next(row for row in rows if row["Квартал"] == "Q3 2024")
+
+            assert q1_row["TTD"] != "" and q1_row["TTM"] == ""
+            assert q1_row["Tail"] == "" and q1_row["Пауза"] == ""
+            assert q1_row["TTD Pause"] != ""
+            assert q1_row["Discovery backlog (дни)"] != ""
+            assert q1_row["Готова к разработке (дни)"] != ""
+
+            assert q3_row["TTD"] == "" and q3_row["TTM"] != ""
+            assert q3_row["Tail"] != "" and q3_row["Пауза"] != ""
+            assert q3_row["TTD Pause"] == ""
+            assert q3_row["Discovery backlog (дни)"] == ""
+            assert q3_row["Готова к разработке (дни)"] == ""
+
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

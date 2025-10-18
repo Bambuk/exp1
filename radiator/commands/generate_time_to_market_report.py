@@ -694,6 +694,20 @@ class GenerateTimeToMarketReportCommand:
                         self.db.rollback()
                         continue
 
+                    sorted_history = sorted(history, key=lambda x: x.start_date)
+
+                    ttd_target_date = None
+                    for entry in sorted_history:
+                        if entry.status == "Готова к разработке":
+                            ttd_target_date = entry.start_date
+                            break
+
+                    ttm_target_date = None
+                    for entry in sorted_history:
+                        if entry.status in self.report.status_mapping.done_statuses:
+                            ttm_target_date = entry.start_date
+                            break
+
                     ttd = self.metrics_service.calculate_time_to_delivery(
                         history, self.report.status_mapping.discovery_statuses
                     )
@@ -720,6 +734,15 @@ class GenerateTimeToMarketReportCommand:
                     # Calculate TTD pause time
                     ttd_pause = self._calculate_ttd_pause(task)
 
+                    ttd_in_quarter = (
+                        ttd_target_date is not None
+                        and quarter.start_date <= ttd_target_date <= quarter.end_date
+                    )
+                    ttm_in_quarter = (
+                        ttm_target_date is not None
+                        and quarter.start_date <= ttm_target_date <= quarter.end_date
+                    )
+
                     # Calculate testing returns
                     testing_returns = 0
                     external_returns = 0
@@ -738,22 +761,47 @@ class GenerateTimeToMarketReportCommand:
                             f"Error calculating testing returns for task {task.key}: {e}"
                         )
 
+                    total_returns = testing_returns + external_returns
+
+                    ttd_value = ttd if ttd_in_quarter and ttd is not None else ""
+                    ttm_value = ttm if ttm_in_quarter and ttm is not None else ""
+                    tail_value = tail if ttm_in_quarter and tail is not None else ""
+                    pause_value = (
+                        pause_time if ttm_in_quarter and pause_time is not None else ""
+                    )
+                    ttd_pause_value = (
+                        ttd_pause if ttd_in_quarter and ttd_pause is not None else ""
+                    )
+                    discovery_backlog_value = (
+                        discovery_backlog_duration
+                        if ttd_in_quarter and discovery_backlog_duration is not None
+                        else ""
+                    )
+                    ready_for_dev_value = (
+                        ready_for_dev_duration
+                        if ttd_in_quarter and ready_for_dev_duration is not None
+                        else ""
+                    )
+                    testing_returns_value = testing_returns if ttm_in_quarter else ""
+                    external_returns_value = external_returns if ttm_in_quarter else ""
+                    total_returns_value = total_returns if ttm_in_quarter else ""
+
                     task_details.append(
                         {
                             "Автор": task.author,
                             "Команда": task.team,
                             "Ключ задачи": task.key,
                             "Название": task.summary,
-                            "TTD": ttd if ttd is not None else "",
-                            "TTM": ttm if ttm is not None else "",
-                            "Tail": tail if tail is not None else "",
-                            "Пауза": pause_time if pause_time is not None else "",
-                            "TTD Pause": ttd_pause,
-                            "Discovery backlog (дни)": discovery_backlog_duration,
-                            "Готова к разработке (дни)": ready_for_dev_duration,
-                            "Возвраты с Testing": testing_returns,
-                            "Возвраты с Внешний тест": external_returns,
-                            "Всего возвратов": testing_returns + external_returns,
+                            "TTD": ttd_value,
+                            "TTM": ttm_value,
+                            "Tail": tail_value,
+                            "Пауза": pause_value,
+                            "TTD Pause": ttd_pause_value,
+                            "Discovery backlog (дни)": discovery_backlog_value,
+                            "Готова к разработке (дни)": ready_for_dev_value,
+                            "Возвраты с Testing": testing_returns_value,
+                            "Возвраты с Внешний тест": external_returns_value,
+                            "Всего возвратов": total_returns_value,
                             "Квартал": quarter.name,
                         }
                     )
