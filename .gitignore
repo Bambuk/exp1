@@ -167,3 +167,5 @@ sheet-api-key.json
 
 # Test state files
 .test_state.json
+backup_radiator_*.backup
+=0.8.0

@@ -1,6 +1,6 @@
 """Integration tests for sync_tracker with real database."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -178,7 +178,7 @@ class TestSyncTrackerIntegration:
         assert history.status == "Open"
 
     def test_cleanup_duplicate_history(self, db_session):
-        """Test cleanup_duplicate_history method."""
+        """Test cleanup_duplicate_history method with small dataset."""
         sync_cmd = TrackerSyncCommand()
         sync_cmd.db = db_session
 
@@ -224,6 +224,174 @@ class TestSyncTrackerIntegration:
             .all()
         )
         assert len(remaining_history) == 1
+
+    def test_cleanup_duplicate_history_large_dataset(self, db_session):
+        """Test cleanup_duplicate_history method with large dataset for performance testing."""
+        import time
+
+        # Clean up any existing test data first
+        db_session.query(TrackerTaskHistory).filter(
+            TrackerTaskHistory.tracker_id.like("test_cleanup_large_%")
+        ).delete(synchronize_session=False)
+        db_session.query(TrackerTask).filter(
+            TrackerTask.tracker_id.like("test_cleanup_large_%")
+        ).delete(synchronize_session=False)
+        db_session.commit()
+
+        sync_cmd = TrackerSyncCommand()
+        sync_cmd.db = db_session
+
+        # Create multiple tasks
+        tasks = []
+        for i in range(10):
+            task = TrackerTask(
+                tracker_id=f"test_cleanup_large_{i:03d}",
+                key=f"TEST-LARGE-{i:03d}",
+                summary=f"Test Task {i}",
+            )
+            db_session.add(task)
+            tasks.append(task)
+        db_session.commit()
+
+        # Create many duplicate history entries (100+ per task)
+        base_time = datetime.now(timezone.utc)
+        total_duplicates = 0
+
+        for task in tasks:
+            # Create 5 different statuses
+            for status_idx in range(5):
+                status = f"Status{status_idx}"
+                start_date = base_time + timedelta(hours=status_idx)
+
+                # Create 20 duplicate entries for each status
+                for dup_idx in range(20):
+                    history = TrackerTaskHistory(
+                        task_id=task.id,
+                        tracker_id=task.tracker_id,
+                        status=status,
+                        status_display=status,
+                        start_date=start_date,
+                        end_date=start_date + timedelta(minutes=30),
+                        created_at=base_time
+                        + timedelta(
+                            seconds=dup_idx
+                        ),  # Different created_at for ordering
+                    )
+                    db_session.add(history)
+                    total_duplicates += 1
+
+        db_session.commit()
+
+        # Count only our test data
+        test_history_count = (
+            db_session.query(TrackerTaskHistory)
+            .filter(TrackerTaskHistory.tracker_id.like("test_cleanup_large_%"))
+            .count()
+        )
+        expected_total = 10 * 5 * 20  # 10 tasks * 5 statuses * 20 duplicates each
+        assert (
+            test_history_count == expected_total
+        ), f"Expected {expected_total} history entries, got {test_history_count}"
+
+        # Test cleanup performance
+        start_time = time.time()
+        cleaned_count = sync_cmd._cleanup_duplicate_history()
+        end_time = time.time()
+
+        execution_time = end_time - start_time
+
+        # Should clean up 19 duplicates per status per task (keep 1, remove 19)
+        expected_cleaned = (
+            10 * 5 * 19
+        )  # 10 tasks * 5 statuses * 19 duplicates to remove
+        assert (
+            cleaned_count == expected_cleaned
+        ), f"Expected {expected_cleaned} cleaned, got {cleaned_count}"
+
+        # Performance check: should complete in under 1 second for this dataset
+        assert (
+            execution_time < 1.0
+        ), f"Cleanup took {execution_time:.2f}s, should be under 1s"
+
+        # Verify only one history entry remains per status per task
+        for task in tasks:
+            for status_idx in range(5):
+                status = f"Status{status_idx}"
+                remaining_count = (
+                    db_session.query(TrackerTaskHistory)
+                    .filter(
+                        TrackerTaskHistory.task_id == task.id,
+                        TrackerTaskHistory.status == status,
+                    )
+                    .count()
+                )
+                assert (
+                    remaining_count == 1
+                ), f"Expected 1 remaining entry for task {task.id} status {status}, got {remaining_count}"
+
+    def test_cleanup_duplicate_history_preserves_oldest_record(self, db_session):
+        """Test that cleanup preserves the oldest record (by created_at)."""
+        # Clean up any existing test data first
+        db_session.query(TrackerTaskHistory).filter(
+            TrackerTaskHistory.tracker_id == "test_cleanup_oldest"
+        ).delete(synchronize_session=False)
+        db_session.query(TrackerTask).filter(
+            TrackerTask.tracker_id == "test_cleanup_oldest"
+        ).delete(synchronize_session=False)
+        db_session.commit()
+
+        sync_cmd = TrackerSyncCommand()
+        sync_cmd.db = db_session
+
+        # Create a task
+        task = TrackerTask(
+            tracker_id="test_cleanup_oldest", key="TEST-OLDEST", summary="Test Task"
+        )
+        db_session.add(task)
+        db_session.commit()
+
+        # Create duplicate history entries with different created_at times
+        base_time = datetime.now(timezone.utc)
+        start_date = base_time
+
+        # Create 3 duplicates, with different created_at times
+        for i in range(3):
+            history = TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id="test_cleanup_oldest",
+                status="Testing",
+                status_display="Testing",
+                start_date=start_date,
+                end_date=None,
+                created_at=base_time + timedelta(seconds=i),  # Different created_at
+            )
+            db_session.add(history)
+
+        db_session.commit()
+
+        # Test cleanup
+        cleaned_count = sync_cmd._cleanup_duplicate_history()
+        assert cleaned_count == 2  # Should remove 2 duplicates, keep 1
+
+        # Verify only one record remains
+        remaining_count = (
+            db_session.query(TrackerTaskHistory)
+            .filter(TrackerTaskHistory.task_id == task.id)
+            .count()
+        )
+        assert (
+            remaining_count == 1
+        ), f"Expected 1 remaining record, got {remaining_count}"
+
+        # Verify the remaining record exists and has correct data
+        remaining_history = (
+            db_session.query(TrackerTaskHistory)
+            .filter(TrackerTaskHistory.task_id == task.id)
+            .first()
+        )
+        assert remaining_history is not None
+        assert remaining_history.status == "Testing"
+        assert remaining_history.tracker_id == "test_cleanup_oldest"
 
     def test_sync_tracker_fails_without_crud_methods(self, db_session):
         """Test that sync_tracker fails when CRUD methods are missing."""

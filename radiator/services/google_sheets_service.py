@@ -658,6 +658,7 @@ class GoogleSheetsService:
             Column index (0-based)
         """
         # Standard column mapping for details CSV
+        # Based on the actual fieldnames in generate_task_details_csv
         column_mapping = {
             "Автор": 0,
             "Команда": 1,
@@ -670,7 +671,10 @@ class GoogleSheetsService:
             "TTD Pause": 8,
             "Discovery backlog (дни)": 9,
             "Готова к разработке (дни)": 10,
-            "Квартал": 11,
+            "Возвраты с Testing": 11,
+            "Возвраты с Внешний тест": 12,
+            "Всего возвратов": 13,
+            "Квартал": 14,
         }
 
         return column_mapping.get(column_name, 0)

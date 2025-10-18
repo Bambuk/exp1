@@ -9,6 +9,7 @@ from radiator.models.tracker import TrackerTask
 
 
 class TestingReturnsService:
+    __test__ = False
     """Service for analyzing testing returns from task status history."""
 
     def __init__(self, db=None):

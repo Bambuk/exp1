@@ -16,25 +16,7 @@ from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHist
 @pytest.fixture(scope="session")
 def test_db_engine():
     """Create test database engine."""
-    # Always use test database for tests, regardless of ENVIRONMENT
-    import os
-
-    # Force test environment BEFORE any radiator imports
-    os.environ["ENVIRONMENT"] = "test"
-
-    # Force DATABASE_URL_SYNC for tests
-    os.environ[
-        "DATABASE_URL_SYNC"
-    ] = "postgresql://postgres:12345@192.168.1.108:5432/radiator_test"
-
-    # Now import database and force reload settings
-    import importlib
-
-    import radiator.core.config
-
-    importlib.reload(radiator.core.config)
-
-    from radiator.core.config import settings
+    # Environment variables are already set by pytest-env
     from radiator.core.database import get_test_database_url_sync
 
     database_url = get_test_database_url_sync()

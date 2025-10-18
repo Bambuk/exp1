@@ -54,7 +54,8 @@ class GenerateTimeToMarketReportCommand:
         """
         self.group_by = group_by
         self.config_dir = config_dir
-        self.db = SessionLocal()
+        self._db = None
+        self._owns_session = False
 
         # Initialize caches for performance optimization
         self._task_history_cache: Dict[int, List[StatusHistoryEntry]] = {}
@@ -75,8 +76,10 @@ class GenerateTimeToMarketReportCommand:
         self.author_team_mapping_service = AuthorTeamMappingService(
             f"{config_dir}/cpo_authors.txt"
         )
-        self.data_service = DataService(self.db, self.author_team_mapping_service)
         self.metrics_service = MetricsService()
+
+        # Session and dependent services
+        self._set_db(SessionLocal(), owns_session=True)
         self.testing_returns_service = TestingReturnsService(self.db)
 
         # Report data
@@ -86,8 +89,37 @@ class GenerateTimeToMarketReportCommand:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.db:
-            self.db.close()
+        if self._db and self._owns_session:
+            self._db.close()
+
+    @property
+    def db(self):
+        return self._db
+
+    @db.setter
+    def db(self, session):
+        self._set_db(session, owns_session=False)
+
+    def _set_db(self, session, owns_session: bool):
+        if session is None:
+            raise ValueError("Database session cannot be None")
+
+        if self._db is not None and self._owns_session and self._db is not session:
+            self._db.close()
+
+        self._db = session
+        self._owns_session = owns_session
+        self._reset_caches()
+        self._initialize_db_services()
+
+    def _initialize_db_services(self) -> None:
+        self.data_service = DataService(self._db, self.author_team_mapping_service)
+        self.testing_returns_service = TestingReturnsService(self._db)
+
+    def _reset_caches(self) -> None:
+        self._task_history_cache.clear()
+        self._task_history_by_key_cache.clear()
+        self._task_metrics_cache.clear()
 
     def _load_all_histories_once(
         self, task_ids: List[int], task_keys: List[str]
@@ -579,16 +611,24 @@ class GenerateTimeToMarketReportCommand:
 
             # Process each quarter
             for quarter in self.report.quarters:
+                import time
+
+                quarter_start = time.time()
                 logger.info(f"Processing task details for quarter: {quarter.name}")
 
                 # Get tasks for TTD and TTM
                 try:
+                    ttd_start = time.time()
                     ttd_tasks = self.data_service.get_tasks_for_period(
                         quarter.start_date,
                         quarter.end_date,
                         self.group_by,
                         self.report.status_mapping,
                         metric_type="ttd",
+                    )
+                    ttd_time = time.time() - ttd_start
+                    logger.info(
+                        f"⏱️ TTD tasks query for {quarter.name}: {ttd_time:.2f}s, found {len(ttd_tasks)} tasks"
                     )
                 except Exception as e:
                     logger.warning(
@@ -598,12 +638,17 @@ class GenerateTimeToMarketReportCommand:
                     ttd_tasks = []
 
                 try:
+                    ttm_start = time.time()
                     ttm_tasks = self.data_service.get_tasks_for_period(
                         quarter.start_date,
                         quarter.end_date,
                         self.group_by,
                         self.report.status_mapping,
                         metric_type="ttm",
+                    )
+                    ttm_time = time.time() - ttm_start
+                    logger.info(
+                        f"⏱️ TTM tasks query for {quarter.name}: {ttm_time:.2f}s, found {len(ttm_tasks)} tasks"
                     )
                 except Exception as e:
                     logger.warning(
@@ -616,6 +661,11 @@ class GenerateTimeToMarketReportCommand:
                 all_tasks_in_quarter = {
                     task.key: task for task in ttd_tasks + ttm_tasks
                 }
+
+                logger.info(
+                    f"⏱️ Processing {len(all_tasks_in_quarter)} tasks for quarter {quarter.name}"
+                )
+                task_processing_start = time.time()
 
                 for task_key, task in all_tasks_in_quarter.items():
                     try:
@@ -708,8 +758,22 @@ class GenerateTimeToMarketReportCommand:
                         }
                     )
 
+            # Log task processing time
+            task_processing_time = time.time() - task_processing_start
+            logger.info(
+                f"⏱️ Task processing for quarter {quarter.name}: {task_processing_time:.2f}s"
+            )
+
+            # Log total quarter time
+            quarter_time = time.time() - quarter_start
+            logger.info(
+                f"⏱️ Total quarter {quarter.name} processing: {quarter_time:.2f}s"
+            )
+
             # Write to CSV
             if task_details:
+                csv_write_start = time.time()
+                logger.info(f"⏱️ Writing CSV file: {filepath}")
                 with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
                     fieldnames = [
                         "Автор",
@@ -733,6 +797,8 @@ class GenerateTimeToMarketReportCommand:
                     writer.writeheader()
                     writer.writerows(task_details)
 
+                csv_write_time = time.time() - csv_write_start
+                logger.info(f"⏱️ CSV write completed: {csv_write_time:.2f}s")
                 logger.info(f"Task details CSV generated: {filepath}")
                 logger.info(f"Total tasks processed: {len(task_details)}")
                 return filepath

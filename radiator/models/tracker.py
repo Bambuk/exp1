@@ -1,7 +1,7 @@
 """Tracker models for Yandex Tracker integration."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Index, Integer, String, Text
@@ -29,9 +29,13 @@ class TrackerTask(Base):
     profit_forecast = Column(String(255), nullable=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_sync_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+    last_sync_at = Column(DateTime, default=lambda: datetime.now(UTC))
     task_updated_at = Column(
         DateTime, nullable=True
     )  # When task was last updated in tracker
@@ -62,7 +66,7 @@ class TrackerTaskHistory(Base):
     end_date = Column(DateTime, nullable=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     def __repr__(self) -> str:
         return f"<TrackerTaskHistory(id={self.id}, task_id={self.task_id}, status='{self.status}')>"

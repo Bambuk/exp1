@@ -95,6 +95,8 @@ class TestOptimizationRegression:
 
     def test_csv_generation_succeeds_with_cache(self, db_session, test_reports_dir):
         """Verify that CSV generation works correctly with caching."""
+        import time
+
         # Given: A simple report with cached data
         with patch(
             "radiator.commands.generate_time_to_market_report.ConfigService"
@@ -123,9 +125,16 @@ class TestOptimizationRegression:
             )
             cmd.db = db_session
 
-            # When: Generate report and CSV
+            # When: Generate report and CSV with timing
+            print("🔄 Starting generate_report_data...")
+            start = time.time()
             cmd.generate_report_data()
+            print(f"⏱️ generate_report_data: {time.time() - start:.2f}s")
+
+            print("🔄 Starting generate_task_details_csv...")
+            start = time.time()
             csv_path = cmd.generate_task_details_csv()
+            print(f"⏱️ generate_task_details_csv: {time.time() - start:.2f}s")
 
             # Then: CSV should be generated (empty or with data)
             # If there's data in the period, it should be written

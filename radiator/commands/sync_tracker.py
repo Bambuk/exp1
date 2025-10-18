@@ -543,31 +543,42 @@ class TrackerSyncCommand:
         return added_count
 
     def _cleanup_duplicate_history(self) -> int:
-        """Clean up duplicate history entries."""
-        # Simple approach: find and remove exact duplicates
-        # This is safer than complex SQL queries
-        all_history = self.db.query(TrackerTaskHistory).all()
+        """Clean up duplicate history entries using efficient SQL."""
+        from sqlalchemy import text
 
-        seen_combinations = set()
-        duplicates_to_remove = []
+        # Use CTE with ROW_NUMBER to find duplicates, keeping oldest record
+        query = text(
+            """
+            WITH duplicates AS (
+                SELECT id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id, status, start_date
+                           ORDER BY created_at ASC
+                       ) as row_num
+                FROM tracker_task_history
+            )
+            DELETE FROM tracker_task_history
+            WHERE id IN (
+                SELECT id FROM duplicates WHERE row_num > 1
+            )
+            RETURNING id
+        """
+        )
 
-        for entry in all_history:
-            key = (entry.task_id, entry.status, entry.start_date)
-            if key in seen_combinations:
-                duplicates_to_remove.append(entry)
-            else:
-                seen_combinations.add(key)
-
-        # Remove duplicates
-        for duplicate in duplicates_to_remove:
-            self.db.delete(duplicate)
-
-        if duplicates_to_remove:
-            logger.info("💾 Сохранение очистки дубликатов в базу данных...")
+        try:
+            result = self.db.execute(query)
+            deleted_count = result.rowcount
             self.db.commit()
-            logger.info("✅ Очистка дубликатов сохранена")
 
-        return len(duplicates_to_remove)
+            if deleted_count > 0:
+                logger.info(f"✅ Очищено {deleted_count} дубликатов истории")
+
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"Ошибка при очистке дубликатов: {e}")
+            self.db.rollback()
+            return 0
 
     def run(
         self,

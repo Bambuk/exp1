@@ -11,15 +11,14 @@ from .conftest_tracker import *  # noqa: F403, F401
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_reports_dir():
-    """Set up test reports directory environment variable."""
-    # Force test environment
-    os.environ["ENVIRONMENT"] = "test"
-
-    # Import after setting environment
+    """Set up test reports directory."""
+    # Import after environment variables are set by pytest-env
     from radiator.core.config import settings
 
     # Use TEST_REPORTS_DIR from settings
+    original_reports_dir = settings.REPORTS_DIR
     test_reports_dir = Path(settings.TEST_REPORTS_DIR)
+    settings.REPORTS_DIR = str(test_reports_dir)
     test_reports_dir.mkdir(parents=True, exist_ok=True)
 
     # Create subdirectories
@@ -33,6 +32,9 @@ def setup_test_reports_dir():
 
     if test_reports_dir.exists():
         shutil.rmtree(test_reports_dir, ignore_errors=True)
+
+    # Restore original reports directory setting
+    settings.REPORTS_DIR = original_reports_dir
 
 
 @pytest.fixture
