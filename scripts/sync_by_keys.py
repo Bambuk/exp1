@@ -100,13 +100,11 @@ def sync_batch(keys: List[str], skip_history: bool, limit: Optional[int]) -> Non
     """Синхронизирует один батч, выбрасывает исключение при ошибке."""
     cmd = build_sync_command(keys, skip_history, limit)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Запускаем без capture_output, чтобы вывод sync-tracker показывался в консоли
+    result = subprocess.run(cmd)
 
     if result.returncode != 0:
-        error_msg = f"Batch sync failed with return code {result.returncode}"
-        if result.stderr:
-            error_msg += f"\nError: {result.stderr}"
-        raise RuntimeError(error_msg)
+        raise RuntimeError(f"Batch sync failed with return code {result.returncode}")
 
 
 def main():
