@@ -676,13 +676,13 @@ class TrackerSyncCommand:
             total_api_errors = tasks_api_errors + history_api_errors
 
             # Mark sync as completed
-            print("💾 Сохранение результатов синхронизации в базу данных...")
+            logger.info("💾 Сохранение результатов синхронизации в базу данных...")
             self.update_sync_log(
                 status="completed",
                 sync_completed_at=datetime.now(timezone.utc),
                 errors_count=total_api_errors,
             )
-            print("✅ Результаты успешно сохранены")
+            logger.info("✅ Результаты успешно сохранены")
 
             # Print final summary to stdout (works even with disabled logging)
             print(f"\n🎉 Синхронизация завершена успешно!")
