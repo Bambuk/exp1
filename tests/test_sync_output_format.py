@@ -1,7 +1,7 @@
 """Tests for sync output format - API errors display and task loading indicator."""
 
 import io
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -264,11 +264,12 @@ class TestSyncOutputFormat:
             # Mock extract_status_history_with_initial_status
             mock_service.extract_status_history_with_initial_status.return_value = []
 
-            # Capture stdout to check output
+            # Capture both stdout and stderr to check output
             captured_output = io.StringIO()
+            captured_stderr = io.StringIO()
 
             # Run sync with captured output
-            with redirect_stdout(captured_output):
+            with redirect_stdout(captured_output), redirect_stderr(captured_stderr):
                 result = sync_cmd.run(
                     filters={"query": "test"}, limit=1, skip_history=False
                 )
@@ -278,12 +279,10 @@ class TestSyncOutputFormat:
 
             # Get captured output
             output = captured_output.getvalue()
+            stderr_output = captured_stderr.getvalue()
 
-            # TDD: Check that task loading indicator is displayed
+            # TDD: Check that task loading indicator is displayed (tqdm outputs to stderr)
             # This test should FAIL until we implement the feature
             assert (
-                "📥 Загрузка задач из Tracker..." in output
-            )  # Should be present after implementation
-            assert (
-                "✅ Загружено 1 задач" in output
+                "📥 Загрузка задач" in stderr_output
             )  # Should be present after implementation

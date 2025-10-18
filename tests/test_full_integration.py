@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
@@ -266,7 +266,7 @@ class TestFullIntegration:
                             # Verify result
                             assert result is True  # Should succeed with proper mocks
                             mock_service.get_tasks_by_filter_with_data.assert_called_once_with(
-                                {}, limit=10
+                                {}, limit=10, progress_callback=ANY
                             )
 
     def test_complete_search_tasks_workflow(self, mock_database):

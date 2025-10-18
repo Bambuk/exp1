@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # Task limits - unified constants for all components
     DEFAULT_LARGE_LIMIT: int = Field(default=1000, env="DEFAULT_LARGE_LIMIT")
     DEFAULT_SEARCH_LIMIT: int = Field(default=100, env="DEFAULT_SEARCH_LIMIT")
-    MAX_UNLIMITED_LIMIT: int = Field(default=10000, env="MAX_UNLIMITED_LIMIT")
+    MAX_UNLIMITED_LIMIT: int = Field(default=1000000, env="MAX_UNLIMITED_LIMIT")
     API_PAGE_SIZE: int = Field(default=100, env="API_PAGE_SIZE")
 
     # Reports Configuration

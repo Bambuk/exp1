@@ -115,22 +115,34 @@ class TrackerSyncCommand:
 
             logger.info(f"Getting tasks using filters: {filters}")
 
+            # Create progress bar if needed
+            progress_bar = None
             if show_progress:
-                print(f"📥 Загрузка задач из Tracker...")
+                progress_bar = tqdm(
+                    desc="📥 Загрузка задач", unit="задача", unit_scale=False
+                )
+
+            def update_progress(count):
+                if progress_bar is not None:
+                    progress_bar.n = count
+                    progress_bar.refresh()
 
             task_data = tracker_service.get_tasks_by_filter_with_data(
-                filters, limit=limit
+                filters,
+                limit=limit,
+                progress_callback=update_progress if show_progress else None,
             )
 
-            if show_progress and task_data:
-                # Show completion message with count
-                print(f"✅ Загружено {len(task_data)} задач")
+            if progress_bar is not None:
+                progress_bar.close()
 
             logger.info(f"Found {len(task_data)} tasks to sync")
             return task_data
 
         except Exception as e:
             logger.error(f"Failed to get tasks to sync: {e}")
+            if progress_bar is not None:
+                progress_bar.close()
             return []
 
     def sync_tasks(

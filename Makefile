@@ -143,7 +143,16 @@ sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-histor
 		exit 1; \
 	fi
 
-
+sync-tracker-by-keys:  ## Sync tracker tasks by keys from file in batches
+	@if [ -n "$(FILE)" ]; then \
+		. venv/bin/activate && python scripts/sync_by_keys.py --file "$(FILE)" $(EXTRA_ARGS); \
+	else \
+		echo "Usage: make sync-tracker-by-keys FILE=path/to/keys.txt [EXTRA_ARGS='--batch-size 200']"; \
+		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt"; \
+		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt EXTRA_ARGS='--batch-size 100 --skip-history'"; \
+		echo "Please specify FILE parameter"; \
+		exit 1; \
+	fi
 
 # Tracker test commands
 test-tracker:  ## Run all tracker-related tests

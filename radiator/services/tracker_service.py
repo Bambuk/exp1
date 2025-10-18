@@ -3,7 +3,7 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 from tqdm import tqdm
@@ -888,7 +888,11 @@ class TrackerAPIService:
             return []
 
     def search_tasks_with_data(
-        self, query: str, limit: int = None, expand: List[str] = None
+        self,
+        query: str,
+        limit: int = None,
+        expand: List[str] = None,
+        progress_callback: Callable[[int], None] = None,
     ) -> List[Dict[str, Any]]:
         """
         Search for tasks using a query with automatic pagination method selection and return full task data.
@@ -931,7 +935,11 @@ class TrackerAPIService:
                     f"Используем scroll-пагинацию (v3) для {limit} задач с данными"
                 )
                 return self._search_tasks_with_scroll(
-                    query, limit, extract_full_data=True, expand=expand
+                    query,
+                    limit,
+                    extract_full_data=True,
+                    expand=expand,
+                    progress_callback=progress_callback,
                 )
 
             # Существующая логика для обычной пагинации v2 (БЕЗ ИЗМЕНЕНИЙ)
@@ -969,6 +977,10 @@ class TrackerAPIService:
                 logger.debug(
                     f"   Страница {page}: получено {len(page_tasks)} задач, всего: {len(all_tasks)}"
                 )
+
+                # Call progress callback if provided
+                if progress_callback:
+                    progress_callback(len(all_tasks))
 
                 # Check if we should continue pagination
                 if not self._should_continue_pagination(
@@ -1151,7 +1163,10 @@ class TrackerAPIService:
             return []
 
     def get_tasks_by_filter_with_data(
-        self, filters: Dict[str, Any] = None, limit: int = None
+        self,
+        filters: Dict[str, Any] = None,
+        limit: int = None,
+        progress_callback: Callable[[int], None] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get tasks with full data using various filters.
@@ -1174,7 +1189,10 @@ class TrackerAPIService:
                 search_query = filters["query"]
                 logger.info(f"Using direct query: {search_query}")
                 return self.search_tasks_with_data(
-                    query=search_query, limit=limit, expand=["links"]
+                    query=search_query,
+                    limit=limit,
+                    expand=["links"],
+                    progress_callback=progress_callback,
                 )
 
             # Build search query from filters using Tracker query syntax
@@ -1217,7 +1235,10 @@ class TrackerAPIService:
 
             logger.info(f"Built search query: {search_query}")
             return self.search_tasks_with_data(
-                query=search_query, limit=limit, expand=["links"]
+                query=search_query,
+                limit=limit,
+                expand=["links"],
+                progress_callback=progress_callback,
             )
 
         except Exception as e:
@@ -1310,6 +1331,7 @@ class TrackerAPIService:
         limit: int,
         extract_full_data: bool = False,
         expand: List[str] = None,
+        progress_callback: Callable[[int], None] = None,
     ) -> List[Any]:
         """
         Поиск задач с использованием scroll-пагинации (для >10000 результатов).
@@ -1369,6 +1391,10 @@ class TrackerAPIService:
             logger.debug(
                 f"Scroll страница {page}: получено {len(page_results)}, всего {len(all_results)}"
             )
+
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(len(all_results))
 
             # Получаем scroll_id для следующей страницы
             scroll_id = response.headers.get("X-Scroll-Id")

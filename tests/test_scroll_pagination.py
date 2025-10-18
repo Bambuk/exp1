@@ -302,7 +302,11 @@ class TestAutomaticPaginationSelection:
 
             # Проверяем, что был вызван scroll метод с extract_full_data=True
             mock_scroll.assert_called_once_with(
-                "test query", 15000, extract_full_data=True, expand=None
+                "test query",
+                15000,
+                extract_full_data=True,
+                expand=None,
+                progress_callback=None,
             )
             assert result == [task1, task2]
 
