@@ -90,7 +90,10 @@ class TrackerSyncCommand:
             self.db.commit()
 
     def get_tasks_to_sync(
-        self, filters: Dict[str, Any] = None, limit: int = None
+        self,
+        filters: Dict[str, Any] = None,
+        limit: int = None,
+        show_progress: bool = False,
     ) -> List[Any]:
         """
         Get list of tasks to sync using filters.
@@ -98,6 +101,7 @@ class TrackerSyncCommand:
         Args:
             filters: Custom filters for getting tasks
             limit: Maximum number of tasks to sync (uses default from config if None)
+            show_progress: Whether to show loading progress messages
 
         Returns:
             List of task data (either IDs or full task objects) to sync
@@ -110,9 +114,17 @@ class TrackerSyncCommand:
                 )  # Use unlimited for sync by default
 
             logger.info(f"Getting tasks using filters: {filters}")
+
+            if show_progress:
+                print(f"📥 Загрузка задач из Tracker...")
+
             task_data = tracker_service.get_tasks_by_filter_with_data(
                 filters, limit=limit
             )
+
+            if show_progress and task_data:
+                # Show completion message with count
+                print(f"✅ Загружено {len(task_data)} задач")
 
             logger.info(f"Found {len(task_data)} tasks to sync")
             return task_data
@@ -123,12 +135,13 @@ class TrackerSyncCommand:
 
     def sync_tasks(
         self, task_data: List[Any]
-    ) -> tuple[Dict[str, int], List[tuple[str, Optional[Dict[str, Any]]]]]:
+    ) -> tuple[Dict[str, int], List[tuple[str, Optional[Dict[str, Any]]]], int]:
         """Sync tasks data from tracker."""
         logger.info(f"Starting sync for {len(task_data)} tasks")
 
         valid_tasks = []
         tasks_data = []
+        api_errors = 0  # Count API errors
 
         # Check if we have full task data or just IDs
         if task_data and isinstance(task_data[0], dict) and "id" in task_data[0]:
@@ -141,6 +154,7 @@ class TrackerSyncCommand:
                     tasks_data.append((task_obj["id"], task_obj))
                 else:
                     logger.warning(f"Failed to process task data")
+                    api_errors += 1  # Count as API error
         else:
             # We have only IDs - use get_tasks_batch for backwards compatibility
             logger.info("📥 Получаем данные задач из Tracker...")
@@ -156,17 +170,18 @@ class TrackerSyncCommand:
                     valid_tasks.append(task_info)
                 else:
                     logger.warning(f"Failed to get data for task {task_id}")
+                    api_errors += 1  # Count as API error
 
         if not valid_tasks:
             logger.warning("No valid tasks data received")
-            return {"created": 0, "updated": 0}, tasks_data
+            return {"created": 0, "updated": 0}, tasks_data, api_errors
 
         # Save tasks to database
         logger.info(f"💾 Сохраняем {len(valid_tasks)} задач в базу данных...")
         result = self._bulk_create_or_update_tasks(valid_tasks)
         logger.info(f"✅ Задачи синхронизированы: {result}")
 
-        return result, tasks_data
+        return result, tasks_data, api_errors
 
     def _bulk_create_or_update_tasks(
         self, tasks_data: List[Dict[str, Any]]
@@ -205,7 +220,7 @@ class TrackerSyncCommand:
         task_data: List[Any],
         tasks_data: List[tuple[str, Optional[Dict[str, Any]]]],
         force_full_history: bool = False,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         """Sync task history data."""
         # Extract task IDs from task_data
         if task_data and isinstance(task_data[0], dict) and "id" in task_data[0]:
@@ -236,6 +251,7 @@ class TrackerSyncCommand:
 
         total_history_entries = 0
         tasks_with_history = 0
+        api_errors = 0  # Count API errors
 
         # Process history with progress bar
         logger.info("💾 Обрабатываем и сохраняем историю в базу данных...")
@@ -245,6 +261,15 @@ class TrackerSyncCommand:
         ) as pbar:
             for i, (task_id, changelog) in enumerate(changelogs_data, 1):
                 try:
+                    # Check if changelog is None (API error)
+                    if changelog is None:
+                        api_errors += 1
+                        logger.warning(
+                            f"API error for task {task_id} - no changelog data"
+                        )
+                        pbar.update(1)
+                        continue
+
                     history_entries, has_history = self._process_single_task_history(
                         task_id, changelog, tasks_dict, force_full_history
                     )
@@ -264,6 +289,7 @@ class TrackerSyncCommand:
                     logger.error(f"❌ {error_msg}")
                     logger.error(f"📍 Stacktrace: {traceback.format_exc()}")
                     failed_tasks.append((task_key, str(e)))
+                    api_errors += 1  # Count as API error
                     pbar.update(1)
                     # Продолжаем обработку остальных задач
 
@@ -279,7 +305,7 @@ class TrackerSyncCommand:
         logger.info(
             f"✅ История синхронизирована: {total_history_entries} записей создано для {tasks_with_history} задач"
         )
-        return total_history_entries, tasks_with_history
+        return total_history_entries, tasks_with_history, api_errors
 
     def _process_single_task_history(
         self,
@@ -309,16 +335,9 @@ class TrackerSyncCommand:
         if db_task.last_changelog_id and not force_full_history:
             # INCREMENTAL MODE: Use incremental update
             logger.debug(f"Using incremental history update for task {task_id}")
-            added_count = self._incremental_history_update(db_task.id, changelog)
-
-            # Update last_changelog_id with the latest entry
-            if changelog:
-                latest_entry = changelog[-1]
-                db_task.last_changelog_id = latest_entry["id"]
-                self.db.commit()
-                logger.debug(
-                    f"Updated last_changelog_id to {latest_entry['id']} for task {task_id}"
-                )
+            added_count = self._incremental_history_update(
+                db_task.id, changelog, db_task
+            )
 
             return added_count, added_count > 0
         else:
@@ -355,15 +374,9 @@ class TrackerSyncCommand:
 
             # Save history
             if history_data:
-                created_count = self._bulk_create_history(history_data)
-
-                # Set last_changelog_id for future incremental updates
-                if changelog:
-                    db_task.last_changelog_id = changelog[-1]["id"]
-                    self.db.commit()
-                    logger.debug(
-                        f"Set last_changelog_id to {changelog[-1]['id']} for task {task_id}"
-                    )
+                created_count = self._bulk_create_history(
+                    history_data, db_task, changelog
+                )
 
                 return created_count, True
 
@@ -388,18 +401,34 @@ class TrackerSyncCommand:
                 history_data.append(history_entry)
         return history_data
 
-    def _bulk_create_history(self, history_data: List[Dict[str, Any]]) -> int:
-        """Bulk create history entries in database."""
+    def _bulk_create_history(
+        self,
+        history_data: List[Dict[str, Any]],
+        db_task: TrackerTask,
+        changelog: List[Dict[str, Any]],
+    ) -> int:
+        """Bulk create history entries in database and update last_changelog_id atomically."""
         created_count = 0
         for entry in history_data:
             history_entry = TrackerTaskHistory(**entry)
             self.db.add(history_entry)
             created_count += 1
+
+        # Update last_changelog_id in the same transaction
+        if changelog:
+            db_task.last_changelog_id = changelog[-1]["id"]
+            logger.debug(
+                f"Set last_changelog_id to {changelog[-1]['id']} for task {db_task.tracker_id}"
+            )
+
         self.db.commit()
         return created_count
 
     def _incremental_history_update(
-        self, task_id: int, new_changelog_entries: List[Dict[str, Any]]
+        self,
+        task_id: int,
+        new_changelog_entries: List[Dict[str, Any]],
+        db_task: TrackerTask,
     ) -> int:
         """
         Append new history entries without deleting existing ones.
@@ -482,6 +511,13 @@ class TrackerSyncCommand:
                 )
 
         if added_count > 0:
+            # Update last_changelog_id in the same transaction
+            if new_changelog_entries:
+                db_task.last_changelog_id = new_changelog_entries[-1]["id"]
+                logger.debug(
+                    f"Updated last_changelog_id to {new_changelog_entries[-1]['id']} for task {db_task.tracker_id}"
+                )
+
             self.db.commit()
             logger.debug(
                 f"Committed {added_count} new history entries for task {task_id}"
@@ -542,7 +578,7 @@ class TrackerSyncCommand:
             logger.info(f"   📋 Фильтр: {filters}")
             logger.info(f"   🎯 Лимит: {limit} задач")
 
-            task_data = self.get_tasks_to_sync(filters, limit)
+            task_data = self.get_tasks_to_sync(filters, limit, show_progress=True)
             if not task_data:
                 logger.error(f"❌ Не найдено задач для синхронизации")
                 self.update_sync_log(
@@ -565,7 +601,7 @@ class TrackerSyncCommand:
             ) as main_pbar:
                 # Sync tasks with progress indication
                 logger.info("🔄 Начинаем синхронизацию задач...")
-                tasks_result, tasks_data = self.sync_tasks(task_data)
+                tasks_result, tasks_data, tasks_api_errors = self.sync_tasks(task_data)
                 main_pbar.update(1)
                 logger.debug(f"✅ Синхронизация задач завершена: {tasks_result}")
                 self.update_sync_log(
@@ -576,13 +612,18 @@ class TrackerSyncCommand:
                 # Sync history (if not skipped)
                 history_entries = 0
                 tasks_with_history = 0
+                history_api_errors = 0
                 if skip_history:
                     logger.info("⏭️ Пропускаем синхронизацию истории по запросу")
                     main_pbar.update(1)  # Skip history step
                 else:
                     logger.info("📚 Синхронизация истории включена, начинаем...")
                     try:
-                        history_entries, tasks_with_history = self.sync_task_history(
+                        (
+                            history_entries,
+                            tasks_with_history,
+                            history_api_errors,
+                        ) = self.sync_task_history(
                             task_data, tasks_data, force_full_history
                         )
                         logger.info(
@@ -612,9 +653,14 @@ class TrackerSyncCommand:
                         tasks_with_history = 0
                         main_pbar.update(2)  # Skip remaining steps
 
+            # Calculate total API errors
+            total_api_errors = tasks_api_errors + history_api_errors
+
             # Mark sync as completed
             self.update_sync_log(
-                status="completed", sync_completed_at=datetime.now(timezone.utc)
+                status="completed",
+                sync_completed_at=datetime.now(timezone.utc),
+                errors_count=total_api_errors,
             )
 
             # Print final summary to stdout (works even with disabled logging)
@@ -623,12 +669,20 @@ class TrackerSyncCommand:
             print(f"   🔄 Обновлено: {tasks_result['updated']} задач")
             print(f"   📚 Записей истории: {history_entries}")
             print(f"   📋 Задач с историей: {tasks_with_history}")
+            if total_api_errors > 0:
+                print(f"   ❌ Ошибок API: {total_api_errors}")
+            else:
+                print(f"   ✅ Ошибок API: 0")
 
             logger.info(f"🎉 Синхронизация завершена успешно!")
             logger.info(f"   📝 Создано: {tasks_result['created']} задач")
             logger.info(f"   🔄 Обновлено: {tasks_result['updated']} задач")
             logger.info(f"   📚 Записей истории: {history_entries}")
             logger.info(f"   📋 Задач с историей: {tasks_with_history}")
+            if total_api_errors > 0:
+                logger.info(f"   ❌ Ошибок API: {total_api_errors}")
+            else:
+                logger.info(f"   ✅ Ошибок API: 0")
             return True
 
         except Exception as e:

@@ -132,7 +132,7 @@ class TestIncrementalSync:
             sync_cmd.db.add(task)
             sync_cmd.db.commit()
 
-            result = sync_cmd._incremental_history_update(task.id, [])
+            result = sync_cmd._incremental_history_update(task.id, [], task)
             assert result == 0
 
     def test_process_single_task_history_incremental_mode(self, db_session):
@@ -181,15 +181,14 @@ class TestIncrementalSync:
                 )
 
                 # Verify incremental method was called
-                mock_incremental.assert_called_once_with(task.id, changelog)
+                mock_incremental.assert_called_once_with(task.id, changelog, task)
 
                 # Verify result
                 assert count == 1
                 assert has_history is True
 
-                # Verify last_changelog_id was updated
-                sync_cmd.db.refresh(task)
-                assert task.last_changelog_id == "changelog_2"
+                # Note: last_changelog_id update is tested in integration test
+                # since this test mocks the incremental method
 
     def test_cli_force_full_history_flag(self):
         """Test CLI integration with --force-full-history flag."""
@@ -293,7 +292,9 @@ class TestIncrementalSync:
                 ]
 
                 # Test incremental update
-                result = sync_cmd._incremental_history_update(task.id, new_changelog)
+                result = sync_cmd._incremental_history_update(
+                    task.id, new_changelog, task
+                )
 
                 # Verify result
                 assert result == 1  # Should add 1 new entry

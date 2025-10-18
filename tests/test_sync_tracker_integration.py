@@ -164,7 +164,7 @@ class TestSyncTrackerIntegration:
         ]
 
         # Test creating history
-        created_count = sync_cmd._bulk_create_history(history_data)
+        created_count = sync_cmd._bulk_create_history(history_data, task, [])
 
         assert created_count == 1
 
