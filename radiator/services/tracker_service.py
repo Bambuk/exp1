@@ -576,7 +576,18 @@ class TrackerAPIService:
                 status_changes.append(status_change)
 
         # Post-process the status changes
+        # 1) Ensure chronological order before setting end dates
+        status_changes.sort(key=lambda x: x["start_date"])  # ascending
+
+        # 2) Set end dates based on next start_date
         self._set_end_dates_for_status_changes(status_changes)
+
+        # 3) Normalize any malformed intervals (defensive)
+        for ch in status_changes:
+            if ch.get("end_date") is not None and ch["end_date"] < ch["start_date"]:
+                ch["end_date"] = ch["start_date"]
+
+        # 4) Remove duplicates
         unique_changes = self._remove_duplicate_status_changes(status_changes)
 
         # Log results
