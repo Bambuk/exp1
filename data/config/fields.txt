@@ -3,6 +3,13 @@
 63515d47fe387b7ce7b9fc55--profitForecast
 63515d47fe387b7ce7b9fc55--roi
 63515d47fe387b7ce7b9fc55--team
+63515d47fe387b7ce7b9fc55--profitActual
+63515d47fe387b7ce7b9fc55--haveChangedKeyMetrics
+63515d47fe387b7ce7b9fc55--isRolledOut
+63515d47fe387b7ce7b9fc55--costActual
+63515d47fe387b7ce7b9fc55--riceScore
+63515d47fe387b7ce7b9fc55--capitalization
+63515d47fe387b7ce7b9fc55--devTask
 assignee
 boards
 commentWithExternalMessageCount
