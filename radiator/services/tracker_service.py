@@ -119,7 +119,7 @@ class TrackerAPIService:
             raise
 
     def get_task(
-        self, task_id: str, expand: List[str] = None
+        self, task_id: str, expand: List[str] = None, fields: List[str] = None
     ) -> Optional[Dict[str, Any]]:
         """Get task details by ID."""
         try:
@@ -127,6 +127,8 @@ class TrackerAPIService:
             params = {}
             if expand:
                 params["expand"] = ",".join(expand)
+            if fields:
+                params["fields"] = ",".join(fields)
             response = self._make_request(url, params=params)
             return response.json()
         except Exception as e:
@@ -400,6 +402,26 @@ class TrackerAPIService:
 
     def extract_task_data(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Extract relevant data from task response."""
+        if not task or not isinstance(task, dict):
+            logger.warning(f"Invalid task data: {task}")
+            return {
+                "tracker_id": "",
+                "key": "",
+                "summary": "",
+                "description": "",
+                "status": "",
+                "author": "",
+                "assignee": "",
+                "business_client": "",
+                "customer": "",
+                "team": "",
+                "prodteam": "",
+                "profit_forecast": "",
+                "task_updated_at": None,
+                "created_at": None,
+                "links": [],
+                "full_data": task,
+            }
         # Parse updatedAt field if available
         task_updated_at = None
         if task.get("updatedAt"):
@@ -429,10 +451,19 @@ class TrackerAPIService:
             "key": task.get("key", ""),  # Task code like TEST-123
             "summary": task.get("summary", "")[:500] if task.get("summary") else None,
             "description": task.get("description", ""),
-            "status": task.get("status", {}).get("display", ""),
-            "author": task.get("createdBy", {}).get("display", ""),
-            "assignee": task.get("assignee", {}).get("display", ""),
+            "status": task.get("status", {}).get("display", "")
+            if task.get("status")
+            else "",
+            "author": task.get("createdBy", {}).get("display", "")
+            if task.get("createdBy")
+            else "",
+            "assignee": task.get("assignee", {}).get("display", "")
+            if task.get("assignee")
+            else "",
             "business_client": self._format_user_list(task.get("businessClient")),
+            "customer": self._format_user_list(
+                task.get("businessClient")
+            ),  # Customer field
             "team": str(task.get("63515d47fe387b7ce7b9fc55--team", "")),
             "prodteam": str(task.get("63515d47fe387b7ce7b9fc55--prodteam", "")),
             "profit_forecast": str(
@@ -441,6 +472,7 @@ class TrackerAPIService:
             "task_updated_at": task_updated_at,
             "created_at": task_created_at,
             "links": task.get("links", []),  # Include links from API response
+            "full_data": task,  # Store complete task data
         }
 
     def extract_status_history(
@@ -818,6 +850,7 @@ class TrackerAPIService:
                         query,
                         limit=999999,  # Очень большой limit для получения всех задач
                         extract_full_data=False,
+                        fields=None,
                     )
                 else:
                     # Точное количество известно, используем v2
@@ -833,7 +866,7 @@ class TrackerAPIService:
             if limit > 10000:
                 logger.info(f"Используем scroll-пагинацию (v3) для {limit} задач")
                 return self._search_tasks_with_scroll(
-                    query, limit, extract_full_data=False
+                    query, limit, extract_full_data=False, fields=None
                 )
 
             # Существующая логика для обычной пагинации v2 (БЕЗ ИЗМЕНЕНИЙ)
@@ -903,6 +936,7 @@ class TrackerAPIService:
         query: str,
         limit: int = None,
         expand: List[str] = None,
+        fields: List[str] = None,
         progress_callback: Callable[[int], None] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -929,6 +963,7 @@ class TrackerAPIService:
                         limit=999999,  # Очень большой limit для получения всех задач
                         extract_full_data=True,
                         expand=expand,
+                        fields=fields,
                     )
                 else:
                     # Точное количество известно, используем v2
@@ -950,6 +985,7 @@ class TrackerAPIService:
                     limit,
                     extract_full_data=True,
                     expand=expand,
+                    fields=fields,
                     progress_callback=progress_callback,
                 )
 
@@ -965,6 +1001,8 @@ class TrackerAPIService:
                 params = {"perPage": per_page, "page": page}
                 if expand:
                     params["expand"] = ",".join(expand)
+                if fields:
+                    params["fields"] = ",".join(fields)
 
                 logger.debug(f"   Страница {page}: запрос {per_page} задач")
                 response = self._make_request(
@@ -1177,6 +1215,7 @@ class TrackerAPIService:
         self,
         filters: Dict[str, Any] = None,
         limit: int = None,
+        fields: List[str] = None,
         progress_callback: Callable[[int], None] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -1203,6 +1242,7 @@ class TrackerAPIService:
                     query=search_query,
                     limit=limit,
                     expand=["links"],
+                    fields=fields,
                     progress_callback=progress_callback,
                 )
 
@@ -1249,6 +1289,7 @@ class TrackerAPIService:
                 query=search_query,
                 limit=limit,
                 expand=["links"],
+                fields=fields,
                 progress_callback=progress_callback,
             )
 
@@ -1342,6 +1383,7 @@ class TrackerAPIService:
         limit: int,
         extract_full_data: bool = False,
         expand: List[str] = None,
+        fields: List[str] = None,
         progress_callback: Callable[[int], None] = None,
     ) -> List[Any]:
         """
@@ -1372,6 +1414,8 @@ class TrackerAPIService:
         }
         if expand:
             params["expand"] = ",".join(expand)
+        if fields:
+            params["fields"] = ",".join(fields)
         post_data = {"query": query}
 
         logger.info(f"Начинаем scroll-пагинацию (v3) для запроса: {query}")
@@ -1382,6 +1426,8 @@ class TrackerAPIService:
                 params = {"scrollId": scroll_id, "scrollTTLMillis": 60000}
                 if expand:
                     params["expand"] = ",".join(expand)
+                if fields:
+                    params["fields"] = ",".join(fields)
 
             response = self._make_request(
                 url, method="POST", json=post_data, params=params
@@ -1427,6 +1473,75 @@ class TrackerAPIService:
 
         # TTL сам очистит ресурсы через 60 секунд - ничего не делаем
         return results
+
+    def extract_field_from_full_data(
+        self, full_data: Dict[str, Any], field_path: str
+    ) -> Any:
+        """
+        Extract a field from full_data JSONB using dot notation for nested fields.
+
+        Args:
+            full_data: JSONB data from database
+            field_path: Field path (e.g., "id", "status.display", "assignee.id")
+
+        Returns:
+            Field value or None if not found
+        """
+        if not full_data:
+            return None
+
+        # Handle nested field access with dot notation
+        keys = field_path.split(".")
+        value = full_data
+
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            else:
+                return None
+
+        return value
+
+    def extract_multiple_fields_from_full_data(
+        self, full_data: Dict[str, Any], field_paths: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Extract multiple fields from full_data JSONB.
+
+        Args:
+            full_data: JSONB data from database
+            field_paths: List of field paths to extract
+
+        Returns:
+            Dictionary with field paths as keys and values
+        """
+        if not full_data:
+            return {path: None for path in field_paths}
+
+        result = {}
+        for field_path in field_paths:
+            result[field_path] = self.extract_field_from_full_data(
+                full_data, field_path
+            )
+
+        return result
+
+    def get_task_data_from_full_data(
+        self, full_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get complete task data from full_data JSONB (same as extract_task_data).
+
+        Args:
+            full_data: JSONB data from database
+
+        Returns:
+            Extracted task data or None if full_data is None/empty
+        """
+        if not full_data:
+            return None
+
+        return self.extract_task_data(full_data)
 
 
 # Create service instance

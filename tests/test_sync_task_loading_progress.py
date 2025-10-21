@@ -137,7 +137,7 @@ class TestSyncTaskLoadingProgress:
         with patch("radiator.commands.sync_tracker.tracker_service") as mock_service:
             # Mock get_tasks_by_filter_with_data to call progress callback
             def mock_get_tasks_with_progress(
-                filters, limit=None, progress_callback=None
+                filters, limit=None, fields=None, progress_callback=None
             ):
                 # Simulate loading 3 pages of tasks with unique IDs
                 tasks = [
@@ -207,7 +207,9 @@ class TestSyncTaskLoadingProgress:
         # Mock tracker service to simulate scroll pagination
         with patch("radiator.commands.sync_tracker.tracker_service") as mock_service:
             # Mock get_tasks_by_filter_with_data to simulate scroll pagination
-            def mock_get_tasks_scroll(filters, limit=None, progress_callback=None):
+            def mock_get_tasks_scroll(
+                filters, limit=None, fields=None, progress_callback=None
+            ):
                 # Simulate loading 10000+ tasks with scroll
                 tasks = [
                     {"id": f"test_scroll_{i:05d}", "key": f"TEST-SCROLL-{i:05d}"}

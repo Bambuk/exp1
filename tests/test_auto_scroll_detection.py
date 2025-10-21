@@ -69,6 +69,7 @@ class TestAutoPaginationSelection:
                     limit=999999,
                     extract_full_data=True,
                     expand=None,
+                    fields=None,
                 )
                 assert result == ["task1", "task2"]
 
@@ -198,6 +199,7 @@ class TestIntegration:
                     limit=999999,
                     extract_full_data=True,
                     expand=None,
+                    fields=None,
                 )
                 assert len(result) == 3
 

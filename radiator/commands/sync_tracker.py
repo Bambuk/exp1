@@ -55,6 +55,7 @@ from radiator.models.tracker import TrackerSyncLog, TrackerTask, TrackerTaskHist
 
 # CRUD operations removed - using direct SQLAlchemy queries
 from radiator.services.tracker_service import tracker_service
+from radiator.utils.fields_loader import load_fields_list
 
 
 class TrackerSyncCommand:
@@ -63,6 +64,11 @@ class TrackerSyncCommand:
     def __init__(self):
         self.db = SessionLocal()
         self.sync_log: Optional[TrackerSyncLog] = None
+        try:
+            self.fields = load_fields_list()
+        except FileNotFoundError:
+            logger.warning("Fields file not found, using all fields")
+            self.fields = None
 
     def __enter__(self):
         return self
@@ -130,6 +136,7 @@ class TrackerSyncCommand:
             task_data = tracker_service.get_tasks_by_filter_with_data(
                 filters,
                 limit=limit,
+                fields=self.fields,
                 progress_callback=update_progress if show_progress else None,
             )
 
@@ -160,12 +167,12 @@ class TrackerSyncCommand:
             # We have full task data from search - use it directly
             logger.info("📥 Используем данные задач из поиска...")
             for task_obj in task_data:
-                if task_obj:
+                if task_obj and isinstance(task_obj, dict):
                     task_info = tracker_service.extract_task_data(task_obj)
                     valid_tasks.append(task_info)
                     tasks_data.append((task_obj["id"], task_obj))
                 else:
-                    logger.warning(f"Failed to process task data")
+                    logger.warning(f"Failed to process task data: {task_obj}")
                     api_errors += 1  # Count as API error
         else:
             # We have only IDs - use get_tasks_batch for backwards compatibility

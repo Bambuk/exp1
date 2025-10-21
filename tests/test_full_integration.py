@@ -266,7 +266,7 @@ class TestFullIntegration:
                             # Verify result
                             assert result is True  # Should succeed with proper mocks
                             mock_service.get_tasks_by_filter_with_data.assert_called_once_with(
-                                {}, limit=10, progress_callback=ANY
+                                {}, limit=10, fields=ANY, progress_callback=ANY
                             )
 
     def test_complete_search_tasks_workflow(self, mock_database):

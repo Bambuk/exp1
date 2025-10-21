@@ -422,5 +422,241 @@ class TestTrackerAPIServiceIntegration:
             assert result == ["12345"]
 
 
+class TestTrackerAPIServiceFieldsParameter:
+    """Tests for TrackerAPIService with fields parameter support."""
+
+    @pytest.fixture
+    def service(self):
+        """Create TrackerAPIService instance for testing."""
+        with patch("radiator.services.tracker_service.logger"):
+            service = TrackerAPIService()
+            # Set test configuration
+            service.headers = {
+                "Authorization": "OAuth test_token_123",
+                "X-Org-ID": "test_org_456",
+                "Content-Type": "application/json",
+            }
+            service.base_url = "https://api.tracker.yandex.net/v2/"
+            service.max_workers = 5
+            service.request_delay = 0.1
+            return service
+
+    def test_get_task_with_fields_parameter(self, service):
+        """Test get_task method with fields parameter."""
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "12345",
+            "key": "TEST-123",
+            "summary": "Test Task",
+            "status": {"display": "Open"},
+            "customer": "Test Customer",
+        }
+
+        with patch(
+            "radiator.services.tracker_service.requests.request",
+            return_value=mock_response,
+        ) as mock_request:
+            result = service.get_task(
+                "12345", fields=["id", "key", "summary", "customer"]
+            )
+
+            # Verify the request was made with correct parameters
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+
+            # Check URL
+            assert call_args[0][1] == "https://api.tracker.yandex.net/v2/issues/12345"
+
+            # Check params include fields
+            params = call_args[1]["params"]
+            assert params["fields"] == "id,key,summary,customer"
+
+            # Check response
+            assert result["id"] == "12345"
+            assert result["key"] == "TEST-123"
+            assert result["customer"] == "Test Customer"
+
+    def test_search_tasks_with_data_with_fields_parameter(self, service):
+        """Test search_tasks_with_data method with fields parameter."""
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers = {"X-Total-Pages": "1", "X-Total-Count": "1"}
+        mock_response.json.return_value = [
+            {
+                "id": "12345",
+                "key": "TEST-123",
+                "summary": "Test Task",
+                "customer": "Test Customer",
+            }
+        ]
+
+        with patch(
+            "radiator.services.tracker_service.requests.request",
+            return_value=mock_response,
+        ) as mock_request:
+            result = service.search_tasks_with_data(
+                query="Status: Open",
+                limit=10,
+                fields=["id", "key", "summary", "customer"],
+            )
+
+            # Verify the request was made with correct parameters
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+
+            # Check URL
+            assert call_args[0][1] == "https://api.tracker.yandex.net/v2/issues/_search"
+
+            # Check params include fields
+            params = call_args[1]["params"]
+            assert params["fields"] == "id,key,summary,customer"
+
+            # Check response
+            assert len(result) == 1
+            assert result[0]["id"] == "12345"
+            assert result[0]["customer"] == "Test Customer"
+
+    def test_get_task_without_fields_parameter(self, service):
+        """Test get_task method without fields parameter (backward compatibility)."""
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "12345",
+            "key": "TEST-123",
+            "summary": "Test Task",
+        }
+
+        with patch(
+            "radiator.services.tracker_service.requests.request",
+            return_value=mock_response,
+        ) as mock_request:
+            result = service.get_task("12345")
+
+            # Verify the request was made without fields parameter
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+
+            # Check params should not include fields
+            params = call_args[1].get("params", {})
+            assert "fields" not in params
+
+            # Check response
+            assert result["id"] == "12345"
+
+    def test_search_tasks_with_data_without_fields_parameter(self, service):
+        """Test search_tasks_with_data method without fields parameter (backward compatibility)."""
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers = {"X-Total-Pages": "1", "X-Total-Count": "1"}
+        mock_response.json.return_value = [
+            {"id": "12345", "key": "TEST-123", "summary": "Test Task"}
+        ]
+
+        with patch(
+            "radiator.services.tracker_service.requests.request",
+            return_value=mock_response,
+        ) as mock_request:
+            result = service.search_tasks_with_data(query="Status: Open", limit=10)
+
+            # Verify the request was made without fields parameter
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+
+            # Check params should not include fields
+            params = call_args[1].get("params", {})
+            assert "fields" not in params
+
+            # Check response
+            assert len(result) == 1
+            assert result[0]["id"] == "12345"
+
+    def test_get_tasks_by_filter_with_data_with_fields_parameter(self, service):
+        """Test get_tasks_by_filter_with_data method with fields parameter."""
+        # Mock search_tasks_with_data to return test data
+        with patch.object(
+            service,
+            "search_tasks_with_data",
+            return_value=[{"id": "12345", "key": "TEST-123"}],
+        ) as mock_search:
+            filters = {"query": "Status: Open"}
+            fields = ["id", "key", "summary", "customer"]
+
+            result = service.get_tasks_by_filter_with_data(
+                filters=filters, limit=10, fields=fields
+            )
+
+            # Verify search_tasks_with_data was called with fields parameter
+            mock_search.assert_called_once()
+            call_args = mock_search.call_args
+
+            # Check that fields parameter was passed
+            assert call_args[1]["fields"] == fields
+            assert call_args[1]["query"] == "Status: Open"
+            assert call_args[1]["limit"] == 10
+
+            # Check response
+            assert len(result) == 1
+            assert result[0]["id"] == "12345"
+
+    def test_get_tasks_by_filter_with_data_without_fields_parameter(self, service):
+        """Test get_tasks_by_filter_with_data method without fields parameter (backward compatibility)."""
+        # Mock search_tasks_with_data to return test data
+        with patch.object(
+            service,
+            "search_tasks_with_data",
+            return_value=[{"id": "12345", "key": "TEST-123"}],
+        ) as mock_search:
+            filters = {"query": "Status: Open"}
+
+            result = service.get_tasks_by_filter_with_data(filters=filters, limit=10)
+
+            # Verify search_tasks_with_data was called without fields parameter
+            mock_search.assert_called_once()
+            call_args = mock_search.call_args
+
+            # Check that fields parameter was not passed
+            assert "fields" not in call_args[1] or call_args[1]["fields"] is None
+            assert call_args[1]["query"] == "Status: Open"
+            assert call_args[1]["limit"] == 10
+
+            # Check response
+            assert len(result) == 1
+            assert result[0]["id"] == "12345"
+
+    def test_get_tasks_by_filter_with_data_built_query_with_fields(self, service):
+        """Test get_tasks_by_filter_with_data with built query and fields parameter."""
+        # Mock search_tasks_with_data to return test data
+        with patch.object(
+            service,
+            "search_tasks_with_data",
+            return_value=[{"id": "12345", "key": "TEST-123"}],
+        ) as mock_search:
+            filters = {"status": "open", "assignee": "user1"}
+            fields = ["id", "key", "summary"]
+
+            result = service.get_tasks_by_filter_with_data(
+                filters=filters, limit=10, fields=fields
+            )
+
+            # Verify search_tasks_with_data was called with fields parameter
+            mock_search.assert_called_once()
+            call_args = mock_search.call_args
+
+            # Check that fields parameter was passed
+            assert call_args[1]["fields"] == fields
+            assert 'Status: "open"' in call_args[1]["query"]
+            assert 'Assignee: "user1"' in call_args[1]["query"]
+            assert call_args[1]["limit"] == 10
+
+            # Check response
+            assert len(result) == 1
+            assert result[0]["id"] == "12345"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

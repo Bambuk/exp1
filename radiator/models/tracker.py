@@ -43,6 +43,12 @@ class TrackerTask(Base):
     # Links to other tasks (JSONB array)
     links = Column(JSONB, nullable=True)  # Array of link objects from API
 
+    # Customer field
+    customer = Column(Text, nullable=True)
+
+    # Full task data (JSONB)
+    full_data = Column(JSONB, nullable=True)  # Complete task data from API
+
     # Incremental sync support
     last_changelog_id = Column(
         String(255), nullable=True
@@ -120,4 +126,12 @@ Index(
     TrackerTask.links,
     postgresql_using="gin",
     postgresql_ops={"links": "jsonb_path_ops"},
+)
+
+# GIN index for JSONB full_data column
+Index(
+    "idx_tracker_tasks_full_data_gin",
+    TrackerTask.full_data,
+    postgresql_using="gin",
+    postgresql_ops={"full_data": "jsonb_path_ops"},
 )
