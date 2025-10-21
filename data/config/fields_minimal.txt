@@ -1,0 +1,8 @@
+id
+key
+summary
+status
+assignee
+createdBy
+createdAt
+updatedAt
