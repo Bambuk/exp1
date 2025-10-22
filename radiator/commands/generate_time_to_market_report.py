@@ -737,12 +737,6 @@ class GenerateTimeToMarketReportCommand:
                     # Calculate DevLT
                     devlt = self.metrics_service.calculate_dev_lead_time(history)
 
-                    # Find last "МП / Внешний тест" date for quarter check
-                    devlt_target_date = None
-                    for entry in sorted_history:
-                        if entry.status == "МП / Внешний тест":
-                            devlt_target_date = entry.start_date
-
                     ttd_in_quarter = (
                         ttd_target_date is not None
                         and quarter.start_date <= ttd_target_date <= quarter.end_date
@@ -750,10 +744,6 @@ class GenerateTimeToMarketReportCommand:
                     ttm_in_quarter = (
                         ttm_target_date is not None
                         and quarter.start_date <= ttm_target_date <= quarter.end_date
-                    )
-                    devlt_in_quarter = (
-                        devlt_target_date is not None
-                        and quarter.start_date <= devlt_target_date <= quarter.end_date
                     )
 
                     # Calculate testing returns
@@ -798,9 +788,7 @@ class GenerateTimeToMarketReportCommand:
                     testing_returns_value = testing_returns if ttm_in_quarter else ""
                     external_returns_value = external_returns if ttm_in_quarter else ""
                     total_returns_value = total_returns if ttm_in_quarter else ""
-                    devlt_value = (
-                        devlt if devlt_in_quarter and devlt is not None else ""
-                    )
+                    devlt_value = devlt if ttm_in_quarter and devlt is not None else ""
 
                     task_details.append(
                         {

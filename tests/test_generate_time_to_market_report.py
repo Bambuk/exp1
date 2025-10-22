@@ -272,6 +272,9 @@ class TestGenerateTimeToMarketReportCommand:
                     datetime(2024, 1, 15),
                     None,
                 ),
+                StatusHistoryEntry(
+                    "Done", "Done", datetime(2024, 1, 20), None
+                ),  # Done status for TTM
             ]
 
             # Mock data service methods
@@ -386,8 +389,10 @@ class TestGenerateTimeToMarketReportCommand:
                     # Should be empty when status missing
                     assert devlt_value == ""
 
-    def test_generate_task_details_csv_devlt_quarter_filtering(self, test_reports_dir):
-        """Test that DevLT is only shown when last 'МП / Внешний тест' is in quarter."""
+    def test_generate_task_details_csv_devlt_follows_ttm_quarter(
+        self, test_reports_dir
+    ):
+        """Test that DevLT is shown when TTM is in quarter, regardless of МП/Внешний тест date."""
         from datetime import datetime
 
         from radiator.commands.models.time_to_market_models import (
@@ -422,11 +427,14 @@ class TestGenerateTimeToMarketReportCommand:
                 created_at=datetime(2024, 1, 1),
             )
 
-            # Mock history with "МП / Внешний тест" outside quarter (April 2024)
+            # Mock history with "МП / Внешний тест" outside quarter but Done in quarter
             mock_history = [
                 StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
                 StatusHistoryEntry(
-                    "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),
+                    datetime(2024, 1, 15),
                 ),
                 StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
                 StatusHistoryEntry(
@@ -435,6 +443,9 @@ class TestGenerateTimeToMarketReportCommand:
                     datetime(2024, 4, 15),
                     None,
                 ),  # Outside Q1
+                StatusHistoryEntry(
+                    "Done", "Done", datetime(2024, 3, 20), None
+                ),  # Done in Q1
             ]
 
             # Mock data service methods
@@ -463,8 +474,10 @@ class TestGenerateTimeToMarketReportCommand:
                     devlt_index = headers.index("DevLT (дни)")
                     devlt_value = data_row[devlt_index]
 
-                    # Should be empty when last "МП / Внешний тест" is outside quarter
-                    assert devlt_value == ""
+                    # DevLT should be present when TTM is in quarter
+                    assert (
+                        devlt_value != ""
+                    ), "DevLT should be present when TTM is in quarter"
 
 
 if __name__ == "__main__":

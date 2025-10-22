@@ -193,6 +193,34 @@ class TestTailMetric:
         result = self.service.calculate_tail_metric(history, ["Done"])
         assert result == 7  # 10 days - 3 days (start of MP/External Test) = 7 days
 
+    def test_calculate_tail_metric_filters_short_external_test(self):
+        """Test Tail metric ignores short (< 5 min) MP/External Test entries."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            # Длинный "МП / Внешний тест" (> 5 минут)
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 10),  # 5 дней - длинный
+            ),
+            StatusHistoryEntry("Review", "Review", datetime(2024, 1, 12), None),
+            # Короткий "МП / Внешний тест" (< 5 минут) - должен игнорироваться
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 15, 10, 0),
+                datetime(2024, 1, 15, 10, 2),  # 2 минуты - короткий
+            ),
+            StatusHistoryEntry("Done", "Done", datetime(2024, 1, 20), None),
+        ]
+
+        result = self.service.calculate_tail_metric(history, ["Done"])
+
+        # Должен использовать первый длинный "МП / Внешний тест" (1/5), не короткий (1/15)
+        # Tail = 20 - 5 = 15 дней
+        assert result == 15
+
 
 class TestTailMetricIntegration:
     """Integration tests for Tail metric with other metrics."""

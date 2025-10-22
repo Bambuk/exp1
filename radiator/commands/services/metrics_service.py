@@ -439,14 +439,27 @@ class MetricsService:
             # Sort history by date
             sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
 
-            # Find the last occurrence of 'МП / Внешний тест' status
-            last_mp_entry = None
-            for entry in sorted_history:
-                if entry.status == "МП / Внешний тест":
-                    last_mp_entry = entry
-
-            if last_mp_entry is None:
+            # Find all "МП / Внешний тест" entries
+            mp_entries = [e for e in sorted_history if e.status == "МП / Внешний тест"]
+            if not mp_entries:
                 return None
+
+            # Filter to find long duration entries (> 5 minutes)
+            valid_mp_entries = []
+            for entry in mp_entries:
+                if entry.end_date is None:
+                    # Open interval - consider as long duration
+                    valid_mp_entries.append(entry)
+                else:
+                    duration = (entry.end_date - entry.start_date).total_seconds()
+                    if duration >= self.min_status_duration_seconds:
+                        valid_mp_entries.append(entry)
+
+            if not valid_mp_entries:
+                return None
+
+            # Find last valid "МП / Внешний тест" (by start_date)
+            last_mp_entry = max(valid_mp_entries, key=lambda x: x.start_date)
 
             # Find first done status after the MP/External Test status
             done_entry = None
