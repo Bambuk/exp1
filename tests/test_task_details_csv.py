@@ -186,6 +186,7 @@ class TestTaskDetailsCSV:
                     "Возвраты с Testing",
                     "Возвраты с Внешний тест",
                     "Всего возвратов",
+                    "DevLT (дни)",
                     "Квартал",
                 ]
                 assert reader.fieldnames == expected_headers

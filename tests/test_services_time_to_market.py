@@ -1,6 +1,6 @@
 """Tests for Time To Market services - only new components from refactoring."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
 
@@ -285,6 +285,152 @@ class TestMetricsServiceWithStrategies:
         assert result.ttm_metrics.times == ttm_times
         assert result.tail_metrics.times == tail_times
         assert result.total_tasks == 6
+
+    def test_calculate_dev_lead_time_normal_flow(self):
+        """Test DevLT calculation with normal flow - both statuses present."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should be 10 days from first "МП / В работе" to last "МП / Внешний тест"
+        assert result == 10
+
+    def test_calculate_dev_lead_time_missing_start(self):
+        """Test DevLT calculation when 'МП / В работе' status is missing."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        assert result is None
+
+    def test_calculate_dev_lead_time_missing_end(self):
+        """Test DevLT calculation when 'МП / Внешний тест' status is missing."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        assert result is None
+
+    def test_calculate_dev_lead_time_multiple_entries(self):
+        """Test DevLT calculation with multiple entries - should use first start, last end."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 8), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 10), None
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 12), None
+            ),
+            StatusHistoryEntry("Done", "Done", datetime(2024, 1, 14), None),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should be 10 days from first "МП / В работе" (1/5) to last "МП / Внешний тест" (1/15)
+        assert result == 10
+
+    def test_calculate_dev_lead_time_with_pauses(self):
+        """Test DevLT calculation with pauses - pauses should NOT be excluded."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+            StatusHistoryEntry(
+                "Приостановлено", "Приостановлено", datetime(2024, 1, 8), None
+            ),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 10), None
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should be 10 days total (including pause time) from first "МП / В работе" to last "МП / Внешний тест"
+        assert result == 10
+
+    def test_calculate_dev_lead_time_filters_short_transitions(self):
+        """Test DevLT calculation filters short transitions (< 300 seconds)."""
+        # Create history with short transition that should be filtered
+        short_transition_time = datetime(2024, 1, 5, 12, 0, 0)
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+            # Short transition (less than 300 seconds) - should be filtered
+            StatusHistoryEntry("Testing", "Testing", short_transition_time, None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                short_transition_time + timedelta(seconds=200),
+                None,
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should be 10 days from first "МП / В работе" to last "МП / Внешний тест"
+        # Short transition should be filtered out
+        assert result == 10
+
+    def test_calculate_dev_lead_time_empty_history(self):
+        """Test DevLT calculation with empty history."""
+        result = self.service.calculate_dev_lead_time([])
+
+        assert result is None
+
+    def test_calculate_dev_lead_time_unsorted_history(self):
+        """Test DevLT calculation with unsorted history - should still work correctly."""
+        history = [
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
+            ),
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+            StatusHistoryEntry(
+                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should still be 10 days from first "МП / В работе" to last "МП / Внешний тест"
+        assert result == 10
 
 
 class TestDataService:

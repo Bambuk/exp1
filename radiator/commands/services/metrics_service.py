@@ -522,6 +522,62 @@ class MetricsService:
             )
             return 0
 
+    def calculate_dev_lead_time(
+        self, history_data: List[StatusHistoryEntry]
+    ) -> Optional[int]:
+        """
+        Calculate Development Lead Time: time from first entry to "МП / В работе"
+        to last entry to "МП / Внешний тест".
+        Filters out short status transitions (< min_status_duration_seconds).
+        Does NOT exclude pause time (calendar time).
+
+        Args:
+            history_data: List of status history entries
+
+        Returns:
+            Number of days or None if either status not found
+        """
+        try:
+            if not history_data:
+                return None
+
+            # Filter out short status transitions
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return None
+
+            # Sort history by date
+            sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
+
+            # Find first occurrence of "МП / В работе"
+            first_work_entry = None
+            for entry in sorted_history:
+                if entry.status == "МП / В работе":
+                    first_work_entry = entry
+                    break
+
+            if not first_work_entry:
+                return None
+
+            # Find last occurrence of "МП / Внешний тест"
+            last_external_test_entry = None
+            for entry in sorted_history:
+                if entry.status == "МП / Внешний тест":
+                    last_external_test_entry = entry
+
+            if not last_external_test_entry:
+                return None
+
+            # Calculate calendar days (no pause exclusion)
+            total_days = (
+                last_external_test_entry.start_date - first_work_entry.start_date
+            ).days
+            return max(0, total_days)  # Ensure non-negative
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate Development Lead Time: {e}")
+            return None
+
     def calculate_statistics(self, times: List[int]) -> TimeMetrics:
         """
         Calculate statistics for a list of times.

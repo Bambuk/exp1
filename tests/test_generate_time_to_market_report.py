@@ -220,6 +220,249 @@ class TestGenerateTimeToMarketReportCommand:
             assert len(report.quarters) == 0
             assert len(report.quarter_reports) == 0
 
+    def test_generate_task_details_csv_includes_devlt(self, test_reports_dir):
+        """Test that DevLT column is included in task details CSV."""
+        from datetime import datetime
+
+        from radiator.commands.models.time_to_market_models import (
+            Quarter,
+            StatusHistoryEntry,
+            StatusMapping,
+            TaskData,
+        )
+
+        # Create mock command
+        with GenerateTimeToMarketReportCommand(output_dir=test_reports_dir) as cmd:
+            # Mock report data
+            quarter = Quarter("Q1 2024", datetime(2024, 1, 1), datetime(2024, 3, 31))
+            status_mapping = StatusMapping(
+                discovery_statuses=["Discovery"], done_statuses=["Done"]
+            )
+
+            # Create mock report
+            cmd.report = MagicMock()
+            cmd.report.quarters = [quarter]
+            cmd.report.status_mapping = status_mapping
+            cmd.report.group_by = GroupBy.AUTHOR
+
+            # Mock data service to return task with DevLT history
+            mock_task = TaskData(
+                id=1,
+                key="CPO-123",
+                summary="Test task",
+                author="Test Author",
+                team="Test Team",
+                group_value="Test Author",
+                created_at=datetime(2024, 1, 1),
+            )
+
+            # Mock history with DevLT flow
+            mock_history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                ),
+                StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+                StatusHistoryEntry(
+                    "МП / Внешний тест",
+                    "МП / Внешний тест",
+                    datetime(2024, 1, 15),
+                    None,
+                ),
+            ]
+
+            # Mock data service methods
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.side_effect = [
+                [mock_task],  # TTD tasks
+                [mock_task],  # TTM tasks
+            ]
+            cmd.data_service.get_task_history.return_value = mock_history
+
+            # Generate CSV
+            csv_file = cmd.generate_task_details_csv()
+
+            # Verify CSV was created
+            assert csv_file != ""
+            assert Path(csv_file).exists()
+
+            # Read CSV content
+            with open(csv_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                lines = content.strip().split("\n")
+
+                # Check headers
+                headers = lines[0].split(",")
+                assert "DevLT (дни)" in headers
+
+                # Check data row
+                if len(lines) > 1:
+                    data_row = lines[1].split(",")
+                    devlt_index = headers.index("DevLT (дни)")
+                    devlt_value = data_row[devlt_index]
+
+                    # Should be 10 days (1/5 to 1/15)
+                    assert devlt_value == "10"
+
+    def test_generate_task_details_csv_devlt_empty_when_status_missing(
+        self, test_reports_dir
+    ):
+        """Test that DevLT is empty when required statuses are missing."""
+        from datetime import datetime
+
+        from radiator.commands.models.time_to_market_models import (
+            Quarter,
+            StatusHistoryEntry,
+            StatusMapping,
+            TaskData,
+        )
+
+        # Create mock command
+        with GenerateTimeToMarketReportCommand(output_dir=test_reports_dir) as cmd:
+            # Mock report data
+            quarter = Quarter("Q1 2024", datetime(2024, 1, 1), datetime(2024, 3, 31))
+            status_mapping = StatusMapping(
+                discovery_statuses=["Discovery"], done_statuses=["Done"]
+            )
+
+            # Create mock report
+            cmd.report = MagicMock()
+            cmd.report.quarters = [quarter]
+            cmd.report.status_mapping = status_mapping
+            cmd.report.group_by = GroupBy.AUTHOR
+
+            # Mock task
+            mock_task = TaskData(
+                id=1,
+                key="CPO-123",
+                summary="Test task",
+                author="Test Author",
+                team="Test Team",
+                group_value="Test Author",
+                created_at=datetime(2024, 1, 1),
+            )
+
+            # Mock history without "МП / В работе" status
+            mock_history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+                StatusHistoryEntry(
+                    "МП / Внешний тест",
+                    "МП / Внешний тест",
+                    datetime(2024, 1, 15),
+                    None,
+                ),
+            ]
+
+            # Mock data service methods
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.side_effect = [
+                [mock_task],  # TTD tasks
+                [mock_task],  # TTM tasks
+            ]
+            cmd.data_service.get_task_history.return_value = mock_history
+
+            # Generate CSV
+            csv_file = cmd.generate_task_details_csv()
+
+            # Read CSV content
+            with open(csv_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                lines = content.strip().split("\n")
+
+                # Check headers
+                headers = lines[0].split(",")
+                assert "DevLT (дни)" in headers
+
+                # Check data row
+                if len(lines) > 1:
+                    data_row = lines[1].split(",")
+                    devlt_index = headers.index("DevLT (дни)")
+                    devlt_value = data_row[devlt_index]
+
+                    # Should be empty when status missing
+                    assert devlt_value == ""
+
+    def test_generate_task_details_csv_devlt_quarter_filtering(self, test_reports_dir):
+        """Test that DevLT is only shown when last 'МП / Внешний тест' is in quarter."""
+        from datetime import datetime
+
+        from radiator.commands.models.time_to_market_models import (
+            Quarter,
+            StatusHistoryEntry,
+            StatusMapping,
+            TaskData,
+        )
+
+        # Create mock command
+        with GenerateTimeToMarketReportCommand(output_dir=test_reports_dir) as cmd:
+            # Mock report data - Q1 2024
+            quarter = Quarter("Q1 2024", datetime(2024, 1, 1), datetime(2024, 3, 31))
+            status_mapping = StatusMapping(
+                discovery_statuses=["Discovery"], done_statuses=["Done"]
+            )
+
+            # Create mock report
+            cmd.report = MagicMock()
+            cmd.report.quarters = [quarter]
+            cmd.report.status_mapping = status_mapping
+            cmd.report.group_by = GroupBy.AUTHOR
+
+            # Mock task
+            mock_task = TaskData(
+                id=1,
+                key="CPO-123",
+                summary="Test task",
+                author="Test Author",
+                team="Test Team",
+                group_value="Test Author",
+                created_at=datetime(2024, 1, 1),
+            )
+
+            # Mock history with "МП / Внешний тест" outside quarter (April 2024)
+            mock_history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                ),
+                StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+                StatusHistoryEntry(
+                    "МП / Внешний тест",
+                    "МП / Внешний тест",
+                    datetime(2024, 4, 15),
+                    None,
+                ),  # Outside Q1
+            ]
+
+            # Mock data service methods
+            cmd.data_service = Mock()
+            cmd.data_service.get_tasks_for_period.side_effect = [
+                [mock_task],  # TTD tasks
+                [mock_task],  # TTM tasks
+            ]
+            cmd.data_service.get_task_history.return_value = mock_history
+
+            # Generate CSV
+            csv_file = cmd.generate_task_details_csv()
+
+            # Read CSV content
+            with open(csv_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                lines = content.strip().split("\n")
+
+                # Check headers
+                headers = lines[0].split(",")
+                assert "DevLT (дни)" in headers
+
+                # Check data row
+                if len(lines) > 1:
+                    data_row = lines[1].split(",")
+                    devlt_index = headers.index("DevLT (дни)")
+                    devlt_value = data_row[devlt_index]
+
+                    # Should be empty when last "МП / Внешний тест" is outside quarter
+                    assert devlt_value == ""
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
