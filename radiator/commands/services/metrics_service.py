@@ -526,8 +526,8 @@ class MetricsService:
         self, history_data: List[StatusHistoryEntry]
     ) -> Optional[int]:
         """
-        Calculate Development Lead Time: time from first entry to "МП / В работе"
-        to last entry to "МП / Внешний тест".
+        Calculate Development Lead Time: time from first "МП / В работе" with duration > 5 min
+        to last "МП / Внешний тест" with duration > 5 min.
         Filters out short status transitions (< min_status_duration_seconds).
         Does NOT exclude pause time (calendar time).
 
@@ -541,32 +541,49 @@ class MetricsService:
             if not history_data:
                 return None
 
-            # Filter out short status transitions
-            filtered_history = self._filter_short_status_transitions(history_data)
-            if not filtered_history:
-                return None
-
             # Sort history by date
-            sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
+            sorted_history = sorted(history_data, key=lambda x: x.start_date)
 
-            # Find first occurrence of "МП / В работе"
-            first_work_entry = None
-            for entry in sorted_history:
-                if entry.status == "МП / В работе":
-                    first_work_entry = entry
-                    break
+            # Find all "МП / В работе" and "МП / Внешний тест" entries
+            work_entries = [e for e in sorted_history if e.status == "МП / В работе"]
+            external_test_entries = [
+                e for e in sorted_history if e.status == "МП / Внешний тест"
+            ]
 
-            if not first_work_entry:
+            if not work_entries or not external_test_entries:
                 return None
 
-            # Find last occurrence of "МП / Внешний тест"
-            last_external_test_entry = None
-            for entry in sorted_history:
-                if entry.status == "МП / Внешний тест":
-                    last_external_test_entry = entry
+            # Filter "МП / В работе" entries: must have end_date and duration > 5 minutes
+            valid_work_entries = []
+            for entry in work_entries:
+                if entry.end_date is None:
+                    continue  # Skip open intervals (work not completed)
 
-            if not last_external_test_entry:
+                duration = (entry.end_date - entry.start_date).total_seconds()
+                if duration >= self.min_status_duration_seconds:
+                    valid_work_entries.append(entry)
+
+            # Filter "МП / Внешний тест" entries: duration > 5 minutes (end_date optional)
+            valid_external_test_entries = []
+            for entry in external_test_entries:
+                if entry.end_date is None:
+                    # Open interval - consider as long duration
+                    valid_external_test_entries.append(entry)
+                else:
+                    duration = (entry.end_date - entry.start_date).total_seconds()
+                    if duration >= self.min_status_duration_seconds:
+                        valid_external_test_entries.append(entry)
+
+            if not valid_work_entries or not valid_external_test_entries:
                 return None
+
+            # Find first valid "МП / В работе" (by start_date)
+            first_work_entry = min(valid_work_entries, key=lambda x: x.start_date)
+
+            # Find last valid "МП / Внешний тест" (by start_date)
+            last_external_test_entry = max(
+                valid_external_test_entries, key=lambda x: x.start_date
+            )
 
             # Calculate calendar days (no pause exclusion)
             total_days = (

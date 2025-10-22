@@ -291,7 +291,10 @@ class TestMetricsServiceWithStrategies:
         history = [
             StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),
             ),
             StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
             StatusHistoryEntry(
@@ -333,15 +336,21 @@ class TestMetricsServiceWithStrategies:
         assert result is None
 
     def test_calculate_dev_lead_time_multiple_entries(self):
-        """Test DevLT calculation with multiple entries - should use first start, last end."""
+        """Test DevLT calculation with multiple entries - should use first work to last test."""
         history = [
             StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 7),
             ),
             StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 8), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 10), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 11),
             ),
             StatusHistoryEntry(
                 "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 12), None
@@ -357,18 +366,44 @@ class TestMetricsServiceWithStrategies:
         # Should be 10 days from first "МП / В работе" (1/5) to last "МП / Внешний тест" (1/15)
         assert result == 10
 
+    def test_calculate_dev_lead_time_returns_none_when_no_valid_work(self):
+        """Test DevLT returns None when no 'МП / В работе' with end_date found."""
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                None,  # No end_date
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 10), None
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Should return None because "МП / В работе" has no end_date (open interval)
+        assert result is None
+
     def test_calculate_dev_lead_time_with_pauses(self):
         """Test DevLT calculation with pauses - pauses should NOT be excluded."""
         history = [
             StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 7),
             ),
             StatusHistoryEntry(
                 "Приостановлено", "Приостановлено", datetime(2024, 1, 8), None
             ),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 10), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 12),
             ),
             StatusHistoryEntry(
                 "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
@@ -377,7 +412,7 @@ class TestMetricsServiceWithStrategies:
 
         result = self.service.calculate_dev_lead_time(history)
 
-        # Should be 10 days total (including pause time) from first "МП / В работе" to last "МП / Внешний тест"
+        # Should be 10 days from first "МП / В работе" (1/5) to "МП / Внешний тест" (1/15)
         assert result == 10
 
     def test_calculate_dev_lead_time_filters_short_transitions(self):
@@ -387,7 +422,10 @@ class TestMetricsServiceWithStrategies:
         history = [
             StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 6),
             ),
             # Short transition (less than 300 seconds) - should be filtered
             StatusHistoryEntry("Testing", "Testing", short_transition_time, None),
@@ -395,7 +433,7 @@ class TestMetricsServiceWithStrategies:
                 "МП / В работе",
                 "МП / В работе",
                 short_transition_time + timedelta(seconds=200),
-                None,
+                short_transition_time + timedelta(seconds=400),  # Short duration
             ),
             StatusHistoryEntry(
                 "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 15), None
@@ -423,7 +461,10 @@ class TestMetricsServiceWithStrategies:
             StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
             StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 7),
             ),
         ]
 
@@ -431,6 +472,61 @@ class TestMetricsServiceWithStrategies:
 
         # Should still be 10 days from first "МП / В работе" to last "МП / Внешний тест"
         assert result == 10
+
+    def test_calculate_dev_lead_time_cpo_1548_case(self):
+        """Test DevLT calculation with CPO-1548 real history - should find first long work to last long external test."""
+        # История из CPO-1548 (упрощенная):
+        # МП / В работе: 2024-05-02 12:15 - 2024-12-09 15:25 (длинный, > 5 мин)
+        # МП / В работе: 2024-12-16 10:16 - 2024-12-16 10:31 (15 мин, короткий, < 5 мин)
+        # МП / Внешний тест: 2024-12-09 15:25 - 2024-12-16 10:16 (длинный, > 5 мин)
+        # МП / Внешний тест: 2025-01-29 12:06 - 2025-02-06 10:28 (длинный, > 5 мин)
+        # МП / Внешний тест: 2025-07-23 10:45 - 2025-07-23 10:47 (2 мин, короткий, < 5 мин)
+        # Ожидаемый DevLT: 272 дня (2024-05-02 → 2025-01-29)
+
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            # Первое длинное "МП / В работе" (> 5 минут)
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 5, 2, 12, 15),
+                datetime(2024, 12, 9, 15, 25),  # 7+ месяцев - длинный
+            ),
+            # Длинный "МП / Внешний тест" (> 5 минут)
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 12, 9, 15, 25),
+                datetime(2024, 12, 16, 10, 16),  # 6+ дней - длинный
+            ),
+            # Короткий "МП / В работе" (< 5 минут) - должен игнорироваться
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 12, 16, 10, 16),
+                datetime(2024, 12, 16, 10, 31),  # 15 минут - короткий
+            ),
+            # Последний длинный "МП / Внешний тест" (> 5 минут)
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2025, 1, 29, 12, 6),
+                datetime(2025, 2, 6, 10, 28),  # 8+ дней - длинный
+            ),
+            # Короткий "МП / Внешний тест" (< 5 минут) - должен игнорироваться
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2025, 7, 23, 10, 45),
+                datetime(2025, 7, 23, 10, 47),  # 2 минуты - короткий
+            ),
+        ]
+
+        result = self.service.calculate_dev_lead_time(history)
+
+        # Ожидаемый DevLT: 271 день (2024-05-02 → 2025-01-29)
+        # Первое длинное "МП / В работе" (2024-05-02) → последнее длинное "МП / Внешний тест" (2025-01-29)
+        assert result == 271
 
 
 class TestDataService:

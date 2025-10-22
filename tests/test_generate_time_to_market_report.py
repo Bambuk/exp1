@@ -260,7 +260,10 @@ class TestGenerateTimeToMarketReportCommand:
             mock_history = [
                 StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
                 StatusHistoryEntry(
-                    "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),
+                    datetime(2024, 1, 8),
                 ),
                 StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
                 StatusHistoryEntry(
