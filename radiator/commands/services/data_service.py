@@ -14,6 +14,7 @@ from radiator.commands.models.time_to_market_models import (
 from radiator.commands.services.author_team_mapping_service import (
     AuthorTeamMappingService,
 )
+from radiator.commands.services.metrics_service import MetricsService
 from radiator.core.logging import logger
 
 # CRUD operations removed - using direct SQLAlchemy queries
@@ -37,6 +38,65 @@ class DataService:
         """
         self.db = db
         self.author_team_mapping_service = author_team_mapping_service
+        self.metrics_service = MetricsService()
+
+    def _filter_short_transitions(
+        self, history_data: List[StatusHistoryEntry]
+    ) -> List[StatusHistoryEntry]:
+        """
+        Filter out status transitions shorter than minimum duration.
+
+        Args:
+            history_data: List of status history entries
+
+        Returns:
+            Filtered list with only valid status transitions
+        """
+        return self.metrics_service._filter_short_status_transitions(history_data)
+
+    def get_task_history_unfiltered(self, task_id: int) -> List[StatusHistoryEntry]:
+        """
+        Get unfiltered status history for a specific task (for testing purposes).
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            List of StatusHistoryEntry objects (unfiltered)
+        """
+        try:
+            history_query = (
+                self.db.query(
+                    TrackerTaskHistory.status,
+                    TrackerTaskHistory.status_display,
+                    TrackerTaskHistory.start_date,
+                    TrackerTaskHistory.end_date,
+                )
+                .filter(TrackerTaskHistory.task_id == task_id)
+                .order_by(TrackerTaskHistory.start_date)
+            )
+
+            history = history_query.all()
+
+            result = []
+            for status, status_display, start_date, end_date in history:
+                result.append(
+                    StatusHistoryEntry(
+                        status=status,
+                        status_display=status_display,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                f"Failed to get unfiltered task history for task_id {task_id}: {e}"
+            )
+            self.db.rollback()
+            return []
 
     def get_tasks_for_period(
         self,
@@ -206,7 +266,9 @@ class DataService:
                     )
                 )
 
-            return result
+            # Apply filtering for short status transitions
+            filtered_result = self._filter_short_transitions(result)
+            return filtered_result
 
         except Exception as e:
             logger.error(f"Failed to get task history for task_id {task_id}: {e}")

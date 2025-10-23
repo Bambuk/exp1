@@ -331,19 +331,15 @@ class MetricsService:
             if not history_data:
                 return None
 
-            # Filter out short status transitions
-            filtered_history = self._filter_short_status_transitions(history_data)
-            if not filtered_history:
-                return None
-
+            # History is already filtered at DataService level
             # Get start date using TTD strategy
-            start_date = self.ttd_strategy.calculate_start_date(filtered_history)
+            start_date = self.ttd_strategy.calculate_start_date(history_data)
             if start_date is None:
                 return None
 
             # Find 'Готова к разработке' status specifically
             target_entry = None
-            for entry in sorted(filtered_history, key=lambda x: x.start_date):
+            for entry in sorted(history_data, key=lambda x: x.start_date):
                 if entry.status == "Готова к разработке":
                     target_entry = entry
                     break
@@ -353,7 +349,7 @@ class MetricsService:
 
             # Calculate pause time only up to the target status
             pause_time = self.calculate_pause_time_up_to_date(
-                filtered_history, target_entry.start_date
+                history_data, target_entry.start_date
             )
             total_days = (target_entry.start_date - start_date).days
             effective_days = total_days - pause_time
@@ -381,19 +377,15 @@ class MetricsService:
             if not history_data:
                 return None
 
-            # Filter out short status transitions
-            filtered_history = self._filter_short_status_transitions(history_data)
-            if not filtered_history:
-                return None
-
+            # History is already filtered at DataService level
             # Get start date using TTM strategy
-            start_date = self.ttm_strategy.calculate_start_date(filtered_history)
+            start_date = self.ttm_strategy.calculate_start_date(history_data)
             if start_date is None:
                 return None
 
             # Find first target status
             target_entry = None
-            for entry in sorted(filtered_history, key=lambda x: x.start_date):
+            for entry in sorted(history_data, key=lambda x: x.start_date):
                 if entry.status in target_statuses:
                     target_entry = entry
                     break
@@ -403,7 +395,7 @@ class MetricsService:
 
             # Calculate pause time only up to the target status
             pause_time = self.calculate_pause_time_up_to_date(
-                filtered_history, target_entry.start_date
+                history_data, target_entry.start_date
             )
             total_days = (target_entry.start_date - start_date).days
             effective_days = total_days - pause_time

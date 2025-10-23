@@ -59,7 +59,7 @@ class TestAccidentalDoneStatus:
             "Выпилено",
         ]
 
-        # Check filtered history
+        # Check filtered history (now filtering happens at DataService level)
         filtered = metrics_service._filter_short_status_transitions(history)
         filtered_statuses = [entry.status for entry in filtered]
 
@@ -70,12 +70,13 @@ class TestAccidentalDoneStatus:
         )
 
         # TTD should be calculated (has 'Готова к разработке')
-        ttd = metrics_service.calculate_time_to_delivery(history, [])
+        ttd = metrics_service.calculate_time_to_delivery(filtered, [])
         assert ttd is not None, "TTD should be calculated"
         assert ttd == 0, "TTD should be 0 days (same day)"
 
         # TTM should NOT be calculated (no real done status after filtering)
-        ttm = metrics_service.calculate_time_to_market(history, done_statuses)
+        # Note: Now TTM uses filtered history by default, so it should be None
+        ttm = metrics_service.calculate_time_to_market(filtered, done_statuses)
         assert ttm is None, (
             "TTM should NOT be calculated because accidental Done was filtered out. "
             f"Got TTM={ttm}"
@@ -103,7 +104,7 @@ class TestAccidentalDoneStatus:
 
         done_statuses = ["Done"]
 
-        # Check filtered history
+        # Check filtered history (now filtering happens at DataService level)
         filtered = metrics_service._filter_short_status_transitions(history)
         done_entries = [e for e in filtered if e.status == "Done"]
 
@@ -114,7 +115,8 @@ class TestAccidentalDoneStatus:
         assert done_entries[0].start_date == base_date + timedelta(days=10)
 
         # TTM should be calculated to the real Done
-        ttm = metrics_service.calculate_time_to_market(history, done_statuses)
+        # Note: Now TTM uses filtered history by default, so it should work correctly
+        ttm = metrics_service.calculate_time_to_market(filtered, done_statuses)
         assert ttm == 10, f"TTM should be 10 days (to real Done), got {ttm}"
 
     def test_long_accidental_done_not_filtered(self, metrics_service):
