@@ -621,6 +621,16 @@ class GoogleSheetsService:
                         "summarizeFunction": "MAX",
                         "name": "Tail Max",
                     },
+                    {
+                        "sourceColumnOffset": self._get_column_index("DevLT (дни)"),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "DevLT Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("DevLT (дни)"),
+                        "summarizeFunction": "MAX",
+                        "name": "DevLT Max",
+                    },
                 ]
 
             return {
@@ -674,7 +684,8 @@ class GoogleSheetsService:
             "Возвраты с Testing": 11,
             "Возвраты с Внешний тест": 12,
             "Всего возвратов": 13,
-            "Квартал": 14,
+            "DevLT (дни)": 14,
+            "Квартал": 15,
         }
 
         return column_mapping.get(column_name, 0)
@@ -730,6 +741,7 @@ class GoogleSheetsService:
                 "TTD Pause",
                 "Discovery backlog (дни)",
                 "Готова к разработке (дни)",
+                "DevLT (дни)",
             ]
             for col in numeric_columns:
                 if col in df.columns:
