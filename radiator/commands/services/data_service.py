@@ -416,3 +416,51 @@ class DataService:
             logger.error(f"Failed to batch load task histories by keys: {e}")
             self.db.rollback()
             return {task_key: [] for task_key in task_keys}
+
+    def get_tasks_by_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[TaskData]:
+        """
+        Get all tasks within date range in one query.
+
+        Args:
+            start_date: Start date of range
+            end_date: End date of range
+
+        Returns:
+            List of TaskData objects
+        """
+        try:
+            tasks = (
+                self.db.query(TrackerTask)
+                .filter(
+                    TrackerTask.created_at >= start_date,
+                    TrackerTask.created_at <= end_date,
+                    TrackerTask.key.like("CPO-%"),
+                )
+                .all()
+            )
+
+            result = []
+            for task in tasks:
+                result.append(
+                    TaskData(
+                        id=task.id,
+                        key=task.key,
+                        group_value=task.author,
+                        author=task.author,
+                        team=task.team,
+                        summary=task.summary,
+                        created_at=task.created_at,
+                    )
+                )
+
+            logger.info(
+                f"Loaded {len(result)} tasks for date range {start_date} - {end_date}"
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to load tasks by date range: {e}")
+            self.db.rollback()
+            return []

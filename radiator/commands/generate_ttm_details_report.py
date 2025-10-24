@@ -3,7 +3,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -99,6 +99,157 @@ class TTMDetailsReportGenerator:
             return None
 
         return self.metrics_service.calculate_time_to_market(history, done_statuses)
+
+    def _get_ttm_tasks_for_date_range(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[TaskData]:
+        """
+        Get all TTM tasks within date range in one query.
+
+        Args:
+            start_date: Start date of range
+            end_date: End date of range
+
+        Returns:
+            List of TaskData objects
+        """
+        return self.data_service.get_tasks_by_date_range(start_date, end_date)
+
+    def _get_ttm_tasks_for_date_range_corrected(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[TaskData]:
+        """
+        Get TTM tasks within date range using the same logic as quarter-based approach.
+
+        Args:
+            start_date: Start date of range
+            end_date: End date of range
+
+        Returns:
+            List of TaskData objects (already filtered by TTM)
+        """
+        from radiator.commands.models.time_to_market_models import GroupBy
+
+        status_mapping = self.config_service.load_status_mapping()
+        return self.data_service.get_tasks_for_period(
+            start_date=start_date,
+            end_date=end_date,
+            group_by=GroupBy.AUTHOR,
+            status_mapping=status_mapping,
+            metric_type="ttm",  # Ключевое отличие - фильтрация по TTM
+        )
+
+    def _determine_quarter_for_ttm(
+        self, history: List, quarters: List[Quarter], done_statuses: List[str]
+    ) -> Optional[str]:
+        """
+        Determine which quarter a task belongs to based on its stable done date.
+
+        Args:
+            history: Task history
+            quarters: List of quarters
+            done_statuses: List of done status names
+
+        Returns:
+            Quarter name or None
+        """
+        # Find stable done date using existing logic
+        stable_done = self.metrics_service._find_stable_done(history, done_statuses)
+        if not stable_done:
+            return None
+
+        done_date = stable_done.start_date
+
+        # Find matching quarter
+        for quarter in quarters:
+            if quarter.start_date <= done_date <= quarter.end_date:
+                return quarter.name
+
+        return None
+
+    def _calculate_ttd_quarter(
+        self, history: List, quarters: List[Quarter]
+    ) -> Optional[str]:
+        """
+        Calculate TTD quarter based on ready status date.
+
+        Args:
+            history: Task history
+            quarters: List of quarters
+
+        Returns:
+            Quarter name or None
+        """
+        ttd_target_date = self._get_ttd_target_date(history)
+        if not ttd_target_date:
+            return None
+
+        return self._determine_quarter_for_date(ttd_target_date, quarters)
+
+    def _calculate_all_returns_batched(
+        self, cpo_task_keys: List[str]
+    ) -> Dict[str, tuple[int, int]]:
+        """
+        Calculate testing returns for all CPO tasks in one batch.
+
+        Args:
+            cpo_task_keys: List of CPO task keys
+
+        Returns:
+            Dict mapping CPO key to (testing_returns, external_returns)
+        """
+        logger.info(f"Calculating returns for {len(cpo_task_keys)} tasks...")
+
+        # Step 1: Build full FULLSTACK hierarchy for all CPO tasks
+        cpo_to_fullstack = (
+            self.testing_returns_service.build_fullstack_hierarchy_batched(
+                cpo_task_keys
+            )
+        )
+
+        # Step 2: Collect ALL unique FULLSTACK keys
+        all_fullstack_keys = set()
+        for fullstack_keys in cpo_to_fullstack.values():
+            all_fullstack_keys.update(fullstack_keys)
+
+        logger.info(
+            f"Loading histories for {len(all_fullstack_keys)} FULLSTACK tasks..."
+        )
+
+        # Step 3: Batch load ALL histories at once
+        all_histories = self.data_service.get_task_histories_by_keys_batch(
+            list(all_fullstack_keys)
+        )
+
+        # Step 4: Calculate returns for each CPO task using in-memory data
+        result = {}
+        for cpo_key, fullstack_keys in cpo_to_fullstack.items():
+            if not fullstack_keys:
+                result[cpo_key] = (0, 0)
+                continue
+
+            total_testing_returns = 0
+            total_external_returns = 0
+
+            for fullstack_key in fullstack_keys:
+                history = all_histories.get(fullstack_key, [])
+                if not history:
+                    continue
+
+                (
+                    testing_returns,
+                    external_returns,
+                ) = self.testing_returns_service.calculate_testing_returns_for_task(
+                    fullstack_key, history
+                )
+
+                total_testing_returns += testing_returns
+                total_external_returns += external_returns
+
+            result[cpo_key] = (total_testing_returns, total_external_returns)
+
+        logger.info(f"Completed returns calculation for {len(result)} CPO tasks")
+        return result
 
     def _calculate_ttd(
         self,
@@ -328,8 +479,8 @@ class TTMDetailsReportGenerator:
             Tuple of (testing_returns, external_returns)
         """
         try:
-            return self.testing_returns_service.calculate_testing_returns_for_cpo_task(
-                task_key, self.data_service.get_task_history_by_key
+            return self.testing_returns_service.calculate_testing_returns_for_cpo_task_batched(
+                task_key, self.data_service.get_task_histories_by_keys_batch
             )
         except Exception as e:
             logger.warning(f"Failed to calculate testing returns for {task_key}: {e}")
@@ -337,7 +488,7 @@ class TTMDetailsReportGenerator:
 
     def _collect_csv_rows(self) -> List[dict]:
         """
-        Collect CSV rows data for all quarters.
+        Collect CSV rows data with optimized batch processing.
 
         Returns:
             List of dictionaries with CSV row data
@@ -346,64 +497,76 @@ class TTMDetailsReportGenerator:
         quarters = self._load_quarters()
         done_statuses = self._load_done_statuses()
 
-        for quarter in quarters:
-            tasks = self._get_ttm_tasks_for_quarter(quarter)
+        # Берем диапазон от начала первого до конца последнего квартала
+        start_date = min(q.start_date for q in quarters)
+        end_date = max(q.end_date for q in quarters)
 
-            for task in tasks:
-                # Load history once and reuse for TTM, Tail, DevLT, and TTD calculations
-                history = self.data_service.get_task_history(task.id)
+        # Получаем ВСЕ задачи одним запросом (с правильной фильтрацией по TTM)
+        all_tasks = self._get_ttm_tasks_for_date_range_corrected(start_date, end_date)
 
-                ttm = self._calculate_ttm(task.id, done_statuses, history)
-                tail = self._calculate_tail(task.id, done_statuses, history)
-                devlt = self._calculate_devlt(task.id, history)
+        # Собираем все метрики КРОМЕ возвратов
+        # Задачи уже отфильтрованы по TTM в _get_ttm_tasks_for_date_range_corrected
+        tasks_data = []
+        for task in all_tasks:
+            history = self.data_service.get_task_history(task.id)
 
-                # Calculate TTD and its quarter
-                ttd = self._calculate_ttd(task.id, ["Готова к разработке"], history)
-                ttd_quarter = None
-                if ttd is not None:
-                    ttd_target_date = self._get_ttd_target_date(history)
-                    if ttd_target_date:
-                        ttd_quarter = self._determine_quarter_for_date(
-                            ttd_target_date, quarters
-                        )
+            # Определяем квартал для задачи (TTM уже есть)
+            quarter_name = self._determine_quarter_for_ttm(
+                history, quarters, done_statuses
+            )
+            if not quarter_name:
+                continue
 
-                # Calculate pause metrics
-                pause = self._calculate_pause(task.id, history)
-                ttd_pause = self._calculate_ttd_pause(task.id, history)
-
-                # Calculate status duration metrics
-                discovery_backlog_days = self._calculate_discovery_backlog_days(
+            # Собираем все метрики кроме возвратов
+            # TTM уже рассчитан в _get_ttm_tasks_for_date_range_corrected
+            ttm = self._calculate_ttm(task.id, done_statuses, history)
+            task_metrics = {
+                "task": task,
+                "quarter_name": quarter_name,
+                "ttm": ttm,
+                "tail": self._calculate_tail(task.id, done_statuses, history),
+                "devlt": self._calculate_devlt(task.id, history),
+                "ttd": self._calculate_ttd(task.id, ["Готова к разработке"], history),
+                "ttd_quarter": self._calculate_ttd_quarter(history, quarters),
+                "pause": self._calculate_pause(task.id, history),
+                "ttd_pause": self._calculate_ttd_pause(task.id, history),
+                "discovery_backlog_days": self._calculate_discovery_backlog_days(
                     task.id, history
-                )
-                ready_for_dev_days = self._calculate_ready_for_dev_days(
+                ),
+                "ready_for_dev_days": self._calculate_ready_for_dev_days(
                     task.id, history
-                )
+                ),
+            }
+            tasks_data.append(task_metrics)
 
-                # Calculate testing returns metrics
-                testing_returns, external_returns = self._calculate_testing_returns(
-                    task.key
-                )
-                total_returns = testing_returns + external_returns
+        # Шаг 2: Собираем все ключи CPO задач для расчета возвратов
+        cpo_task_keys = [td["task"].key for td in tasks_data]
 
-                # Only include tasks with valid TTM
-                if ttm is not None:
-                    row = self._format_task_row(
-                        task,
-                        ttm,
-                        quarter.name,
-                        tail,
-                        devlt,
-                        ttd,
-                        ttd_quarter,
-                        pause,
-                        ttd_pause,
-                        discovery_backlog_days,
-                        ready_for_dev_days,
-                        testing_returns,
-                        external_returns,
-                        total_returns,
-                    )
-                    rows.append(row)
+        # Шаг 3: Batch-расчет возвратов для всех задач сразу
+        returns_data = self._calculate_all_returns_batched(cpo_task_keys)
+
+        # Шаг 4: Формируем финальные строки отчета
+        for task_metrics in tasks_data:
+            task_key = task_metrics["task"].key
+            testing_returns, external_returns = returns_data.get(task_key, (0, 0))
+
+            row = self._format_task_row(
+                task_metrics["task"],
+                task_metrics["ttm"],
+                task_metrics["quarter_name"],
+                task_metrics["tail"],
+                task_metrics["devlt"],
+                task_metrics["ttd"],
+                task_metrics["ttd_quarter"],
+                task_metrics["pause"],
+                task_metrics["ttd_pause"],
+                task_metrics["discovery_backlog_days"],
+                task_metrics["ready_for_dev_days"],
+                testing_returns,
+                external_returns,
+                testing_returns + external_returns,
+            )
+            rows.append(row)
 
         return rows
 

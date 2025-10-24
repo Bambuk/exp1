@@ -293,3 +293,275 @@ class TestingReturnsService:
                 f"Failed to calculate testing returns for {cpo_task_key}: {e}"
             )
             return 0, 0
+
+    def calculate_testing_returns_for_cpo_task_batched(
+        self, cpo_task_key: str, batch_histories_func
+    ) -> tuple[int, int]:
+        """
+        Calculate testing returns using pre-loaded batch histories.
+
+        Args:
+            cpo_task_key: CPO task key
+            batch_histories_func: Function to batch load histories by keys
+
+        Returns:
+            Tuple of (total_testing_returns, total_external_test_returns)
+        """
+        try:
+            # Get FULLSTACK epics linked to this CPO task
+            fullstack_epics = self.get_fullstack_links(cpo_task_key)
+
+            if not fullstack_epics:
+                return 0, 0
+
+            # Collect all tasks from all epics
+            all_tasks = []
+            for epic_key in fullstack_epics:
+                epic_tasks = self.get_task_hierarchy(epic_key)
+                all_tasks.extend(epic_tasks)
+
+            # Batch check task existence
+            existing_tasks = self._batch_check_task_existence(all_tasks)
+            existing_task_list = [t for t in all_tasks if t in existing_tasks]
+
+            if not existing_task_list:
+                return 0, 0
+
+            # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Batch load ALL histories at once
+            all_histories = batch_histories_func(existing_task_list)
+
+            total_testing_returns = 0
+            total_external_returns = 0
+
+            # Process histories from batch result
+            for task_key in existing_task_list:
+                history = all_histories.get(task_key, [])
+                if not history:
+                    continue
+
+                (
+                    testing_returns,
+                    external_returns,
+                ) = self.calculate_testing_returns_for_task(task_key, history)
+
+                total_testing_returns += testing_returns
+                total_external_returns += external_returns
+
+            return total_testing_returns, total_external_returns
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to calculate testing returns for {cpo_task_key}: {e}"
+            )
+            return 0, 0
+
+    def batch_load_fullstack_links(
+        self, cpo_task_keys: List[str]
+    ) -> Dict[str, List[str]]:
+        """
+        Batch load FULLSTACK links for multiple CPO tasks.
+
+        Args:
+            cpo_task_keys: List of CPO task keys
+
+        Returns:
+            Dictionary mapping CPO key to list of FULLSTACK keys
+        """
+        # Check cache first
+        uncached_keys = [
+            k for k in cpo_task_keys if k not in self._fullstack_links_cache
+        ]
+
+        if not uncached_keys:
+            return {k: self._fullstack_links_cache[k] for k in cpo_task_keys}
+
+        try:
+            # Batch query for all tasks
+            tasks = (
+                self.db.query(TrackerTask.key, TrackerTask.links)
+                .filter(TrackerTask.key.in_(uncached_keys))
+                .all()
+            )
+
+            # Process links
+            for task_key, links in tasks:
+                fullstack_keys = []
+                if links:
+                    for link in links:
+                        if link and isinstance(link, dict):
+                            if link.get("type", {}).get("id") == "relates" and link.get(
+                                "object", {}
+                            ).get("key", "").startswith("FULLSTACK"):
+                                fullstack_keys.append(link["object"]["key"])
+
+                self._fullstack_links_cache[task_key] = fullstack_keys
+
+            # Return all results
+            return {k: self._fullstack_links_cache.get(k, []) for k in cpo_task_keys}
+
+        except Exception as e:
+            logger.warning(f"Failed to batch load FULLSTACK links: {e}")
+            return {k: [] for k in cpo_task_keys}
+
+    def build_fullstack_hierarchy_batched(
+        self, cpo_task_keys: List[str], max_depth: int = 6
+    ) -> Dict[str, List[str]]:
+        """
+        Build FULLSTACK hierarchy for multiple CPO tasks with depth limit.
+
+        Загружает иерархию за несколько проходов:
+        1. Получаем все CPO задачи и их прямые FULLSTACK связи
+        2. Для каждого уровня глубины ищем дочерние FULLSTACK задачи
+        3. Останавливаемся на глубине 6 или когда нет новых задач
+
+        Args:
+            cpo_task_keys: List of CPO task keys
+            max_depth: Maximum depth for hierarchy traversal (default 6)
+
+        Returns:
+            Dict mapping CPO key to list of all related FULLSTACK keys
+        """
+        logger.info(
+            f"Building FULLSTACK hierarchy for {len(cpo_task_keys)} CPO tasks..."
+        )
+
+        # Step 1: Batch load direct FULLSTACK links for all CPO tasks
+        cpo_to_fullstack = self.batch_load_fullstack_links(cpo_task_keys)
+
+        # Step 2: Build hierarchy level by level for ALL CPO tasks together
+        result = {}
+        incomplete_cpo_keys = []
+
+        # Initialize result with direct links
+        for cpo_key, direct_fullstack_keys in cpo_to_fullstack.items():
+            if not direct_fullstack_keys:
+                result[cpo_key] = []
+                continue
+            result[cpo_key] = list(direct_fullstack_keys)
+
+        # Track all FULLSTACK keys found so far (to avoid duplicates)
+        all_fullstack_keys = set()
+        for fullstack_keys in result.values():
+            all_fullstack_keys.update(fullstack_keys)
+
+        # Current level keys for iteration
+        current_level_keys = list(all_fullstack_keys)
+
+        # Step 3: Iterate through depth levels
+        for depth in range(1, max_depth + 1):
+            if not current_level_keys:
+                break
+
+            logger.info(
+                f"Processing depth {depth} with {len(current_level_keys)} tasks..."
+            )
+
+            # Batch load subtasks for current level (ONE call per depth level)
+            children_batch = self.get_task_hierarchy_batch(current_level_keys)
+
+            # Collect new children for next level
+            next_level_keys = []
+            for parent_key, children in children_batch.items():
+                new_children = [
+                    k
+                    for k in children
+                    if k not in all_fullstack_keys and k != parent_key
+                ]
+                next_level_keys.extend(new_children)
+                all_fullstack_keys.update(new_children)
+
+            # Update result for all CPO tasks that have these new children
+            for cpo_key, fullstack_keys in result.items():
+                if not fullstack_keys:
+                    continue
+
+                # Add new children that are related to this CPO task
+                for child_key in next_level_keys:
+                    if child_key not in fullstack_keys:
+                        # Check if this child is related to any of the CPO's FULLSTACK tasks
+                        # For now, we'll add all new children (this could be optimized)
+                        fullstack_keys.append(child_key)
+
+            current_level_keys = next_level_keys
+
+            # Check if we hit max depth with remaining tasks
+            if depth == max_depth and current_level_keys:
+                logger.warning(
+                    f"Reached max depth {max_depth} with {len(current_level_keys)} "
+                    f"remaining tasks. Possible cyclic dependencies."
+                )
+
+        logger.info(
+            f"Built hierarchy: {len(result)} CPO tasks -> "
+            f"{sum(len(v) for v in result.values())} total FULLSTACK tasks"
+        )
+
+        return result
+
+    def get_task_hierarchy_batch(self, parent_keys: List[str]) -> Dict[str, List[str]]:
+        """
+        Batch load task hierarchy for multiple parent tasks.
+
+        Args:
+            parent_keys: List of parent task keys
+
+        Returns:
+            Dict mapping parent key to list of child task keys
+        """
+        if not parent_keys:
+            return {}
+
+        # DEBUG: Count calls
+        if not hasattr(self, "_hierarchy_batch_calls"):
+            self._hierarchy_batch_calls = 0
+        self._hierarchy_batch_calls += 1
+        logger.info(
+            f"🔍 get_task_hierarchy_batch call #{self._hierarchy_batch_calls} with {len(parent_keys)} parents"
+        )
+
+        try:
+            # Batch query for all parent-child relationships using JSONB
+            from sqlalchemy import text
+
+            # Create a single query for all parent keys
+            parent_keys_str = "', '".join(parent_keys)
+            query = text(
+                f"""
+                SELECT key,
+                       jsonb_array_elements(links)->'object'->>'key' as parent_key
+                FROM tracker_tasks
+                WHERE key LIKE 'FULLSTACK%'
+                AND links IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(links) AS link
+                    WHERE link->'type'->>'id' = 'subtask'
+                    AND link->>'direction' = 'inward'
+                    AND link->'object'->>'key' IN ('{parent_keys_str}')
+                )
+            """
+            )
+
+            subtasks = self.db.execute(query).fetchall()
+
+            # Group children by parent
+            result = {}
+            for child_key, parent_key in subtasks:
+                if parent_key and parent_key in parent_keys:
+                    if parent_key not in result:
+                        result[parent_key] = []
+                    result[parent_key].append(child_key)
+
+            # Ensure all parent keys are in result (even if no children)
+            for parent_key in parent_keys:
+                if parent_key not in result:
+                    result[parent_key] = []
+
+            logger.info(
+                f"Batch loaded hierarchy for {len(parent_keys)} parents -> {sum(len(v) for v in result.values())} children"
+            )
+            return result
+
+        except Exception as e:
+            logger.warning(f"Failed to batch load task hierarchy: {e}")
+            return {key: [] for key in parent_keys}

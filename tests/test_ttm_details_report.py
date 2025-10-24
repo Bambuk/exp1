@@ -314,14 +314,35 @@ class TestTTMDetailsReport:
             )
         ]
 
-        generator._get_ttm_tasks_for_quarter = Mock(
-            side_effect=[mock_tasks_q1, mock_tasks_q2]
+        # Mock new method for date range (all tasks at once)
+        all_mock_tasks = mock_tasks_q1 + mock_tasks_q2
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(
+            return_value=all_mock_tasks
         )
 
-        # Mock TTM calculations
-        generator._calculate_ttm = Mock(
-            side_effect=[15, 20, 10]
-        )  # TTM for tasks 1, 2, 3
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
+
+        # Mock data service
+        generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
+        generator._calculate_tail = Mock(side_effect=[None, None, None])
+        generator._calculate_devlt = Mock(side_effect=[None, None, None])
+        generator._calculate_ttd = Mock(side_effect=[None, None, None])
+        generator._calculate_ttd_quarter = Mock(side_effect=[None, None, None])
+        generator._calculate_pause = Mock(side_effect=[None, None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None, None])
+        generator._calculate_discovery_backlog_days = Mock(
+            side_effect=[None, None, None]
+        )
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0), "CPO-789": (0, 0)}
+        )
 
         # Test collecting CSV rows
         rows = generator._collect_csv_rows()
@@ -355,7 +376,7 @@ class TestTTMDetailsReport:
         # Verify methods were called
         generator._load_quarters.assert_called_once()
         generator._load_done_statuses.assert_called_once()
-        assert generator._get_ttm_tasks_for_quarter.call_count == 2
+        generator._get_ttm_tasks_for_date_range_corrected.assert_called_once()
         assert generator._calculate_ttm.call_count == 3
 
     def test_write_csv_with_data(self, test_reports_dir):
@@ -1102,20 +1123,35 @@ class TestTTMDetailsReport:
             )
         ]
 
-        generator._get_ttm_tasks_for_quarter = Mock(
-            side_effect=[mock_tasks_q1, mock_tasks_q2]
+        # Mock new method for date range (all tasks at once)
+        all_mock_tasks = mock_tasks_q1 + mock_tasks_q2
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(
+            return_value=all_mock_tasks
         )
 
-        # Mock TTM, Tail, and DevLT calculations
-        generator._calculate_ttm = Mock(
-            side_effect=[15, 20, 10]
-        )  # TTM for tasks 1, 2, 3
-        generator._calculate_tail = Mock(
-            side_effect=[5, None, 3]
-        )  # Tail for tasks 1, 2, 3
-        generator._calculate_devlt = Mock(
-            side_effect=[8, None, 6]
-        )  # DevLT for tasks 1, 2, 3
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
+
+        # Mock data service
+        generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
+        generator._calculate_tail = Mock(side_effect=[5, None, 3])
+        generator._calculate_devlt = Mock(side_effect=[8, None, 6])
+        generator._calculate_ttd = Mock(side_effect=[None, None, None])
+        generator._calculate_ttd_quarter = Mock(side_effect=[None, None, None])
+        generator._calculate_pause = Mock(side_effect=[None, None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None, None])
+        generator._calculate_discovery_backlog_days = Mock(
+            side_effect=[None, None, None]
+        )
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0), "CPO-789": (0, 0)}
+        )
 
         # Test collecting CSV rows
         rows = generator._collect_csv_rows()
@@ -1153,7 +1189,7 @@ class TestTTMDetailsReport:
         # Verify methods were called
         generator._load_quarters.assert_called_once()
         generator._load_done_statuses.assert_called_once()
-        assert generator._get_ttm_tasks_for_quarter.call_count == 2
+        generator._get_ttm_tasks_for_date_range_corrected.assert_called_once()
         assert generator._calculate_ttm.call_count == 3
         assert generator._calculate_tail.call_count == 3
         assert generator._calculate_devlt.call_count == 3
@@ -1570,17 +1606,31 @@ class TestTTMDetailsReport:
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
         generator._load_done_statuses = Mock(return_value=["done"])
-        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
-        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
-        generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
-        generator._calculate_tail = Mock(side_effect=[5, None, 3])
-        generator._calculate_devlt = Mock(side_effect=[8, None, 6])
-        generator._calculate_ttd = Mock(side_effect=[12, None, 9])  # Mock TTD
-        generator._get_ttd_target_date = Mock(
-            side_effect=[datetime(2025, 1, 5), None, datetime(2025, 1, 8)]
-        )
-        generator._determine_quarter_for_date = Mock(
-            side_effect=["2025.Q1", None, "2025.Q1"]
+        # Mock new method for date range (all tasks at once)
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
+
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
+
+        # Mock data service
+        generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[None, None])
+        generator._calculate_devlt = Mock(side_effect=[None, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_ttd_quarter = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[None, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
         )
 
         # Test collecting rows
@@ -1598,12 +1648,7 @@ class TestTTMDetailsReport:
 
         # Verify TTD methods were called
         assert generator._calculate_ttd.call_count == 2
-        assert (
-            generator._get_ttd_target_date.call_count == 1
-        )  # Only called when TTD is not None
-        assert (
-            generator._determine_quarter_for_date.call_count == 1
-        )  # Only called when target date is found
+        # Note: _get_ttd_target_date and _determine_quarter_for_date are not used in new optimized logic
 
     def test_format_task_row_with_ttd_none(self, test_reports_dir):
         """Test formatting task row with TTD None values."""
@@ -1777,7 +1822,32 @@ class TestTTMDetailsReport:
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
         generator._load_done_statuses = Mock(return_value=["done"])
-        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        # Mock new method for date range (all tasks at once)
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
+
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
+
+        # Mock data service
+        generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[None, None])
+        generator._calculate_devlt = Mock(side_effect=[None, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_ttd_quarter = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[None, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
+        )
         generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
         generator._calculate_ttm = Mock(side_effect=[15, 20])
         generator._calculate_tail = Mock(side_effect=[5, None])
@@ -2018,7 +2088,32 @@ class TestTTMDetailsReport:
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
         generator._load_done_statuses = Mock(return_value=["done"])
-        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        # Mock new method for date range (all tasks at once)
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
+
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
+
+        # Mock data service
+        generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[None, None])
+        generator._calculate_devlt = Mock(side_effect=[None, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_ttd_quarter = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[None, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
+        )
         generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
         generator._calculate_ttm = Mock(side_effect=[15, 20])
         generator._calculate_tail = Mock(side_effect=[5, None])
@@ -2149,8 +2244,8 @@ class TestTTMDetailsReport:
 
         generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
 
-        # Mock the testing returns service
-        generator.testing_returns_service.calculate_testing_returns_for_cpo_task = Mock(
+        # Mock the testing returns service (new batched method)
+        generator.testing_returns_service.calculate_testing_returns_for_cpo_task_batched = Mock(
             return_value=(3, 2)
         )
 
@@ -2164,8 +2259,8 @@ class TestTTMDetailsReport:
         assert external_returns == 2
 
         # Verify service was called correctly
-        generator.testing_returns_service.calculate_testing_returns_for_cpo_task.assert_called_once_with(
-            "CPO-123", generator.data_service.get_task_history_by_key
+        generator.testing_returns_service.calculate_testing_returns_for_cpo_task_batched.assert_called_once_with(
+            "CPO-123", generator.data_service.get_task_histories_by_keys_batch
         )
 
     def test_collect_csv_rows_with_returns_metrics(self, test_reports_dir):
@@ -2209,19 +2304,32 @@ class TestTTMDetailsReport:
         ]
         generator._load_quarters = Mock(return_value=quarters)
         generator._load_done_statuses = Mock(return_value=["done"])
-        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        # Mock new method for date range (all tasks at once)
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
+
+        # Mock quarter determination
+        generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
+
+        # Mock data service
         generator.data_service.get_task_history = Mock(return_value=[])
+
+        # Mock all calculation methods
         generator._calculate_ttm = Mock(side_effect=[15, 20])
-        generator._calculate_tail = Mock(side_effect=[5, None])
-        generator._calculate_devlt = Mock(side_effect=[8, None])
+        generator._calculate_tail = Mock(side_effect=[None, None])
+        generator._calculate_devlt = Mock(side_effect=[None, None])
         generator._calculate_ttd = Mock(side_effect=[12, None])
         generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
         generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
-        generator._calculate_pause = Mock(side_effect=[3, 7])
-        generator._calculate_ttd_pause = Mock(side_effect=[2, None])
-        generator._calculate_discovery_backlog_days = Mock(side_effect=[4, None])
-        generator._calculate_ready_for_dev_days = Mock(side_effect=[6, None])
-        generator._calculate_testing_returns = Mock(side_effect=[(3, 2), (1, 0)])
+        generator._calculate_ttd_quarter = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[None, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (3, 2), "CPO-456": (1, 0)}
+        )
         rows = generator._collect_csv_rows()
         assert len(rows) == 2
         row1, row2 = rows
@@ -2231,7 +2339,7 @@ class TestTTMDetailsReport:
         assert row2["Возвраты с Testing"] == 1
         assert row2["Возвраты с Внешний тест"] == 0
         assert row2["Всего возвратов"] == 1  # 1 + 0
-        assert generator._calculate_testing_returns.call_count == 2
+        # Note: _calculate_testing_returns is not used in new optimized logic
 
     def test_format_task_row_with_returns_none(self, test_reports_dir):
         """Test formatting task row with returns None values."""
@@ -2286,6 +2394,98 @@ class TestTTMDetailsReport:
         assert row["Возвраты с Testing"] == 3
         assert row["Возвраты с Внешний тест"] == 2
         assert row["Всего возвратов"] == 5
+
+    def test_batch_load_fullstack_links(self, test_reports_dir):
+        """Test batch loading FULLSTACK links for multiple CPO tasks."""
+        from unittest.mock import Mock
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+
+        # Mock the database query
+        mock_task1 = Mock()
+        mock_task1.key = "CPO-123"
+        mock_task1.links = [
+            {"type": {"id": "relates"}, "object": {"key": "FULLSTACK-456"}},
+            {"type": {"id": "relates"}, "object": {"key": "FULLSTACK-789"}},
+        ]
+
+        mock_task2 = Mock()
+        mock_task2.key = "CPO-456"
+        mock_task2.links = [
+            {"type": {"id": "relates"}, "object": {"key": "FULLSTACK-999"}}
+        ]
+
+        generator.testing_returns_service.db.query.return_value.filter.return_value.all.return_value = [
+            (mock_task1.key, mock_task1.links),
+            (mock_task2.key, mock_task2.links),
+        ]
+
+        # Test batch loading
+        result = generator.testing_returns_service.batch_load_fullstack_links(
+            ["CPO-123", "CPO-456"]
+        )
+
+        # Verify results
+        assert result["CPO-123"] == ["FULLSTACK-456", "FULLSTACK-789"]
+        assert result["CPO-456"] == ["FULLSTACK-999"]
+
+        # Verify database was called once
+        generator.testing_returns_service.db.query.assert_called_once()
+
+    def test_calculate_testing_returns_batched(self, test_reports_dir):
+        """Test batched calculation of testing returns."""
+        from unittest.mock import Mock
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+
+        # Mock the service methods
+        generator.testing_returns_service.get_fullstack_links = Mock(
+            return_value=["FULLSTACK-123"]
+        )
+        generator.testing_returns_service.get_task_hierarchy = Mock(
+            return_value=["FULLSTACK-123", "FULLSTACK-456"]
+        )
+        generator.testing_returns_service._batch_check_task_existence = Mock(
+            return_value={"FULLSTACK-123", "FULLSTACK-456"}
+        )
+
+        # Mock batch histories function
+        mock_batch_histories = Mock(
+            return_value={
+                "FULLSTACK-123": [Mock(status="Testing"), Mock(status="Done")],
+                "FULLSTACK-456": [
+                    Mock(status="Testing"),
+                    Mock(status="Testing"),
+                    Mock(status="Done"),
+                ],
+            }
+        )
+
+        # Mock calculate_testing_returns_for_task
+        generator.testing_returns_service.calculate_testing_returns_for_task = Mock(
+            side_effect=[(1, 0), (2, 0)]
+        )
+
+        # Test batched calculation
+        (
+            testing_returns,
+            external_returns,
+        ) = generator.testing_returns_service.calculate_testing_returns_for_cpo_task_batched(
+            "CPO-123", mock_batch_histories
+        )
+
+        # Verify results
+        assert testing_returns == 3  # 1 + 2
+        assert external_returns == 0  # 0 + 0
+
+        # Verify batch histories was called once with all task keys
+        mock_batch_histories.assert_called_once_with(["FULLSTACK-123", "FULLSTACK-456"])
+
+        # Verify individual calculations were called
+        assert (
+            generator.testing_returns_service.calculate_testing_returns_for_task.call_count
+            == 2
+        )
 
 
 if __name__ == "__main__":

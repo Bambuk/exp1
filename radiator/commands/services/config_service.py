@@ -11,6 +11,9 @@ from radiator.core.logging import logger
 class ConfigService:
     """Service for loading and managing configuration."""
 
+    # Class-level cache for quarters
+    _quarters_cache = None
+
     def __init__(self, config_dir: str = "data/config"):
         """
         Initialize configuration service.
@@ -22,11 +25,15 @@ class ConfigService:
 
     def load_quarters(self) -> List[Quarter]:
         """
-        Load quarters/periods from file.
+        Load quarters/periods from file with caching.
 
         Returns:
             List of Quarter objects
         """
+        # Check cache first
+        if ConfigService._quarters_cache is not None:
+            return ConfigService._quarters_cache
+
         try:
             quarters_file = self.config_dir / "quarters.txt"
             if not quarters_file.exists():
@@ -59,6 +66,8 @@ class ConfigService:
                             continue
 
             logger.info(f"Loaded {len(quarters)} quarters")
+            # Cache the result
+            ConfigService._quarters_cache = quarters
             return quarters
 
         except Exception as e:
