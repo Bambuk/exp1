@@ -31,12 +31,14 @@
     "time_to_delivery_report_20250930_154549.csv",
     "details_20251007_144152.csv",
     "details_20251009_104831.csv",
+    "new_ttm_details_20251024_114453.csv",
     "time_to_market_report_20251006_194536.csv",
     "details_20251010_191628.csv",
     "TTM_long_20251006_214639.csv",
+    "new_ttm_details_20251024_121114.csv",
     "test_callback.csv",
     "details_20251007_222031.csv",
     "time_to_delivery_report_20251006_200149.csv"
   ],
-  "last_updated": "2025-10-24T10:35:46.590946"
+  "last_updated": "2025-10-24T12:15:09.094469"
 }

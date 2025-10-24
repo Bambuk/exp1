@@ -580,5 +580,270 @@ class TestDataService:
         assert result[0].start_date == datetime(2024, 1, 1)
 
 
+class TestStableDoneLogic:
+    """Tests for stable done logic in TTM calculation."""
+
+    def test_single_done_status(self):
+        """Test task with single done status (base case)."""
+        metrics_service = MetricsService()
+
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2024, 1, 2),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(2024, 1, 10)
+
+    def test_multiple_done_last_stable(self):
+        """Test task with multiple done statuses, last one is stable."""
+        metrics_service = MetricsService()
+
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2024, 1, 15),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 20),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(2024, 1, 20)  # Last stable done
+
+    def test_done_return_to_work_long_duration(self):
+        """Test done -> return to work > 5 minutes -> done (should use last done)."""
+        metrics_service = MetricsService()
+
+        # Create history with long return to work (> 5 minutes)
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=datetime(2024, 1, 10, 0, 5),
+            ),  # 5 minutes
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2024, 1, 10, 0, 10),
+                end_date=datetime(2024, 1, 15),
+            ),  # Long duration
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 20),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(2024, 1, 20)  # Last done
+
+    def test_done_return_to_work_short_duration(self):
+        """Test done -> return to work < 5 minutes -> done (should ignore short transition)."""
+        metrics_service = MetricsService()
+
+        # Create history with short return to work (< 5 minutes)
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=datetime(2024, 1, 10, 0, 5),
+            ),  # 5 minutes
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2024, 1, 10, 0, 6),
+                end_date=datetime(2024, 1, 10, 0, 8),
+            ),  # 2 minutes - short
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10, 0, 9),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        # Should return first done since short transition is filtered out
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(2024, 1, 10)  # First done
+
+    def test_sequential_done_without_gaps(self):
+        """Test sequential done statuses without gaps (should take first)."""
+        metrics_service = MetricsService()
+
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 11),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 12),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(2024, 1, 10)  # First done
+
+    def test_done_with_pause_stable(self):
+        """Test done -> pause -> done (should be stable)."""
+        metrics_service = MetricsService()
+
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 10),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Приостановлено",
+                status_display="Приостановлено",
+                start_date=datetime(2024, 1, 15),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2024, 1, 20),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is not None
+        assert result.status == "Done"
+        assert result.start_date == datetime(
+            2024, 1, 20
+        )  # Last done (pause doesn't break stability)
+
+    def test_no_done_statuses(self):
+        """Test task with no done statuses."""
+        metrics_service = MetricsService()
+
+        history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2024, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2024, 1, 2),
+                end_date=None,
+            ),
+        ]
+
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is None
+
+    def test_empty_history(self):
+        """Test empty history."""
+        metrics_service = MetricsService()
+
+        history = []
+        done_statuses = ["Done", "Закрыт"]
+        result = metrics_service._find_stable_done(history, done_statuses)
+
+        assert result is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

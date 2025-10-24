@@ -383,12 +383,8 @@ class MetricsService:
             if start_date is None:
                 return None
 
-            # Find first target status
-            target_entry = None
-            for entry in sorted(history_data, key=lambda x: x.start_date):
-                if entry.status in target_statuses:
-                    target_entry = entry
-                    break
+            # Find stable done status (last stable done, or first if all unstable)
+            target_entry = self._find_stable_done(history_data, target_statuses)
 
             if not target_entry:
                 return None
@@ -404,6 +400,76 @@ class MetricsService:
         except Exception as e:
             logger.warning(f"Failed to calculate Time To Market: {e}")
             return None
+
+    def _find_stable_done(
+        self, history_data: List[StatusHistoryEntry], target_statuses: List[str]
+    ) -> Optional[StatusHistoryEntry]:
+        """
+        Find the last stable done status - one after which task didn't return to work.
+
+        Args:
+            history_data: List of status history entries
+            target_statuses: List of done status names
+
+        Returns:
+            Last stable done entry or first done if all are unstable
+        """
+        try:
+            if not history_data:
+                return None
+
+            # Filter out short status transitions first
+            filtered_history = self._filter_short_status_transitions(history_data)
+            if not filtered_history:
+                return None
+
+            # Sort history by date
+            sorted_history = sorted(filtered_history, key=lambda x: x.start_date)
+
+            # Find all done statuses
+            done_entries = [
+                entry for entry in sorted_history if entry.status in target_statuses
+            ]
+            if not done_entries:
+                return None
+
+            # If only one done, return it
+            if len(done_entries) == 1:
+                return done_entries[0]
+
+            # Check each done status for stability (from last to first)
+            for i in range(len(done_entries) - 1, -1, -1):
+                done_entry = done_entries[i]
+                # Find the position of this done in sorted history
+                done_index = sorted_history.index(done_entry)
+
+                # Check if there are any non-done, non-pause statuses after this done
+                is_stable = True
+                for j in range(done_index + 1, len(sorted_history)):
+                    next_entry = sorted_history[j]
+
+                    # If next status is done or pause, it's still stable
+                    if (
+                        next_entry.status in target_statuses
+                        or next_entry.status == "Приостановлено"
+                    ):
+                        continue
+
+                    # If next status is not-done (backlog/discovery/delivery), it's unstable
+                    is_stable = False
+                    break
+
+                # If this done is stable, return it (it's the last stable one)
+                if is_stable:
+                    return done_entry
+
+            # If we get here, all done statuses are unstable, return the first one
+            return done_entries[0]
+
+        except Exception as e:
+            logger.warning(f"Failed to find stable done: {e}")
+            # Fallback to first done
+            return done_entries[0] if done_entries else None
 
     def calculate_tail_metric(
         self, history_data: List[StatusHistoryEntry], done_statuses: List[str]

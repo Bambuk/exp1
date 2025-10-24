@@ -480,5 +480,497 @@ class TestGenerateTimeToMarketReportCommand:
                     ), "DevLT should be present when TTM is in quarter"
 
 
+class TestTTMDetailsReport:
+    """Test cases for TTM Details Report generator."""
+
+    def test_generate_empty_ttm_details_csv(self, test_reports_dir):
+        """Test creation of empty CSV file with correct headers."""
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Generate CSV
+        output_path = f"{test_reports_dir}/ttm_details.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+        assert result_path == output_path
+
+        # Verify CSV content
+        with open(result_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Check headers
+        expected_headers = "Ключ задачи,Название,Автор,Команда,Квартал,TTM"
+        assert expected_headers in content
+
+        # Should only have headers (no data rows)
+        lines = content.strip().split("\n")
+        assert len(lines) == 1  # Only header row
+
+    def test_load_quarters_from_config(self, test_reports_dir):
+        """Test loading quarters from ConfigService."""
+        from datetime import datetime
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock ConfigService
+        with patch.object(
+            generator.config_service, "load_quarters"
+        ) as mock_load_quarters:
+            from radiator.commands.models.time_to_market_models import Quarter
+
+            mock_quarters = [
+                Quarter(
+                    name="Q1",
+                    start_date=datetime(2025, 1, 1),
+                    end_date=datetime(2025, 3, 31),
+                ),
+                Quarter(
+                    name="Q2",
+                    start_date=datetime(2025, 4, 1),
+                    end_date=datetime(2025, 6, 30),
+                ),
+            ]
+            mock_load_quarters.return_value = mock_quarters
+
+            # Test loading quarters
+            quarters = generator._load_quarters()
+
+            # Verify quarters were loaded
+            assert len(quarters) == 2
+            assert quarters[0].name == "Q1"
+            assert quarters[1].name == "Q2"
+            mock_load_quarters.assert_called_once()
+
+    def test_load_done_statuses(self, test_reports_dir):
+        """Test loading done statuses from ConfigService."""
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock ConfigService
+        with patch.object(
+            generator.config_service, "load_status_mapping"
+        ) as mock_load_status_mapping:
+            mock_status_mapping = Mock()
+            mock_status_mapping.done_statuses = ["Done", "Закрыт", "Выполнено"]
+            mock_load_status_mapping.return_value = mock_status_mapping
+
+            # Test loading done statuses
+            done_statuses = generator._load_done_statuses()
+
+            # Verify done statuses were loaded
+            assert len(done_statuses) == 3
+            assert "Done" in done_statuses
+            assert "Закрыт" in done_statuses
+            assert "Выполнено" in done_statuses
+            mock_load_status_mapping.assert_called_once()
+
+    def test_get_ttm_tasks_for_quarter(self, test_reports_dir):
+        """Test getting TTM tasks for a quarter."""
+        from datetime import datetime
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock DataService
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        mock_tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                created_at=datetime.now(),
+                summary="Task 1",
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                created_at=datetime.now(),
+                summary="Task 2",
+            ),
+        ]
+
+        # Replace data_service with mock
+        generator.data_service = Mock()
+        generator.data_service.get_tasks_for_period.return_value = mock_tasks
+
+        # Mock quarter
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        quarter = Quarter(
+            name="Q1", start_date=datetime(2025, 1, 1), end_date=datetime(2025, 3, 31)
+        )
+
+        # Test getting TTM tasks
+        tasks = generator._get_ttm_tasks_for_quarter(quarter)
+
+        # Verify tasks were retrieved
+        assert len(tasks) == 2
+        assert tasks[0].key == "CPO-123"
+        assert tasks[1].key == "CPO-456"
+
+        # Verify DataService was called with correct parameters
+        generator.data_service.get_tasks_for_period.assert_called_once()
+        call_args = generator.data_service.get_tasks_for_period.call_args
+        assert call_args[1]["metric_type"] == "ttm"
+        assert call_args[1]["start_date"] == quarter.start_date
+        assert call_args[1]["end_date"] == quarter.end_date
+
+    def test_calculate_ttm_for_task(self, test_reports_dir):
+        """Test calculating TTM for a task."""
+        from datetime import datetime
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock MetricsService
+        generator.metrics_service = Mock()
+        generator.metrics_service.calculate_time_to_market.return_value = 15
+
+        # Mock task history
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 1, 16),
+                end_date=None,
+            ),
+        ]
+
+        # Replace data_service with mock
+        generator.data_service = Mock()
+        generator.data_service.get_task_history.return_value = mock_history
+
+        # Mock done statuses
+        done_statuses = ["Done", "Закрыт"]
+
+        # Test calculating TTM
+        ttm = generator._calculate_ttm(123, done_statuses)
+
+        # Verify TTM was calculated
+        assert ttm == 15
+
+        # Verify MetricsService was called with correct parameters
+        generator.metrics_service.calculate_time_to_market.assert_called_once()
+        call_args = generator.metrics_service.calculate_time_to_market.call_args
+        assert call_args[0][0] == mock_history  # history
+        assert call_args[0][1] == done_statuses  # done_statuses
+
+    def test_collect_csv_rows(self, test_reports_dir):
+        """Test collecting CSV rows data."""
+        from datetime import datetime
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+            Quarter(
+                name="Q2",
+                start_date=datetime(2025, 4, 1),
+                end_date=datetime(2025, 6, 30),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock tasks for quarters
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        mock_tasks_q1 = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                created_at=datetime.now(),
+                summary="Task 1",
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                created_at=datetime.now(),
+                summary="Task 2",
+            ),
+        ]
+        mock_tasks_q2 = [
+            TaskData(
+                id=3,
+                key="CPO-789",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                created_at=datetime.now(),
+                summary="Task 3",
+            )
+        ]
+
+        generator._get_ttm_tasks_for_quarter = Mock(
+            side_effect=[mock_tasks_q1, mock_tasks_q2]
+        )
+
+        # Mock TTM calculations
+        generator._calculate_ttm = Mock(
+            side_effect=[15, 20, 10]
+        )  # TTM for tasks 1, 2, 3
+
+        # Test collecting CSV rows
+        rows = generator._collect_csv_rows()
+
+        # Verify rows were collected
+        assert len(rows) == 3
+
+        # Check first row
+        row1 = rows[0]
+        assert row1["Ключ задачи"] == "CPO-123"
+        assert row1["Название"] == "Task 1"
+        assert row1["Автор"] == "Author1"
+        assert row1["Команда"] == ""
+        assert row1["Квартал"] == "Q1"
+        assert row1["TTM"] == 15
+
+        # Check second row
+        row2 = rows[1]
+        assert row2["Ключ задачи"] == "CPO-456"
+        assert row2["TTM"] == 20
+        assert row2["Квартал"] == "Q1"
+
+        # Check third row
+        row3 = rows[2]
+        assert row3["Ключ задачи"] == "CPO-789"
+        assert row3["TTM"] == 10
+        assert row3["Квартал"] == "Q2"
+
+        # Verify methods were called
+        generator._load_quarters.assert_called_once()
+        generator._load_done_statuses.assert_called_once()
+        assert generator._get_ttm_tasks_for_quarter.call_count == 2
+        assert generator._calculate_ttm.call_count == 3
+
+    def test_write_csv_with_data(self, test_reports_dir):
+        """Test writing CSV with real data."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock CSV rows data
+        mock_rows = [
+            {
+                "Ключ задачи": "CPO-123",
+                "Название": "Task 1",
+                "Автор": "Author1",
+                "Команда": "",
+                "Квартал": "Q1",
+                "TTM": 15,
+            },
+            {
+                "Ключ задачи": "CPO-456",
+                "Название": "Task 2",
+                "Автор": "Author2",
+                "Команда": "",
+                "Квартал": "Q1",
+                "TTM": 20,
+            },
+        ]
+        generator._collect_csv_rows = Mock(return_value=mock_rows)
+
+        # Test writing CSV
+        output_path = f"{test_reports_dir}/ttm_details_with_data.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+        assert result_path == output_path
+
+        # Verify CSV content
+        with open(result_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            lines = content.strip().split("\n")
+
+            # Should have header + 2 data rows
+            assert len(lines) == 3
+
+            # Check headers
+            headers = lines[0].split(",")
+            expected_headers = [
+                "Ключ задачи",
+                "Название",
+                "Автор",
+                "Команда",
+                "Квартал",
+                "TTM",
+            ]
+            assert headers == expected_headers
+
+            # Check first data row
+            row1 = lines[1].split(",")
+            assert row1[0] == "CPO-123"
+            assert row1[1] == "Task 1"
+            assert row1[2] == "Author1"
+            assert row1[3] == ""
+            assert row1[4] == "Q1"
+            assert row1[5] == "15"
+
+            # Check second data row
+            row2 = lines[2].split(",")
+            assert row2[0] == "CPO-456"
+            assert row2[5] == "20"
+
+        # Verify _collect_csv_rows was called
+        generator._collect_csv_rows.assert_called_once()
+
+    def test_integration_with_real_db(self, test_reports_dir):
+        """Test integration with real test database."""
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.core.database import SessionLocal
+
+        # Use real database session
+        with SessionLocal() as db:
+            # Create generator with real database
+            generator = TTMDetailsReportGenerator(db=db)
+
+            # Test generating CSV with real data
+            output_path = f"{test_reports_dir}/ttm_details_integration.csv"
+            result_path = generator.generate_csv(output_path)
+
+            # Verify file was created
+            assert Path(result_path).exists()
+            assert result_path == output_path
+
+            # Verify CSV content has headers
+            import csv
+
+            with open(result_path, "r", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                rows = list(reader)
+
+                # Should have at least headers
+                assert len(rows) >= 1
+
+                # Check headers
+                headers = rows[0]
+                expected_headers = [
+                    "Ключ задачи",
+                    "Название",
+                    "Автор",
+                    "Команда",
+                    "Квартал",
+                    "TTM",
+                ]
+                assert headers == expected_headers
+
+                # If there are data rows, check format
+                if len(rows) > 1:
+                    # Check that data rows have correct number of columns
+                    for i, row in enumerate(rows[1:], 1):
+                        assert (
+                            len(row) == 6
+                        ), f"Row {i} has {len(row)} columns, expected 6"
+
+                        # Check that TTM column is numeric or empty
+                        ttm_value = row[5]
+                        if ttm_value:  # Not empty
+                            try:
+                                int(ttm_value)
+                            except ValueError:
+                                assert (
+                                    False
+                                ), f"TTM value '{ttm_value}' in row {i} is not numeric"
+
+            # Log the result for debugging
+            print(f"Integration test generated CSV with {len(rows)-1} data rows")
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

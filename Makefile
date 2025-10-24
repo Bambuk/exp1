@@ -31,6 +31,7 @@ help:  ## Show this help message
 	@echo '  generate-time-to-market-report-long - Generate TTD/TTM report by authors (long format)'
 	@echo '  generate-time-to-market-report-teams-long - Generate TTD/TTM report by teams (long format)'
 	@echo '  generate-time-to-market-report-all - Generate both author and team TTD/TTM reports'
+	@echo '  generate-ttm-details-report - Generate TTM Details CSV report with timestamp'
 	@echo ''
 	@echo 'Google Sheets Commands:'
 	@echo '  google-sheets-monitor - Start Google Sheets CSV uploader monitoring (handles both regular and pivot uploads)'
@@ -265,6 +266,14 @@ generate-time-to-market-report-teams-long:  ## Generate Time To Delivery and Tim
 	@. venv/bin/activate && python -m radiator.commands.generate_time_to_market_report --group-by team --report-type both --csv-format long
 	@echo ""
 	@echo "✅ Time To Market report by teams (long format) generated successfully!"
+
+generate-ttm-details-report:  ## Generate TTM Details CSV report with timestamp
+	@echo "📊 Generating TTM Details report..."
+	@mkdir -p data/reports
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	. venv/bin/activate && python -m radiator.commands.generate_ttm_details_report --output "data/reports/new_ttm_details_$$TIMESTAMP.csv"
+	@echo ""
+	@echo "✅ TTM Details report generated successfully!"
 
 # Database snapshot and restore commands
 db-snapshot:  ## Create snapshot of both production and test databases
