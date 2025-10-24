@@ -109,24 +109,14 @@ class CommandExecutor:
 
         return success, combined_output, ""
 
-    async def generate_time_to_market_report_teams(
-        self, csv_format: str = "wide"
-    ) -> Tuple[bool, str, str]:
+    async def generate_ttm_details_report(self) -> Tuple[bool, str, str]:
         """
-        Generate time to market report by teams.
-
-        Args:
-            csv_format: CSV format - "wide" or "long"
+        Generate TTM Details report.
 
         Returns:
             Tuple of (success, stdout, stderr)
         """
-        if csv_format == "long":
-            return await self.run_make_command(
-                "generate-time-to-market-report-teams-long"
-            )
-        else:
-            return await self.run_make_command("generate-time-to-market-report-teams")
+        return await self.run_make_command("generate-ttm-details-report")
 
     async def sync_and_report(self) -> Tuple[bool, str, str]:
         """Sync tracker and generate status report."""

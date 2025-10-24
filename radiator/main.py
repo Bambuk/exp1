@@ -10,7 +10,7 @@ def main():
     print(f"Radiator CLI v{settings.APP_VERSION}")
     print("Use specific commands like:")
     print("  python -m radiator.commands.generate_status_change_report")
-    print("  python -m radiator.commands.generate_time_to_market_report")
+    print("  python -m radiator.commands.generate_ttm_details_report")
     print("  python -m radiator.commands.sync_tracker")
 
 

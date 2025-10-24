@@ -144,14 +144,11 @@ Generate comprehensive reports on task completion timelines with TTD/TTM metrics
 ### Quick Report Generation
 
 ```bash
-# Generate report with default settings
-make generate-time-to-market-report
+# Generate TTM Details report with timestamp
+make generate-ttm-details-report
 
 # Or run directly
-python -m radiator.commands.generate_time_to_market_report
-
-# Group by teams
-python -m radiator.commands.generate_time_to_market_report --group-by team
+python -m radiator.commands.generate_ttm_details_report
 ```
 
 ### Report Features
