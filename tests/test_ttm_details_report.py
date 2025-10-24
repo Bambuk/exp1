@@ -389,6 +389,9 @@ class TestTTMDetailsReport:
                 "TTD Pause": "",
                 "Discovery backlog (дни)": "",
                 "Готова к разработке (дни)": "",
+                "Возвраты с Testing": "",
+                "Возвраты с Внешний тест": "",
+                "Всего возвратов": "",
                 "Квартал TTD": "",
             },
             {
@@ -405,6 +408,9 @@ class TestTTMDetailsReport:
                 "TTD Pause": "",
                 "Discovery backlog (дни)": "",
                 "Готова к разработке (дни)": "",
+                "Возвраты с Testing": "",
+                "Возвраты с Внешний тест": "",
+                "Всего возвратов": "",
                 "Квартал TTD": "",
             },
         ]
@@ -442,6 +448,9 @@ class TestTTMDetailsReport:
                 "TTD Pause",
                 "Discovery backlog (дни)",
                 "Готова к разработке (дни)",
+                "Возвраты с Testing",
+                "Возвраты с Внешний тест",
+                "Всего возвратов",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -509,6 +518,9 @@ class TestTTMDetailsReport:
                     "TTD Pause",
                     "Discovery backlog (дни)",
                     "Готова к разработке (дни)",
+                    "Возвраты с Testing",
+                    "Возвраты с Внешний тест",
+                    "Всего возвратов",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -518,8 +530,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 14
-                        ), f"Row {i} has {len(row)} columns, expected 14"
+                            len(row) == 17
+                        ), f"Row {i} has {len(row)} columns, expected 17"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -564,6 +576,9 @@ class TestTTMDetailsReport:
                 "TTD Pause": "",
                 "Discovery backlog (дни)": "",
                 "Готова к разработке (дни)": "",
+                "Возвраты с Testing": "",
+                "Возвраты с Внешний тест": "",
+                "Всего возвратов": "",
                 "Квартал TTD": "",
             }
         ]
@@ -603,6 +618,9 @@ class TestTTMDetailsReport:
                 "TTD Pause",
                 "Discovery backlog (дни)",
                 "Готова к разработке (дни)",
+                "Возвраты с Testing",
+                "Возвраты с Внешний тест",
+                "Всего возвратов",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -610,8 +628,8 @@ class TestTTMDetailsReport:
             # Check first data row has Tail column
             row1 = lines[1]
             assert (
-                len(row1) == 14
-            )  # 14 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, and Квартал TTD
+                len(row1) == 17
+            )  # 17 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -647,6 +665,9 @@ class TestTTMDetailsReport:
                 "TTD Pause": "",
                 "Discovery backlog (дни)": "",
                 "Готова к разработке (дни)": "",
+                "Возвраты с Testing": "",
+                "Возвраты с Внешний тест": "",
+                "Всего возвратов": "",
                 "Квартал TTD": "",
             }
         ]
@@ -686,6 +707,9 @@ class TestTTMDetailsReport:
                 "TTD Pause",
                 "Discovery backlog (дни)",
                 "Готова к разработке (дни)",
+                "Возвраты с Testing",
+                "Возвраты с Внешний тест",
+                "Всего возвратов",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -693,8 +717,8 @@ class TestTTMDetailsReport:
             # Check first data row has DevLT column
             row1 = lines[1]
             assert (
-                len(row1) == 14
-            )  # 14 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, and Квартал TTD
+                len(row1) == 17
+            )  # 17 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -1231,6 +1255,9 @@ class TestTTMDetailsReport:
                     "TTD Pause",
                     "Discovery backlog (дни)",
                     "Готова к разработке (дни)",
+                    "Возвраты с Testing",
+                    "Возвраты с Внешний тест",
+                    "Всего возвратов",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -1240,8 +1267,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 14
-                        ), f"Row {i} has {len(row)} columns, expected 14"
+                            len(row) == 17
+                        ), f"Row {i} has {len(row)} columns, expected 17"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -1414,6 +1441,9 @@ class TestTTMDetailsReport:
             "TTD Pause",  # New TTD pause column
             "Discovery backlog (дни)",
             "Готова к разработке (дни)",
+            "Возвраты с Testing",
+            "Возвраты с Внешний тест",
+            "Всего возвратов",
             "Квартал TTD",  # New TTD quarter column
         ]
         assert headers == expected_headers
@@ -1653,6 +1683,9 @@ class TestTTMDetailsReport:
             "TTD Pause",  # New TTD pause column after TTD
             "Discovery backlog (дни)",
             "Готова к разработке (дни)",
+            "Возвраты с Testing",
+            "Возвраты с Внешний тест",
+            "Всего возвратов",
             "Квартал TTD",
         ]
         assert headers == expected_headers
@@ -1852,6 +1885,9 @@ class TestTTMDetailsReport:
             "TTD Pause",
             "Discovery backlog (дни)",  # New column after TTD Pause
             "Готова к разработке (дни)",  # New column after TTD Pause
+            "Возвраты с Testing",
+            "Возвраты с Внешний тест",
+            "Всего возвратов",
             "Квартал TTD",
         ]
         assert headers == expected_headers
@@ -2068,6 +2104,188 @@ class TestTTMDetailsReport:
 
         assert row["Discovery backlog (дни)"] == 4
         assert row["Готова к разработке (дни)"] == 6
+
+    def test_ttm_details_csv_has_returns_columns(self, test_reports_dir):
+        """Test that CSV contains returns columns in correct order."""
+        import csv
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+        output_path = f"{test_reports_dir}/test_returns.csv"
+        generator._collect_csv_rows = Mock(return_value=[])
+        generator.generate_csv(output_path)
+        with open(output_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames
+        expected_headers = [
+            "Ключ задачи",
+            "Название",
+            "Автор",
+            "Команда",
+            "Квартал",
+            "TTM",
+            "Пауза",
+            "Tail",
+            "DevLT",
+            "TTD",
+            "TTD Pause",
+            "Discovery backlog (дни)",
+            "Готова к разработке (дни)",
+            "Возвраты с Testing",  # New column after Готова к разработке (дни)
+            "Возвраты с Внешний тест",  # New column after Готова к разработке (дни)
+            "Всего возвратов",  # New column after Готова к разработке (дни)
+            "Квартал TTD",
+        ]
+        assert headers == expected_headers
+
+    def test_generator_has_testing_returns_service(self, test_reports_dir):
+        """Test that TTMDetailsReportGenerator has testing_returns_service attribute."""
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+        assert hasattr(generator, "testing_returns_service")
+        assert generator.testing_returns_service is not None
+
+    def test_calculate_testing_returns_for_task_with_fullstack(self, test_reports_dir):
+        """Test calculating testing returns for task with FULLSTACK links."""
+        from unittest.mock import Mock
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+
+        # Mock the testing returns service
+        generator.testing_returns_service.calculate_testing_returns_for_cpo_task = Mock(
+            return_value=(3, 2)
+        )
+
+        # Test calculating returns
+        testing_returns, external_returns = generator._calculate_testing_returns(
+            "CPO-123"
+        )
+
+        # Verify results
+        assert testing_returns == 3
+        assert external_returns == 2
+
+        # Verify service was called correctly
+        generator.testing_returns_service.calculate_testing_returns_for_cpo_task.assert_called_once_with(
+            "CPO-123", generator.data_service.get_task_history_by_key
+        )
+
+    def test_collect_csv_rows_with_returns_metrics(self, test_reports_dir):
+        """Test collecting CSV rows with returns metrics."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import Quarter, TaskData
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+        quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                summary="Task 1",
+                created_at=datetime(2025, 1, 1),
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                summary="Task 2",
+                created_at=datetime(2025, 1, 1),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=quarters)
+        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        generator.data_service.get_task_history = Mock(return_value=[])
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[5, None])
+        generator._calculate_devlt = Mock(side_effect=[8, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[3, 7])
+        generator._calculate_ttd_pause = Mock(side_effect=[2, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[4, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[6, None])
+        generator._calculate_testing_returns = Mock(side_effect=[(3, 2), (1, 0)])
+        rows = generator._collect_csv_rows()
+        assert len(rows) == 2
+        row1, row2 = rows
+        assert row1["Возвраты с Testing"] == 3
+        assert row1["Возвраты с Внешний тест"] == 2
+        assert row1["Всего возвратов"] == 5  # 3 + 2
+        assert row2["Возвраты с Testing"] == 1
+        assert row2["Возвраты с Внешний тест"] == 0
+        assert row2["Всего возвратов"] == 1  # 1 + 0
+        assert generator._calculate_testing_returns.call_count == 2
+
+    def test_format_task_row_with_returns_none(self, test_reports_dir):
+        """Test formatting task row with returns None values."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1),
+        )
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=3,
+            ttd_pause=2,
+            discovery_backlog_days=4,
+            ready_for_dev_days=6,
+            testing_returns=None,
+            external_returns=None,
+            total_returns=None,
+        )
+        assert row["Возвраты с Testing"] == ""
+        assert row["Возвраты с Внешний тест"] == ""
+        assert row["Всего возвратов"] == ""
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=3,
+            ttd_pause=2,
+            discovery_backlog_days=4,
+            ready_for_dev_days=6,
+            testing_returns=3,
+            external_returns=2,
+            total_returns=5,
+        )
+        assert row["Возвраты с Testing"] == 3
+        assert row["Возвраты с Внешний тест"] == 2
+        assert row["Всего возвратов"] == 5
 
 
 if __name__ == "__main__":

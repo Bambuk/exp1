@@ -14,6 +14,7 @@ from radiator.commands.services.author_team_mapping_service import (
 from radiator.commands.services.config_service import ConfigService
 from radiator.commands.services.data_service import DataService
 from radiator.commands.services.metrics_service import MetricsService
+from radiator.commands.services.testing_returns_service import TestingReturnsService
 from radiator.core.logging import logger
 
 
@@ -36,6 +37,7 @@ class TTMDetailsReportGenerator:
         self.author_team_mapping_service = AuthorTeamMappingService(
             f"{config_dir}/cpo_authors.txt"
         )
+        self.testing_returns_service = TestingReturnsService(db)
 
     def _load_quarters(self) -> List[Quarter]:
         """
@@ -315,6 +317,24 @@ class TTMDetailsReportGenerator:
 
         return ""
 
+    def _calculate_testing_returns(self, task_key: str) -> tuple[int, int]:
+        """
+        Calculate testing returns for a task.
+
+        Args:
+            task_key: Task key
+
+        Returns:
+            Tuple of (testing_returns, external_returns)
+        """
+        try:
+            return self.testing_returns_service.calculate_testing_returns_for_cpo_task(
+                task_key, self.data_service.get_task_history_by_key
+            )
+        except Exception as e:
+            logger.warning(f"Failed to calculate testing returns for {task_key}: {e}")
+            return 0, 0
+
     def _collect_csv_rows(self) -> List[dict]:
         """
         Collect CSV rows data for all quarters.
@@ -359,6 +379,12 @@ class TTMDetailsReportGenerator:
                     task.id, history
                 )
 
+                # Calculate testing returns metrics
+                testing_returns, external_returns = self._calculate_testing_returns(
+                    task.key
+                )
+                total_returns = testing_returns + external_returns
+
                 # Only include tasks with valid TTM
                 if ttm is not None:
                     row = self._format_task_row(
@@ -373,6 +399,9 @@ class TTMDetailsReportGenerator:
                         ttd_pause,
                         discovery_backlog_days,
                         ready_for_dev_days,
+                        testing_returns,
+                        external_returns,
+                        total_returns,
                     )
                     rows.append(row)
 
@@ -391,6 +420,9 @@ class TTMDetailsReportGenerator:
         ttd_pause: Optional[int] = None,
         discovery_backlog_days: Optional[int] = None,
         ready_for_dev_days: Optional[int] = None,
+        testing_returns: Optional[int] = None,
+        external_returns: Optional[int] = None,
+        total_returns: Optional[int] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -426,6 +458,13 @@ class TTMDetailsReportGenerator:
             "Готова к разработке (дни)": ready_for_dev_days
             if ready_for_dev_days is not None
             else "",
+            "Возвраты с Testing": testing_returns
+            if testing_returns is not None
+            else "",
+            "Возвраты с Внешний тест": external_returns
+            if external_returns is not None
+            else "",
+            "Всего возвратов": total_returns if total_returns is not None else "",
             "Квартал TTD": ttd_quarter or "",
         }
 
@@ -462,6 +501,9 @@ class TTMDetailsReportGenerator:
                     "TTD Pause",
                     "Discovery backlog (дни)",
                     "Готова к разработке (дни)",
+                    "Возвраты с Testing",
+                    "Возвраты с Внешний тест",
+                    "Всего возвратов",
                     "Квартал TTD",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
