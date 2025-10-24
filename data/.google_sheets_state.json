@@ -7,6 +7,7 @@
     "time_to_market_report_20251006_200151.csv",
     "details_20251022_220802.csv",
     "new_ttm_details_20251024_132926.csv",
+    "new_ttm_details_20251024_175425.csv",
     "details_20251018_171558.csv",
     "details_20251007_211334.csv",
     "new_ttm_details_20251024_125613.csv",
@@ -49,5 +50,5 @@
     "time_to_delivery_report_20251006_200149.csv",
     "new_ttm_details_20251024_123033.csv"
   ],
-  "last_updated": "2025-10-24T16:42:07.481483"
+  "last_updated": "2025-10-24T17:55:19.987251"
 }

@@ -2487,6 +2487,167 @@ class TestTTMDetailsReport:
             == 2
         )
 
+    def test_build_fullstack_hierarchy_no_cross_contamination(self, test_reports_dir):
+        """
+        Verify that build_fullstack_hierarchy_batched doesn't add
+        unrelated FULLSTACK tasks to CPO tasks.
+        """
+        from unittest.mock import Mock
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+
+        # Mock two CPO tasks with different FULLSTACK hierarchies
+        # CPO-A -> FULLSTACK-1 -> FULLSTACK-2, FULLSTACK-3
+        # CPO-B -> FULLSTACK-4 -> FULLSTACK-5
+
+        # Mock batch_load_fullstack_links
+        generator.testing_returns_service.batch_load_fullstack_links = Mock(
+            return_value={"CPO-A": ["FULLSTACK-1"], "CPO-B": ["FULLSTACK-4"]}
+        )
+
+        # Mock get_task_hierarchy_batch to return specific hierarchies
+        def mock_hierarchy_batch(parent_keys):
+            result = {}
+            for parent in parent_keys:
+                if parent == "FULLSTACK-1":
+                    result[parent] = ["FULLSTACK-2", "FULLSTACK-3"]
+                elif parent == "FULLSTACK-4":
+                    result[parent] = ["FULLSTACK-5"]
+                else:
+                    result[parent] = []
+            return result
+
+        generator.testing_returns_service.get_task_hierarchy_batch = Mock(
+            side_effect=mock_hierarchy_batch
+        )
+
+        # Test the method
+        result = generator.testing_returns_service.build_fullstack_hierarchy_batched(
+            ["CPO-A", "CPO-B"]
+        )
+
+        # Verify results
+        assert "CPO-A" in result
+        assert "CPO-B" in result
+
+        cpo_a_tasks = set(result["CPO-A"])
+        cpo_b_tasks = set(result["CPO-B"])
+
+        # Expected: CPO-A should have FULLSTACK-1, FULLSTACK-2, FULLSTACK-3
+        expected_a = {"FULLSTACK-1", "FULLSTACK-2", "FULLSTACK-3"}
+        assert (
+            cpo_a_tasks == expected_a
+        ), f"CPO-A got {cpo_a_tasks}, expected {expected_a}"
+
+        # Expected: CPO-B should have FULLSTACK-4, FULLSTACK-5
+        expected_b = {"FULLSTACK-4", "FULLSTACK-5"}
+        assert (
+            cpo_b_tasks == expected_b
+        ), f"CPO-B got {cpo_b_tasks}, expected {expected_b}"
+
+        # CRITICAL: No cross-contamination - no intersection
+        intersection = cpo_a_tasks & cpo_b_tasks
+        assert len(intersection) == 0, f"Found cross-contamination: {intersection}"
+
+    def test_calculate_returns_respects_cpo_boundaries(self, test_reports_dir):
+        """
+        Verify that testing returns are calculated only for
+        FULLSTACK tasks actually related to each CPO task.
+        """
+        from unittest.mock import Mock
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+
+        # Mock the service methods to simulate the bug
+        # This test will FAIL with current buggy implementation
+        # and PASS after the fix
+
+        # Mock batch_load_fullstack_links
+        generator.testing_returns_service.batch_load_fullstack_links = Mock(
+            return_value={
+                "CPO-5770": ["FULLSTACK-25769"],
+                "CPO-4370": ["FULLSTACK-17075", "FULLSTACK-25177"],
+            }
+        )
+
+        # Mock get_task_hierarchy_batch to return realistic hierarchies
+        def mock_hierarchy_batch(parent_keys):
+            result = {}
+            for parent in parent_keys:
+                if parent == "FULLSTACK-25769":
+                    result[parent] = [
+                        "FULLSTACK-30816",
+                        "FULLSTACK-31531",
+                        "FULLSTACK-31530",
+                        "FULLSTACK-30815",
+                        "FULLSTACK-30818",
+                    ]
+                elif parent == "FULLSTACK-17075":
+                    result[parent] = [
+                        "FULLSTACK-31360",
+                        "FULLSTACK-31355",
+                        "FULLSTACK-31928",
+                        "FULLSTACK-22855",
+                        "FULLSTACK-30608",
+                        "FULLSTACK-22854",
+                        "FULLSTACK-22856",
+                        "FULLSTACK-22857",
+                        "FULLSTACK-25112",
+                    ]
+                elif parent == "FULLSTACK-25177":
+                    result[parent] = []  # No children
+                else:
+                    result[parent] = []
+            return result
+
+        generator.testing_returns_service.get_task_hierarchy_batch = Mock(
+            side_effect=mock_hierarchy_batch
+        )
+
+        # Test the method
+        result = generator.testing_returns_service.build_fullstack_hierarchy_batched(
+            ["CPO-5770", "CPO-4370"]
+        )
+
+        # Verify results
+        cpo_5770_tasks = set(result["CPO-5770"])
+        cpo_4370_tasks = set(result["CPO-4370"])
+
+        # Expected for CPO-5770: 1 direct + 5 children = 6 tasks
+        expected_5770 = {
+            "FULLSTACK-25769",
+            "FULLSTACK-30816",
+            "FULLSTACK-31531",
+            "FULLSTACK-31530",
+            "FULLSTACK-30815",
+            "FULLSTACK-30818",
+        }
+        assert (
+            cpo_5770_tasks == expected_5770
+        ), f"CPO-5770 got {len(cpo_5770_tasks)} tasks, expected 6. Got: {cpo_5770_tasks}"
+
+        # Expected for CPO-4370: 2 direct + 9 children = 11 tasks
+        expected_4370 = {
+            "FULLSTACK-17075",
+            "FULLSTACK-25177",
+            "FULLSTACK-31360",
+            "FULLSTACK-31355",
+            "FULLSTACK-31928",
+            "FULLSTACK-22855",
+            "FULLSTACK-30608",
+            "FULLSTACK-22854",
+            "FULLSTACK-22856",
+            "FULLSTACK-22857",
+            "FULLSTACK-25112",
+        }
+        assert (
+            cpo_4370_tasks == expected_4370
+        ), f"CPO-4370 got {len(cpo_4370_tasks)} tasks, expected 11. Got: {cpo_4370_tasks}"
+
+        # CRITICAL: No cross-contamination
+        intersection = cpo_5770_tasks & cpo_4370_tasks
+        assert len(intersection) == 0, f"Found cross-contamination: {intersection}"
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

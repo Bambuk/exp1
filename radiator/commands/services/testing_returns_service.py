@@ -428,68 +428,60 @@ class TestingReturnsService:
         # Step 1: Batch load direct FULLSTACK links for all CPO tasks
         cpo_to_fullstack = self.batch_load_fullstack_links(cpo_task_keys)
 
-        # Step 2: Build hierarchy level by level for ALL CPO tasks together
-        result = {}
-        incomplete_cpo_keys = []
-
-        # Initialize result with direct links
+        # Step 2: Initialize state for each CPO task
+        # Храним для каждой CPO: все найденные задачи + родители текущего уровня
+        cpo_state = {}
         for cpo_key, direct_fullstack_keys in cpo_to_fullstack.items():
             if not direct_fullstack_keys:
-                result[cpo_key] = []
-                continue
-            result[cpo_key] = list(direct_fullstack_keys)
-
-        # Track all FULLSTACK keys found so far (to avoid duplicates)
-        all_fullstack_keys = set()
-        for fullstack_keys in result.values():
-            all_fullstack_keys.update(fullstack_keys)
-
-        # Current level keys for iteration
-        current_level_keys = list(all_fullstack_keys)
+                cpo_state[cpo_key] = {"all_tasks": set(), "current_parents": set()}
+            else:
+                cpo_state[cpo_key] = {
+                    "all_tasks": set(direct_fullstack_keys),
+                    "current_parents": set(direct_fullstack_keys),
+                }
 
         # Step 3: Iterate through depth levels
         for depth in range(1, max_depth + 1):
-            if not current_level_keys:
+            # Собираем всех уникальных родителей от ВСЕХ CPO задач
+            all_current_parents = set()
+            for state in cpo_state.values():
+                all_current_parents.update(state["current_parents"])
+
+            if not all_current_parents:
                 break
 
             logger.info(
-                f"Processing depth {depth} with {len(current_level_keys)} tasks..."
+                f"Processing depth {depth} with {len(all_current_parents)} unique parents..."
             )
 
-            # Batch load subtasks for current level (ONE call per depth level)
-            children_batch = self.get_task_hierarchy_batch(current_level_keys)
+            # ОДИН батчевый запрос для всех родителей
+            children_batch = self.get_task_hierarchy_batch(list(all_current_parents))
 
-            # Collect new children for next level
-            next_level_keys = []
-            for parent_key, children in children_batch.items():
-                new_children = [
-                    k
-                    for k in children
-                    if k not in all_fullstack_keys and k != parent_key
-                ]
-                next_level_keys.extend(new_children)
-                all_fullstack_keys.update(new_children)
+            # Обновляем каждую CPO задачу ИНДИВИДУАЛЬНО
+            for cpo_key, state in cpo_state.items():
+                next_parents = set()
 
-            # Update result for all CPO tasks that have these new children
-            for cpo_key, fullstack_keys in result.items():
-                if not fullstack_keys:
-                    continue
+                # Для каждого родителя ЭТОЙ конкретной CPO задачи
+                for parent in state["current_parents"]:
+                    children = children_batch.get(parent, [])
+                    for child in children:
+                        if child not in state["all_tasks"] and child != parent:
+                            state["all_tasks"].add(child)
+                            next_parents.add(child)
 
-                # Add new children that are related to this CPO task
-                for child_key in next_level_keys:
-                    if child_key not in fullstack_keys:
-                        # Check if this child is related to any of the CPO's FULLSTACK tasks
-                        # For now, we'll add all new children (this could be optimized)
-                        fullstack_keys.append(child_key)
-
-            current_level_keys = next_level_keys
+                state["current_parents"] = next_parents
 
             # Check if we hit max depth with remaining tasks
-            if depth == max_depth and current_level_keys:
+            if depth == max_depth and all_current_parents:
                 logger.warning(
-                    f"Reached max depth {max_depth} with {len(current_level_keys)} "
+                    f"Reached max depth {max_depth} with {len(all_current_parents)} "
                     f"remaining tasks. Possible cyclic dependencies."
                 )
+
+        # Формируем результат
+        result = {
+            cpo_key: list(state["all_tasks"]) for cpo_key, state in cpo_state.items()
+        }
 
         logger.info(
             f"Built hierarchy: {len(result)} CPO tasks -> "
