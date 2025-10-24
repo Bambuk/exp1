@@ -422,6 +422,7 @@ class TestTTMDetailsReport:
                 "Квартал",
                 "TTM",
                 "Tail",
+                "DevLT",
             ]
             assert headers == expected_headers
 
@@ -482,6 +483,7 @@ class TestTTMDetailsReport:
                     "Квартал",
                     "TTM",
                     "Tail",
+                    "DevLT",
                 ]
                 assert headers == expected_headers
 
@@ -490,8 +492,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 7
-                        ), f"Row {i} has {len(row)} columns, expected 7"
+                            len(row) == 8
+                        ), f"Row {i} has {len(row)} columns, expected 8"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -562,15 +564,263 @@ class TestTTMDetailsReport:
                 "Квартал",
                 "TTM",
                 "Tail",
+                "DevLT",
             ]
             assert headers == expected_headers
 
             # Check first data row has Tail column
             row1 = lines[1]
-            assert len(row1) == 7  # 7 columns including Tail
+            assert len(row1) == 8  # 8 columns including Tail and DevLT
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
+            assert row1[7] == ""  # DevLT (empty)
+
+    def test_ttm_details_csv_has_devlt_column(self, test_reports_dir):
+        """Test that TTM Details CSV has DevLT column after Tail."""
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock CSV rows data with DevLT column
+        mock_rows = [
+            {
+                "Ключ задачи": "CPO-123",
+                "Название": "Task 1",
+                "Автор": "Author1",
+                "Команда": "",
+                "Квартал": "Q1",
+                "TTM": 15,
+                "Tail": "",
+                "DevLT": "",
+            }
+        ]
+        generator._collect_csv_rows = Mock(return_value=mock_rows)
+
+        # Test generating CSV
+        output_path = f"{test_reports_dir}/ttm_details_with_devlt.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+        assert result_path == output_path
+
+        # Verify CSV content has DevLT column
+        import csv
+
+        with open(result_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            lines = list(reader)
+
+            # Should have header + 1 data row
+            assert len(lines) == 2
+
+            # Check headers include DevLT after Tail
+            headers = lines[0]
+            expected_headers = [
+                "Ключ задачи",
+                "Название",
+                "Автор",
+                "Команда",
+                "Квартал",
+                "TTM",
+                "Tail",
+                "DevLT",
+            ]
+            assert headers == expected_headers
+
+            # Check first data row has DevLT column
+            row1 = lines[1]
+            assert len(row1) == 8  # 8 columns including DevLT
+            assert row1[0] == "CPO-123"
+            assert row1[5] == "15"  # TTM
+            assert row1[6] == ""  # Tail (empty)
+            assert row1[7] == ""  # DevLT (empty)
+
+    def test_calculate_devlt_for_task_with_valid_statuses(self, test_reports_dir):
+        """Test calculating DevLT for task with МП / В работе and МП / Внешний тест statuses."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock MetricsService
+        generator.metrics_service = Mock()
+        generator.metrics_service.calculate_dev_lead_time.return_value = 10
+
+        # Mock task history with МП / В работе and МП / Внешний тест
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="МП / В работе",
+                status_display="МП / В работе",
+                start_date=datetime(2025, 1, 5),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="МП / Внешний тест",
+                status_display="МП / Внешний тест",
+                start_date=datetime(2025, 1, 15),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 1, 20),
+                end_date=None,
+            ),
+        ]
+
+        # Replace data_service with mock
+        generator.data_service = Mock()
+        generator.data_service.get_task_history.return_value = mock_history
+
+        # Test calculating DevLT
+        devlt = generator._calculate_devlt(task_id=1, history=mock_history)
+
+        # Verify DevLT was calculated
+        assert devlt == 10
+
+        # Verify MetricsService was called with correct parameters
+        generator.metrics_service.calculate_dev_lead_time.assert_called_once()
+        call_args = generator.metrics_service.calculate_dev_lead_time.call_args
+        assert call_args[0][0] == mock_history  # history
+
+    def test_calculate_devlt_returns_none_without_required_statuses(
+        self, test_reports_dir
+    ):
+        """Test that DevLT returns None for task without МП / В работе or МП / Внешний тест statuses."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock MetricsService to return None (no required statuses)
+        generator.metrics_service = Mock()
+        generator.metrics_service.calculate_dev_lead_time.return_value = None
+
+        # Mock task history without МП / В работе or МП / Внешний тест
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2025, 1, 2),
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 1, 10),
+                end_date=None,
+            ),
+        ]
+
+        # Replace data_service with mock
+        generator.data_service = Mock()
+        generator.data_service.get_task_history.return_value = mock_history
+
+        # Test calculating DevLT
+        devlt = generator._calculate_devlt(task_id=1, history=mock_history)
+
+        # Verify DevLT returns None
+        assert devlt is None
+
+        # Verify MetricsService was called with correct parameters
+        generator.metrics_service.calculate_dev_lead_time.assert_called_once()
+        call_args = generator.metrics_service.calculate_dev_lead_time.call_args
+        assert call_args[0][0] == mock_history  # history
+
+    def test_format_task_row_with_devlt_none(self, test_reports_dir):
+        """Test that DevLT = None is formatted as empty string."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock task data
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime.now(),
+            summary="Task 1",
+        )
+
+        # Test formatting with DevLT = None
+        row = generator._format_task_row(
+            task, ttm=15, quarter_name="Q1", tail=None, devlt=None
+        )
+
+        # Verify DevLT is formatted as empty string
+        assert row["Ключ задачи"] == "CPO-123"
+        assert row["Название"] == "Task 1"
+        assert row["Автор"] == "Author1"
+        assert row["Команда"] == "Без команды"
+        assert row["Квартал"] == "Q1"
+        assert row["TTM"] == 15
+        assert row["Tail"] == ""  # None formatted as empty string
+        assert row["DevLT"] == ""  # None formatted as empty string
+
+        # Test formatting with DevLT = 10
+        row_with_devlt = generator._format_task_row(
+            task, ttm=15, quarter_name="Q1", tail=5, devlt=10
+        )
+
+        # Verify DevLT is formatted correctly
+        assert row_with_devlt["TTM"] == 15
+        assert row_with_devlt["Tail"] == 5
+        assert row_with_devlt["DevLT"] == 10  # Valid value preserved
 
     def test_calculate_tail_for_task_with_mp_external_test(self, test_reports_dir):
         """Test calculating Tail for task with МП / Внешний тест status."""
@@ -777,13 +1027,16 @@ class TestTTMDetailsReport:
             side_effect=[mock_tasks_q1, mock_tasks_q2]
         )
 
-        # Mock TTM and Tail calculations
+        # Mock TTM, Tail, and DevLT calculations
         generator._calculate_ttm = Mock(
             side_effect=[15, 20, 10]
         )  # TTM for tasks 1, 2, 3
         generator._calculate_tail = Mock(
             side_effect=[5, None, 3]
         )  # Tail for tasks 1, 2, 3
+        generator._calculate_devlt = Mock(
+            side_effect=[8, None, 6]
+        )  # DevLT for tasks 1, 2, 3
 
         # Test collecting CSV rows
         rows = generator._collect_csv_rows()
@@ -791,7 +1044,7 @@ class TestTTMDetailsReport:
         # Verify rows were collected
         assert len(rows) == 3
 
-        # Check first row (with Tail)
+        # Check first row (with Tail and DevLT)
         row1 = rows[0]
         assert row1["Ключ задачи"] == "CPO-123"
         assert row1["Название"] == "Task 1"
@@ -802,18 +1055,21 @@ class TestTTMDetailsReport:
         assert row1["Квартал"] == "Q1"
         assert row1["TTM"] == 15
         assert row1["Tail"] == 5
+        assert row1["DevLT"] == 8
 
-        # Check second row (without Tail)
+        # Check second row (without Tail and DevLT)
         row2 = rows[1]
         assert row2["Ключ задачи"] == "CPO-456"
         assert row2["TTM"] == 20
         assert row2["Tail"] == ""  # None formatted as empty string
+        assert row2["DevLT"] == ""  # None formatted as empty string
 
-        # Check third row (with Tail)
+        # Check third row (with Tail and DevLT)
         row3 = rows[2]
         assert row3["Ключ задачи"] == "CPO-789"
         assert row3["TTM"] == 10
         assert row3["Tail"] == 3
+        assert row3["DevLT"] == 6
 
         # Verify methods were called
         generator._load_quarters.assert_called_once()
@@ -821,6 +1077,7 @@ class TestTTMDetailsReport:
         assert generator._get_ttm_tasks_for_quarter.call_count == 2
         assert generator._calculate_ttm.call_count == 3
         assert generator._calculate_tail.call_count == 3
+        assert generator._calculate_devlt.call_count == 3
 
     def test_format_task_row_with_tail_none(self, test_reports_dir):
         """Test that Tail = None is formatted as empty string."""
@@ -903,7 +1160,7 @@ class TestTTMDetailsReport:
                 # Should have at least headers
                 assert len(rows) >= 1
 
-                # Check headers include Tail after TTM
+                # Check headers include Tail and DevLT after TTM
                 headers = rows[0]
                 expected_headers = [
                     "Ключ задачи",
@@ -913,6 +1170,7 @@ class TestTTMDetailsReport:
                     "Квартал",
                     "TTM",
                     "Tail",
+                    "DevLT",
                 ]
                 assert headers == expected_headers
 
@@ -921,8 +1179,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 7
-                        ), f"Row {i} has {len(row)} columns, expected 7"
+                            len(row) == 8
+                        ), f"Row {i} has {len(row)} columns, expected 8"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -943,6 +1201,16 @@ class TestTTMDetailsReport:
                                 assert (
                                     False
                                 ), f"Tail value '{tail_value}' in row {i} is not numeric"
+
+                        # Check that DevLT column is numeric or empty
+                        devlt_value = row[7]
+                        if devlt_value:  # Not empty
+                            try:
+                                int(devlt_value)
+                            except ValueError:
+                                assert (
+                                    False
+                                ), f"DevLT value '{devlt_value}' in row {i} is not numeric"
 
             # Log the result for debugging
             print(

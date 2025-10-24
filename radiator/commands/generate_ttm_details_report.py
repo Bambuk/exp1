@@ -118,6 +118,26 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_tail_metric(history, done_statuses)
 
+    def _calculate_devlt(
+        self, task_id: int, history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate DevLT metric for a task.
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            DevLT value in days or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_dev_lead_time(history)
+
     def _get_team_by_author(self, task: TaskData) -> str:
         """
         Get team for task using AuthorTeamMappingService if task.team is None.
@@ -153,21 +173,27 @@ class TTMDetailsReportGenerator:
             tasks = self._get_ttm_tasks_for_quarter(quarter)
 
             for task in tasks:
-                # Load history once and reuse for both TTM and Tail calculations
+                # Load history once and reuse for TTM, Tail, and DevLT calculations
                 history = self.data_service.get_task_history(task.id)
 
                 ttm = self._calculate_ttm(task.id, done_statuses, history)
                 tail = self._calculate_tail(task.id, done_statuses, history)
+                devlt = self._calculate_devlt(task.id, history)
 
                 # Only include tasks with valid TTM
                 if ttm is not None:
-                    row = self._format_task_row(task, ttm, quarter.name, tail)
+                    row = self._format_task_row(task, ttm, quarter.name, tail, devlt)
                     rows.append(row)
 
         return rows
 
     def _format_task_row(
-        self, task: TaskData, ttm: int, quarter_name: str, tail: Optional[int] = None
+        self,
+        task: TaskData,
+        ttm: int,
+        quarter_name: str,
+        tail: Optional[int] = None,
+        devlt: Optional[int] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -177,6 +203,7 @@ class TTMDetailsReportGenerator:
             ttm: TTM value in days
             quarter_name: Quarter name
             tail: Tail value in days (optional)
+            devlt: DevLT value in days (optional)
 
         Returns:
             Dictionary with CSV row data
@@ -192,6 +219,7 @@ class TTMDetailsReportGenerator:
             "Квартал": quarter_name,
             "TTM": ttm,
             "Tail": tail if tail is not None else "",
+            "DevLT": devlt if devlt is not None else "",
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -221,6 +249,7 @@ class TTMDetailsReportGenerator:
                     "Квартал",
                     "TTM",
                     "Tail",
+                    "DevLT",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
