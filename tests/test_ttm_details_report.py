@@ -387,6 +387,8 @@ class TestTTMDetailsReport:
                 "DevLT": "",
                 "TTD": "",
                 "TTD Pause": "",
+                "Discovery backlog (дни)": "",
+                "Готова к разработке (дни)": "",
                 "Квартал TTD": "",
             },
             {
@@ -401,6 +403,8 @@ class TestTTMDetailsReport:
                 "DevLT": "",
                 "TTD": "",
                 "TTD Pause": "",
+                "Discovery backlog (дни)": "",
+                "Готова к разработке (дни)": "",
                 "Квартал TTD": "",
             },
         ]
@@ -436,6 +440,8 @@ class TestTTMDetailsReport:
                 "DevLT",
                 "TTD",
                 "TTD Pause",
+                "Discovery backlog (дни)",
+                "Готова к разработке (дни)",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -501,6 +507,8 @@ class TestTTMDetailsReport:
                     "DevLT",
                     "TTD",
                     "TTD Pause",
+                    "Discovery backlog (дни)",
+                    "Готова к разработке (дни)",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -510,8 +518,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 12
-                        ), f"Row {i} has {len(row)} columns, expected 12"
+                            len(row) == 14
+                        ), f"Row {i} has {len(row)} columns, expected 14"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -554,6 +562,8 @@ class TestTTMDetailsReport:
                 "DevLT": "",
                 "TTD": "",
                 "TTD Pause": "",
+                "Discovery backlog (дни)": "",
+                "Готова к разработке (дни)": "",
                 "Квартал TTD": "",
             }
         ]
@@ -591,6 +601,8 @@ class TestTTMDetailsReport:
                 "DevLT",
                 "TTD",
                 "TTD Pause",
+                "Discovery backlog (дни)",
+                "Готова к разработке (дни)",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -598,8 +610,8 @@ class TestTTMDetailsReport:
             # Check first data row has Tail column
             row1 = lines[1]
             assert (
-                len(row1) == 12
-            )  # 12 columns including Пауза, Tail, DevLT, TTD, TTD Pause, and Квартал TTD
+                len(row1) == 14
+            )  # 14 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -633,6 +645,8 @@ class TestTTMDetailsReport:
                 "DevLT": "",
                 "TTD": "",
                 "TTD Pause": "",
+                "Discovery backlog (дни)": "",
+                "Готова к разработке (дни)": "",
                 "Квартал TTD": "",
             }
         ]
@@ -670,6 +684,8 @@ class TestTTMDetailsReport:
                 "DevLT",
                 "TTD",
                 "TTD Pause",
+                "Discovery backlog (дни)",
+                "Готова к разработке (дни)",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -677,8 +693,8 @@ class TestTTMDetailsReport:
             # Check first data row has DevLT column
             row1 = lines[1]
             assert (
-                len(row1) == 12
-            )  # 12 columns including Пауза, DevLT, TTD, TTD Pause, and Квартал TTD
+                len(row1) == 14
+            )  # 14 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -1213,6 +1229,8 @@ class TestTTMDetailsReport:
                     "DevLT",
                     "TTD",
                     "TTD Pause",
+                    "Discovery backlog (дни)",
+                    "Готова к разработке (дни)",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -1222,8 +1240,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 12
-                        ), f"Row {i} has {len(row)} columns, expected 12"
+                            len(row) == 14
+                        ), f"Row {i} has {len(row)} columns, expected 14"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -1394,6 +1412,8 @@ class TestTTMDetailsReport:
             "DevLT",
             "TTD",  # New TTD column
             "TTD Pause",  # New TTD pause column
+            "Discovery backlog (дни)",
+            "Готова к разработке (дни)",
             "Квартал TTD",  # New TTD quarter column
         ]
         assert headers == expected_headers
@@ -1631,6 +1651,8 @@ class TestTTMDetailsReport:
             "DevLT",
             "TTD",
             "TTD Pause",  # New TTD pause column after TTD
+            "Discovery backlog (дни)",
+            "Готова к разработке (дни)",
             "Квартал TTD",
         ]
         assert headers == expected_headers
@@ -1798,6 +1820,254 @@ class TestTTMDetailsReport:
 
         assert row["Пауза"] == 3
         assert row["TTD Pause"] == 2
+
+    def test_ttm_details_csv_has_status_duration_columns(self, test_reports_dir):
+        """Test that CSV contains Discovery backlog and Готова к разработке columns."""
+        import csv
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+        output_path = f"{test_reports_dir}/test_status_duration.csv"
+
+        # Mock empty data to get just headers
+        generator._collect_csv_rows = Mock(return_value=[])
+
+        generator.generate_csv(output_path)
+
+        # Read CSV and check headers
+        with open(output_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames
+
+        expected_headers = [
+            "Ключ задачи",
+            "Название",
+            "Автор",
+            "Команда",
+            "Квартал",
+            "TTM",
+            "Пауза",
+            "Tail",
+            "DevLT",
+            "TTD",
+            "TTD Pause",
+            "Discovery backlog (дни)",  # New column after TTD Pause
+            "Готова к разработке (дни)",  # New column after TTD Pause
+            "Квартал TTD",
+        ]
+        assert headers == expected_headers
+
+    def test_calculate_discovery_backlog_days_for_task_with_status(
+        self, test_reports_dir
+    ):
+        """Test calculating Discovery backlog days for task with status."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock MetricsService.calculate_status_duration to return 5 days
+        generator.metrics_service.calculate_status_duration = Mock(return_value=5)
+
+        # Mock history data
+        mock_history = [
+            Mock(status="Discovery backlog", start_date=datetime(2025, 1, 1)),
+            Mock(status="В работе", start_date=datetime(2025, 1, 6)),
+        ]
+
+        # Test calculating Discovery backlog days
+        discovery_backlog_days = generator._calculate_discovery_backlog_days(
+            task_id=1, history=mock_history
+        )
+
+        # Verify Discovery backlog days returns 5
+        assert discovery_backlog_days == 5
+
+        # Verify MetricsService was called with correct parameters
+        generator.metrics_service.calculate_status_duration.assert_called_once()
+        call_args = generator.metrics_service.calculate_status_duration.call_args
+        assert call_args[0][0] == mock_history  # history
+        assert call_args[0][1] == "Discovery backlog"  # status
+
+    def test_calculate_ready_for_dev_days_for_task_with_status(self, test_reports_dir):
+        """Test calculating Готова к разработке days for task with status."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock MetricsService.calculate_status_duration to return 3 days
+        generator.metrics_service.calculate_status_duration = Mock(return_value=3)
+
+        # Mock history data
+        mock_history = [
+            Mock(status="Готова к разработке", start_date=datetime(2025, 1, 1)),
+            Mock(status="В работе", start_date=datetime(2025, 1, 4)),
+        ]
+
+        # Test calculating Готова к разработке days
+        ready_for_dev_days = generator._calculate_ready_for_dev_days(
+            task_id=1, history=mock_history
+        )
+
+        # Verify Готова к разработке days returns 3
+        assert ready_for_dev_days == 3
+
+        # Verify MetricsService was called with correct parameters
+        generator.metrics_service.calculate_status_duration.assert_called_once()
+        call_args = generator.metrics_service.calculate_status_duration.call_args
+        assert call_args[0][0] == mock_history  # history
+        assert call_args[0][1] == "Готова к разработке"  # status
+
+    def test_collect_csv_rows_with_status_duration_metrics(self, test_reports_dir):
+        """Test collecting CSV rows with status duration metrics."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import Quarter, TaskData
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                summary="Task 1",
+                created_at=datetime(2025, 1, 1),
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                summary="Task 2",
+                created_at=datetime(2025, 1, 1),
+            ),
+        ]
+
+        # Mock methods
+        generator._load_quarters = Mock(return_value=quarters)
+        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[5, None])
+        generator._calculate_devlt = Mock(side_effect=[8, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[3, 7])  # Mock pause
+        generator._calculate_ttd_pause = Mock(side_effect=[2, None])  # Mock TTD pause
+        generator._calculate_discovery_backlog_days = Mock(
+            side_effect=[4, None]
+        )  # Mock Discovery backlog
+        generator._calculate_ready_for_dev_days = Mock(
+            side_effect=[6, None]
+        )  # Mock Готова к разработке
+
+        # Test collecting rows
+        rows = generator._collect_csv_rows()
+
+        # Verify status duration metrics are calculated
+        assert len(rows) == 2
+        row1, row2 = rows
+
+        # Check status duration values
+        assert row1["Discovery backlog (дни)"] == 4
+        assert row1["Готова к разработке (дни)"] == 6
+        assert row2["Discovery backlog (дни)"] == ""
+        assert row2["Готова к разработке (дни)"] == ""
+
+        # Verify status duration methods were called
+        assert generator._calculate_discovery_backlog_days.call_count == 2
+        assert generator._calculate_ready_for_dev_days.call_count == 2
+
+    def test_format_task_row_with_status_duration_none(self, test_reports_dir):
+        """Test formatting task row with status duration None values."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1),
+        )
+
+        # Test with status duration None
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=3,
+            ttd_pause=2,
+            discovery_backlog_days=None,
+            ready_for_dev_days=None,
+        )
+
+        assert row["Discovery backlog (дни)"] == ""
+        assert row["Готова к разработке (дни)"] == ""
+
+        # Test with status duration values
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=3,
+            ttd_pause=2,
+            discovery_backlog_days=4,
+            ready_for_dev_days=6,
+        )
+
+        assert row["Discovery backlog (дни)"] == 4
+        assert row["Готова к разработке (дни)"] == 6
 
 
 if __name__ == "__main__":

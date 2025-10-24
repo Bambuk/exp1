@@ -251,6 +251,50 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_pause_time_up_to_date(history, ready_date)
 
+    def _calculate_discovery_backlog_days(
+        self, task_id: int, history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate time spent in 'Discovery backlog' status.
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            Time in days spent in Discovery backlog or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_status_duration(
+            history, "Discovery backlog"
+        )
+
+    def _calculate_ready_for_dev_days(
+        self, task_id: int, history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate time spent in 'Готова к разработке' status.
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            Time in days spent in Готова к разработке or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_status_duration(
+            history, "Готова к разработке"
+        )
+
     def _get_team_by_author(self, task: TaskData) -> str:
         """
         Get team for task using AuthorTeamMappingService if task.team is None.
@@ -307,6 +351,14 @@ class TTMDetailsReportGenerator:
                 pause = self._calculate_pause(task.id, history)
                 ttd_pause = self._calculate_ttd_pause(task.id, history)
 
+                # Calculate status duration metrics
+                discovery_backlog_days = self._calculate_discovery_backlog_days(
+                    task.id, history
+                )
+                ready_for_dev_days = self._calculate_ready_for_dev_days(
+                    task.id, history
+                )
+
                 # Only include tasks with valid TTM
                 if ttm is not None:
                     row = self._format_task_row(
@@ -319,6 +371,8 @@ class TTMDetailsReportGenerator:
                         ttd_quarter,
                         pause,
                         ttd_pause,
+                        discovery_backlog_days,
+                        ready_for_dev_days,
                     )
                     rows.append(row)
 
@@ -335,6 +389,8 @@ class TTMDetailsReportGenerator:
         ttd_quarter: Optional[str] = None,
         pause: Optional[int] = None,
         ttd_pause: Optional[int] = None,
+        discovery_backlog_days: Optional[int] = None,
+        ready_for_dev_days: Optional[int] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -364,6 +420,12 @@ class TTMDetailsReportGenerator:
             "DevLT": devlt if devlt is not None else "",
             "TTD": ttd if ttd is not None else "",
             "TTD Pause": ttd_pause if ttd_pause is not None else "",
+            "Discovery backlog (дни)": discovery_backlog_days
+            if discovery_backlog_days is not None
+            else "",
+            "Готова к разработке (дни)": ready_for_dev_days
+            if ready_for_dev_days is not None
+            else "",
             "Квартал TTD": ttd_quarter or "",
         }
 
@@ -398,6 +460,8 @@ class TTMDetailsReportGenerator:
                     "DevLT",
                     "TTD",
                     "TTD Pause",
+                    "Discovery backlog (дни)",
+                    "Готова к разработке (дни)",
                     "Квартал TTD",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
