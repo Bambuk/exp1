@@ -6,8 +6,10 @@
     "details_20251006_212854.csv",
     "time_to_market_report_20251006_200151.csv",
     "details_20251022_220802.csv",
+    "new_ttm_details_20251024_132926.csv",
     "details_20251018_171558.csv",
     "details_20251007_211334.csv",
+    "new_ttm_details_20251024_125613.csv",
     "task_details_20250925_225247.csv",
     "details_20251024_103109.csv",
     "time_to_market_report_20251006_202357.csv",
@@ -28,6 +30,7 @@
     "time_to_delivery_report_20251006_194534.csv",
     "time_to_market_report_20250930_154557.csv",
     "test_details_with_teams.csv",
+    "new_ttm_details_20251024_131343.csv",
     "time_to_delivery_report_20250930_154549.csv",
     "details_20251007_144152.csv",
     "details_20251009_104831.csv",
@@ -41,5 +44,5 @@
     "time_to_delivery_report_20251006_200149.csv",
     "new_ttm_details_20251024_123033.csv"
   ],
-  "last_updated": "2025-10-24T12:31:47.734681"
+  "last_updated": "2025-10-24T13:31:15.010012"
 }

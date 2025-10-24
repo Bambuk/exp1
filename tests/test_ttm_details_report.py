@@ -383,6 +383,9 @@ class TestTTMDetailsReport:
                 "Квартал": "Q1",
                 "TTM": 15,
                 "Tail": "",
+                "DevLT": "",
+                "TTD": "",
+                "Квартал TTD": "",
             },
             {
                 "Ключ задачи": "CPO-456",
@@ -392,6 +395,9 @@ class TestTTMDetailsReport:
                 "Квартал": "Q1",
                 "TTM": 20,
                 "Tail": "",
+                "DevLT": "",
+                "TTD": "",
+                "Квартал TTD": "",
             },
         ]
         generator._collect_csv_rows = Mock(return_value=mock_rows)
@@ -423,6 +429,8 @@ class TestTTMDetailsReport:
                 "TTM",
                 "Tail",
                 "DevLT",
+                "TTD",
+                "Квартал TTD",
             ]
             assert headers == expected_headers
 
@@ -484,6 +492,8 @@ class TestTTMDetailsReport:
                     "TTM",
                     "Tail",
                     "DevLT",
+                    "TTD",
+                    "Квартал TTD",
                 ]
                 assert headers == expected_headers
 
@@ -492,7 +502,7 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 8
+                            len(row) == 10
                         ), f"Row {i} has {len(row)} columns, expected 8"
 
                         # Check that TTM column is numeric or empty
@@ -532,6 +542,9 @@ class TestTTMDetailsReport:
                 "Квартал": "Q1",
                 "TTM": 15,
                 "Tail": "",
+                "DevLT": "",
+                "TTD": "",
+                "Квартал TTD": "",
             }
         ]
         generator._collect_csv_rows = Mock(return_value=mock_rows)
@@ -565,12 +578,16 @@ class TestTTMDetailsReport:
                 "TTM",
                 "Tail",
                 "DevLT",
+                "TTD",
+                "Квартал TTD",
             ]
             assert headers == expected_headers
 
             # Check first data row has Tail column
             row1 = lines[1]
-            assert len(row1) == 8  # 8 columns including Tail and DevLT
+            assert (
+                len(row1) == 10
+            )  # 10 columns including Tail, DevLT, TTD, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -601,6 +618,8 @@ class TestTTMDetailsReport:
                 "TTM": 15,
                 "Tail": "",
                 "DevLT": "",
+                "TTD": "",
+                "Квартал TTD": "",
             }
         ]
         generator._collect_csv_rows = Mock(return_value=mock_rows)
@@ -634,12 +653,14 @@ class TestTTMDetailsReport:
                 "TTM",
                 "Tail",
                 "DevLT",
+                "TTD",
+                "Квартал TTD",
             ]
             assert headers == expected_headers
 
             # Check first data row has DevLT column
             row1 = lines[1]
-            assert len(row1) == 8  # 8 columns including DevLT
+            assert len(row1) == 10  # 10 columns including DevLT, TTD, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -1171,6 +1192,8 @@ class TestTTMDetailsReport:
                     "TTM",
                     "Tail",
                     "DevLT",
+                    "TTD",
+                    "Квартал TTD",
                 ]
                 assert headers == expected_headers
 
@@ -1179,7 +1202,7 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 8
+                            len(row) == 10
                         ), f"Row {i} has {len(row)} columns, expected 8"
 
                         # Check that TTM column is numeric or empty
@@ -1313,6 +1336,241 @@ class TestTTMDetailsReport:
             assert row["Команда"] == "Существующая команда"  # Should use existing team
             assert row["TTM"] == 15
             assert row["Tail"] == 5
+
+    def test_ttm_details_csv_has_ttd_columns(self, test_reports_dir):
+        """Test that generated CSV includes TTD and Квартал TTD columns."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock the methods to return empty data
+        generator._collect_csv_rows = Mock(return_value=[])
+        generator._load_quarters = Mock(return_value=[])
+        generator._load_done_statuses = Mock(return_value=[])
+
+        # Generate CSV
+        output_path = f"{test_reports_dir}/ttm_details_ttd.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+
+        # Check CSV headers include TTD columns
+        with open(result_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        lines = content.strip().split("\n")
+        headers = lines[0].split(",")
+
+        # Check headers include TTD and Квартал TTD after DevLT
+        expected_headers = [
+            "Ключ задачи",
+            "Название",
+            "Автор",
+            "Команда",
+            "Квартал",
+            "TTM",
+            "Tail",
+            "DevLT",
+            "TTD",  # New TTD column
+            "Квартал TTD",  # New TTD quarter column
+        ]
+        assert headers == expected_headers
+
+    def test_calculate_ttd_for_task_with_ready_status(self, test_reports_dir):
+        """Test TTD calculation for task with ready status."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock metrics service
+        generator.metrics_service.calculate_time_to_delivery = Mock(return_value=10)
+
+        # Mock history data
+        mock_history = [
+            Mock(status="Создана", start_date=datetime(2025, 1, 1)),
+            Mock(status="Готова к разработке", start_date=datetime(2025, 1, 5)),
+        ]
+
+        # Mock discovery statuses
+        discovery_statuses = ["Готова к разработке"]
+
+        # Test TTD calculation
+        result = generator._calculate_ttd(1, discovery_statuses, mock_history)
+
+        # Verify metrics service was called correctly
+        generator.metrics_service.calculate_time_to_delivery.assert_called_once_with(
+            mock_history, discovery_statuses
+        )
+        assert result == 10
+
+    def test_get_ttd_target_date_finds_first_ready_status(self, test_reports_dir):
+        """Test finding first ready status for TTD target date."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock history with multiple statuses
+        mock_history = [
+            Mock(status="Создана", start_date=datetime(2025, 1, 1)),
+            Mock(status="В работе", start_date=datetime(2025, 1, 2)),
+            Mock(
+                status="Готова к разработке", start_date=datetime(2025, 1, 5)
+            ),  # First ready
+            Mock(status="В разработке", start_date=datetime(2025, 1, 6)),
+            Mock(
+                status="Готова к разработке", start_date=datetime(2025, 1, 8)
+            ),  # Second ready
+        ]
+
+        # Test finding first ready status
+        result = generator._get_ttd_target_date(mock_history)
+
+        # Should return date of first "Готова к разработке"
+        assert result == datetime(2025, 1, 5)
+
+    def test_determine_quarter_for_date(self, test_reports_dir):
+        """Test determining quarter for a given date."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        quarters = [
+            Quarter(
+                name="2025.Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+            Quarter(
+                name="2025.Q2",
+                start_date=datetime(2025, 4, 1),
+                end_date=datetime(2025, 6, 30),
+            ),
+        ]
+
+        # Test date in Q1
+        result = generator._determine_quarter_for_date(datetime(2025, 2, 15), quarters)
+        assert result == "2025.Q1"
+
+        # Test date in Q2
+        result = generator._determine_quarter_for_date(datetime(2025, 5, 15), quarters)
+        assert result == "2025.Q2"
+
+        # Test date outside quarters
+        result = generator._determine_quarter_for_date(datetime(2024, 12, 31), quarters)
+        assert result is None
+
+    def test_collect_csv_rows_with_ttd(self, test_reports_dir):
+        """Test collecting CSV rows with TTD calculation."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters and tasks
+        from radiator.commands.models.time_to_market_models import Quarter, TaskData
+
+        quarters = [
+            Quarter(
+                name="2025.Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            )
+        ]
+        tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                summary="Task 1",
+                created_at=datetime(2025, 1, 1),
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                summary="Task 2",
+                created_at=datetime(2025, 1, 1),
+            ),
+        ]
+
+        # Mock methods
+        generator._load_quarters = Mock(return_value=quarters)
+        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
+        generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
+        generator._calculate_tail = Mock(side_effect=[5, None, 3])
+        generator._calculate_devlt = Mock(side_effect=[8, None, 6])
+        generator._calculate_ttd = Mock(side_effect=[12, None, 9])  # Mock TTD
+        generator._get_ttd_target_date = Mock(
+            side_effect=[datetime(2025, 1, 5), None, datetime(2025, 1, 8)]
+        )
+        generator._determine_quarter_for_date = Mock(
+            side_effect=["2025.Q1", None, "2025.Q1"]
+        )
+
+        # Test collecting rows
+        rows = generator._collect_csv_rows()
+
+        # Verify TTD and quarter are calculated
+        assert len(rows) == 2
+        row1, row2 = rows
+
+        # Check TTD values
+        assert row1["TTD"] == 12
+        assert row1["Квартал TTD"] == "2025.Q1"
+        assert row2["TTD"] == ""
+        assert row2["Квартал TTD"] == ""
+
+        # Verify TTD methods were called
+        assert generator._calculate_ttd.call_count == 2
+        assert (
+            generator._get_ttd_target_date.call_count == 1
+        )  # Only called when TTD is not None
+        assert (
+            generator._determine_quarter_for_date.call_count == 1
+        )  # Only called when target date is found
+
+    def test_format_task_row_with_ttd_none(self, test_reports_dir):
+        """Test formatting task row with TTD None values."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1),
+        )
+
+        # Test with TTD None
+        row = generator._format_task_row(
+            task, ttm=15, quarter_name="Q1", tail=5, devlt=8, ttd=None, ttd_quarter=None
+        )
+
+        assert row["TTD"] == ""
+        assert row["Квартал TTD"] == ""
+
+        # Test with TTD values
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+        )
+
+        assert row["TTD"] == 12
+        assert row["Квартал TTD"] == "2025.Q1"
 
 
 if __name__ == "__main__":

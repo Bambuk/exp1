@@ -1,6 +1,7 @@
 """TTM Details Report generator for Time To Market metrics."""
 
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -97,6 +98,73 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_time_to_market(history, done_statuses)
 
+    def _calculate_ttd(
+        self,
+        task_id: int,
+        discovery_statuses: List[str],
+        history: Optional[List] = None,
+    ) -> Optional[int]:
+        """
+        Calculate TTD metric for a task.
+
+        Args:
+            task_id: Task ID
+            discovery_statuses: List of discovery status names
+            history: Optional pre-loaded task history
+
+        Returns:
+            TTD value in days or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_time_to_delivery(
+            history, discovery_statuses
+        )
+
+    def _get_ttd_target_date(self, history: List) -> Optional[datetime]:
+        """
+        Get the date when task first transitioned to "Готова к разработке" status.
+
+        Args:
+            history: Task history entries
+
+        Returns:
+            Date of first "Готова к разработке" transition or None if not found
+        """
+        if not history:
+            return None
+
+        # Sort history by start_date to ensure chronological order
+        sorted_history = sorted(history, key=lambda x: x.start_date)
+
+        # Find first "Готова к разработке" status
+        for entry in sorted_history:
+            if entry.status == "Готова к разработке":
+                return entry.start_date
+
+        return None
+
+    def _determine_quarter_for_date(
+        self, date: datetime, quarters: List[Quarter]
+    ) -> Optional[str]:
+        """
+        Determine which quarter a date falls into.
+
+        Args:
+            date: Date to check
+            quarters: List of Quarter objects
+
+        Returns:
+            Quarter name or None if date doesn't fall into any quarter
+        """
+        for quarter in quarters:
+            if quarter.start_date <= date <= quarter.end_date:
+                return quarter.name
+        return None
+
     def _calculate_tail(
         self, task_id: int, done_statuses: List[str], history: Optional[List] = None
     ) -> Optional[int]:
@@ -173,16 +241,28 @@ class TTMDetailsReportGenerator:
             tasks = self._get_ttm_tasks_for_quarter(quarter)
 
             for task in tasks:
-                # Load history once and reuse for TTM, Tail, and DevLT calculations
+                # Load history once and reuse for TTM, Tail, DevLT, and TTD calculations
                 history = self.data_service.get_task_history(task.id)
 
                 ttm = self._calculate_ttm(task.id, done_statuses, history)
                 tail = self._calculate_tail(task.id, done_statuses, history)
                 devlt = self._calculate_devlt(task.id, history)
 
+                # Calculate TTD and its quarter
+                ttd = self._calculate_ttd(task.id, ["Готова к разработке"], history)
+                ttd_quarter = None
+                if ttd is not None:
+                    ttd_target_date = self._get_ttd_target_date(history)
+                    if ttd_target_date:
+                        ttd_quarter = self._determine_quarter_for_date(
+                            ttd_target_date, quarters
+                        )
+
                 # Only include tasks with valid TTM
                 if ttm is not None:
-                    row = self._format_task_row(task, ttm, quarter.name, tail, devlt)
+                    row = self._format_task_row(
+                        task, ttm, quarter.name, tail, devlt, ttd, ttd_quarter
+                    )
                     rows.append(row)
 
         return rows
@@ -194,6 +274,8 @@ class TTMDetailsReportGenerator:
         quarter_name: str,
         tail: Optional[int] = None,
         devlt: Optional[int] = None,
+        ttd: Optional[int] = None,
+        ttd_quarter: Optional[str] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -220,6 +302,8 @@ class TTMDetailsReportGenerator:
             "TTM": ttm,
             "Tail": tail if tail is not None else "",
             "DevLT": devlt if devlt is not None else "",
+            "TTD": ttd if ttd is not None else "",
+            "Квартал TTD": ttd_quarter or "",
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -250,6 +334,8 @@ class TTMDetailsReportGenerator:
                     "TTM",
                     "Tail",
                     "DevLT",
+                    "TTD",
+                    "Квартал TTD",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
