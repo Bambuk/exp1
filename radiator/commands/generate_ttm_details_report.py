@@ -7,6 +7,9 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from radiator.commands.models.time_to_market_models import Quarter, TaskData
+from radiator.commands.services.author_team_mapping_service import (
+    AuthorTeamMappingService,
+)
 from radiator.commands.services.config_service import ConfigService
 from radiator.commands.services.data_service import DataService
 from radiator.commands.services.metrics_service import MetricsService
@@ -29,6 +32,9 @@ class TTMDetailsReportGenerator:
         self.config_service = ConfigService(config_dir)
         self.data_service = DataService(db)
         self.metrics_service = MetricsService()
+        self.author_team_mapping_service = AuthorTeamMappingService(
+            f"{config_dir}/cpo_authors.txt"
+        )
 
     def _load_quarters(self) -> List[Quarter]:
         """
@@ -112,6 +118,26 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_tail_metric(history, done_statuses)
 
+    def _get_team_by_author(self, task: TaskData) -> str:
+        """
+        Get team for task using AuthorTeamMappingService if task.team is None.
+
+        Args:
+            task: Task data
+
+        Returns:
+            Team name or empty string
+        """
+        # Use existing team if available
+        if task.team:
+            return task.team
+
+        # Get team from AuthorTeamMappingService if task.team is None
+        if task.author:
+            return self.author_team_mapping_service.get_team_by_author(task.author)
+
+        return ""
+
     def _collect_csv_rows(self) -> List[dict]:
         """
         Collect CSV rows data for all quarters.
@@ -155,11 +181,14 @@ class TTMDetailsReportGenerator:
         Returns:
             Dictionary with CSV row data
         """
+        # Get team using the dedicated method
+        team = self._get_team_by_author(task)
+
         return {
             "Ключ задачи": task.key,
             "Название": task.summary or "",
             "Автор": task.author or "",
-            "Команда": task.team or "",
+            "Команда": team,
             "Квартал": quarter_name,
             "TTM": ttm,
             "Tail": tail if tail is not None else "",

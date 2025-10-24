@@ -334,7 +334,9 @@ class TestTTMDetailsReport:
         assert row1["Ключ задачи"] == "CPO-123"
         assert row1["Название"] == "Task 1"
         assert row1["Автор"] == "Author1"
-        assert row1["Команда"] == ""
+        assert (
+            row1["Команда"] == "Без команды"
+        )  # AuthorTeamMappingService returns "Без команды" for unknown authors
         assert row1["Квартал"] == "Q1"
         assert row1["TTM"] == 15
 
@@ -794,7 +796,9 @@ class TestTTMDetailsReport:
         assert row1["Ключ задачи"] == "CPO-123"
         assert row1["Название"] == "Task 1"
         assert row1["Автор"] == "Author1"
-        assert row1["Команда"] == ""
+        assert (
+            row1["Команда"] == "Без команды"
+        )  # AuthorTeamMappingService returns "Без команды" for unknown authors
         assert row1["Квартал"] == "Q1"
         assert row1["TTM"] == 15
         assert row1["Tail"] == 5
@@ -853,7 +857,9 @@ class TestTTMDetailsReport:
         assert row["Ключ задачи"] == "CPO-123"
         assert row["Название"] == "Task 1"
         assert row["Автор"] == "Author1"
-        assert row["Команда"] == ""
+        assert (
+            row["Команда"] == "Без команды"
+        )  # AuthorTeamMappingService returns "Без команды" for unknown authors
         assert row["Квартал"] == "Q1"
         assert row["TTM"] == 15
         assert row["Tail"] == ""  # None formatted as empty string
@@ -942,6 +948,103 @@ class TestTTMDetailsReport:
             print(
                 f"Integration test with Tail generated CSV with {len(rows)-1} data rows"
             )
+
+    def test_team_field_populated_from_author_mapping(self, test_reports_dir):
+        """Test that team field is populated using AuthorTeamMappingService."""
+        import tempfile
+        from datetime import datetime
+        from pathlib import Path
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Create temporary directory and author-team mapping file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mapping_file = Path(temp_dir) / "cpo_authors.txt"
+            with open(mapping_file, "w", encoding="utf-8") as f:
+                f.write("Александр Тихонов;Корзинка и заказ\n")
+                f.write("Александр Черкасов;Каталог\n")
+                f.write("Алексей Никишанин;\n")  # Empty team
+
+            # Mock database session
+            mock_db = Mock()
+
+            # Create generator with custom config dir containing mapping file
+            generator = TTMDetailsReportGenerator(db=mock_db, config_dir=temp_dir)
+
+            # Mock task data
+            from radiator.commands.models.time_to_market_models import TaskData
+
+            task = TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Александр Тихонов",
+                author="Александр Тихонов",
+                team=None,  # Will be populated by AuthorTeamMappingService
+                created_at=datetime.now(),
+                summary="Test task",
+            )
+
+            # Test formatting task row - should populate team field
+            row = generator._format_task_row(task, ttm=15, quarter_name="Q1", tail=5)
+
+            # Verify team field is populated from AuthorTeamMappingService
+            assert row["Ключ задачи"] == "CPO-123"
+            assert row["Автор"] == "Александр Тихонов"
+            assert (
+                row["Команда"] == "Корзинка и заказ"
+            )  # Should be populated from mapping
+            assert row["TTM"] == 15
+            assert row["Tail"] == 5
+
+    def test_team_field_uses_existing_team_if_available(self, test_reports_dir):
+        """Test that existing team is used if available, not AuthorTeamMappingService."""
+        import tempfile
+        from datetime import datetime
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Create temporary directory and author-team mapping file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mapping_file = Path(temp_dir) / "cpo_authors.txt"
+            with open(mapping_file, "w", encoding="utf-8") as f:
+                f.write("Александр Тихонов;Корзинка и заказ\n")
+                f.write("Александр Черкасов;Каталог\n")
+
+            # Mock database session
+            mock_db = Mock()
+
+            # Create generator with custom config dir containing mapping file
+            generator = TTMDetailsReportGenerator(db=mock_db, config_dir=temp_dir)
+
+            # Mock task data with existing team
+            from radiator.commands.models.time_to_market_models import TaskData
+
+            task = TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Александр Тихонов",
+                author="Александр Тихонов",
+                team="Существующая команда",  # Already has team
+                created_at=datetime.now(),
+                summary="Test task",
+            )
+
+            # Test formatting task row - should use existing team, not mapping
+            row = generator._format_task_row(task, ttm=15, quarter_name="Q1", tail=5)
+
+            # Verify existing team is used, not AuthorTeamMappingService result
+            assert row["Ключ задачи"] == "CPO-123"
+            assert row["Автор"] == "Александр Тихонов"
+            assert row["Команда"] == "Существующая команда"  # Should use existing team
+            assert row["TTM"] == 15
+            assert row["Tail"] == 5
 
 
 if __name__ == "__main__":
