@@ -206,6 +206,51 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_dev_lead_time(history)
 
+    def _calculate_pause(
+        self, task_id: int, history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate pause time for a task.
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            Pause time in days or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_pause_time(history)
+
+    def _calculate_ttd_pause(
+        self, task_id: int, history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate TTD pause time (pause time up to 'Готова к разработке' status).
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            TTD pause time in days or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        # Find 'Готова к разработке' status
+        ready_date = self._get_ttd_target_date(history)
+        if not ready_date:
+            return None
+
+        return self.metrics_service.calculate_pause_time_up_to_date(history, ready_date)
+
     def _get_team_by_author(self, task: TaskData) -> str:
         """
         Get team for task using AuthorTeamMappingService if task.team is None.
@@ -258,10 +303,22 @@ class TTMDetailsReportGenerator:
                             ttd_target_date, quarters
                         )
 
+                # Calculate pause metrics
+                pause = self._calculate_pause(task.id, history)
+                ttd_pause = self._calculate_ttd_pause(task.id, history)
+
                 # Only include tasks with valid TTM
                 if ttm is not None:
                     row = self._format_task_row(
-                        task, ttm, quarter.name, tail, devlt, ttd, ttd_quarter
+                        task,
+                        ttm,
+                        quarter.name,
+                        tail,
+                        devlt,
+                        ttd,
+                        ttd_quarter,
+                        pause,
+                        ttd_pause,
                     )
                     rows.append(row)
 
@@ -276,6 +333,8 @@ class TTMDetailsReportGenerator:
         devlt: Optional[int] = None,
         ttd: Optional[int] = None,
         ttd_quarter: Optional[str] = None,
+        pause: Optional[int] = None,
+        ttd_pause: Optional[int] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -300,9 +359,11 @@ class TTMDetailsReportGenerator:
             "Команда": team,
             "Квартал": quarter_name,
             "TTM": ttm,
+            "Пауза": pause if pause is not None else "",
             "Tail": tail if tail is not None else "",
             "DevLT": devlt if devlt is not None else "",
             "TTD": ttd if ttd is not None else "",
+            "TTD Pause": ttd_pause if ttd_pause is not None else "",
             "Квартал TTD": ttd_quarter or "",
         }
 
@@ -332,9 +393,11 @@ class TTMDetailsReportGenerator:
                     "Команда",
                     "Квартал",
                     "TTM",
+                    "Пауза",
                     "Tail",
                     "DevLT",
                     "TTD",
+                    "TTD Pause",
                     "Квартал TTD",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

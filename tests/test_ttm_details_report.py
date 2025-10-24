@@ -382,9 +382,11 @@ class TestTTMDetailsReport:
                 "Команда": "",
                 "Квартал": "Q1",
                 "TTM": 15,
+                "Пауза": "",
                 "Tail": "",
                 "DevLT": "",
                 "TTD": "",
+                "TTD Pause": "",
                 "Квартал TTD": "",
             },
             {
@@ -394,9 +396,11 @@ class TestTTMDetailsReport:
                 "Команда": "",
                 "Квартал": "Q1",
                 "TTM": 20,
+                "Пауза": "",
                 "Tail": "",
                 "DevLT": "",
                 "TTD": "",
+                "TTD Pause": "",
                 "Квартал TTD": "",
             },
         ]
@@ -427,9 +431,11 @@ class TestTTMDetailsReport:
                 "Команда",
                 "Квартал",
                 "TTM",
+                "Пауза",
                 "Tail",
                 "DevLT",
                 "TTD",
+                "TTD Pause",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -490,9 +496,11 @@ class TestTTMDetailsReport:
                     "Команда",
                     "Квартал",
                     "TTM",
+                    "Пауза",
                     "Tail",
                     "DevLT",
                     "TTD",
+                    "TTD Pause",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -502,8 +510,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 10
-                        ), f"Row {i} has {len(row)} columns, expected 8"
+                            len(row) == 12
+                        ), f"Row {i} has {len(row)} columns, expected 12"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -541,9 +549,11 @@ class TestTTMDetailsReport:
                 "Команда": "",
                 "Квартал": "Q1",
                 "TTM": 15,
+                "Пауза": "",
                 "Tail": "",
                 "DevLT": "",
                 "TTD": "",
+                "TTD Pause": "",
                 "Квартал TTD": "",
             }
         ]
@@ -576,9 +586,11 @@ class TestTTMDetailsReport:
                 "Команда",
                 "Квартал",
                 "TTM",
+                "Пауза",
                 "Tail",
                 "DevLT",
                 "TTD",
+                "TTD Pause",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
@@ -586,8 +598,8 @@ class TestTTMDetailsReport:
             # Check first data row has Tail column
             row1 = lines[1]
             assert (
-                len(row1) == 10
-            )  # 10 columns including Tail, DevLT, TTD, and Квартал TTD
+                len(row1) == 12
+            )  # 12 columns including Пауза, Tail, DevLT, TTD, TTD Pause, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -616,9 +628,11 @@ class TestTTMDetailsReport:
                 "Команда": "",
                 "Квартал": "Q1",
                 "TTM": 15,
+                "Пауза": "",
                 "Tail": "",
                 "DevLT": "",
                 "TTD": "",
+                "TTD Pause": "",
                 "Квартал TTD": "",
             }
         ]
@@ -651,16 +665,20 @@ class TestTTMDetailsReport:
                 "Команда",
                 "Квартал",
                 "TTM",
+                "Пауза",
                 "Tail",
                 "DevLT",
                 "TTD",
+                "TTD Pause",
                 "Квартал TTD",
             ]
             assert headers == expected_headers
 
             # Check first data row has DevLT column
             row1 = lines[1]
-            assert len(row1) == 10  # 10 columns including DevLT, TTD, and Квартал TTD
+            assert (
+                len(row1) == 12
+            )  # 12 columns including Пауза, DevLT, TTD, TTD Pause, and Квартал TTD
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -1190,9 +1208,11 @@ class TestTTMDetailsReport:
                     "Команда",
                     "Квартал",
                     "TTM",
+                    "Пауза",
                     "Tail",
                     "DevLT",
                     "TTD",
+                    "TTD Pause",
                     "Квартал TTD",
                 ]
                 assert headers == expected_headers
@@ -1202,8 +1222,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 10
-                        ), f"Row {i} has {len(row)} columns, expected 8"
+                            len(row) == 12
+                        ), f"Row {i} has {len(row)} columns, expected 12"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -1369,9 +1389,11 @@ class TestTTMDetailsReport:
             "Команда",
             "Квартал",
             "TTM",
+            "Пауза",
             "Tail",
             "DevLT",
             "TTD",  # New TTD column
+            "TTD Pause",  # New TTD pause column
             "Квартал TTD",  # New TTD quarter column
         ]
         assert headers == expected_headers
@@ -1571,6 +1593,211 @@ class TestTTMDetailsReport:
 
         assert row["TTD"] == 12
         assert row["Квартал TTD"] == "2025.Q1"
+
+    def test_ttm_details_csv_has_pause_columns(self, test_reports_dir):
+        """Test that generated CSV includes Пауза and TTD Pause columns."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock the methods to return empty data
+        generator._collect_csv_rows = Mock(return_value=[])
+        generator._load_quarters = Mock(return_value=[])
+        generator._load_done_statuses = Mock(return_value=[])
+
+        # Generate CSV
+        output_path = f"{test_reports_dir}/ttm_details_pause.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+
+        # Check CSV headers include pause columns
+        with open(result_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        lines = content.strip().split("\n")
+        headers = lines[0].split(",")
+
+        # Check headers include Пауза after TTM and TTD Pause after TTD
+        expected_headers = [
+            "Ключ задачи",
+            "Название",
+            "Автор",
+            "Команда",
+            "Квартал",
+            "TTM",
+            "Пауза",  # New pause column after TTM
+            "Tail",
+            "DevLT",
+            "TTD",
+            "TTD Pause",  # New TTD pause column after TTD
+            "Квартал TTD",
+        ]
+        assert headers == expected_headers
+
+    def test_calculate_pause_for_task_with_pause_status(self, test_reports_dir):
+        """Test pause calculation for task with pause status."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock metrics service
+        generator.metrics_service.calculate_pause_time = Mock(return_value=5)
+
+        # Mock history data
+        mock_history = [
+            Mock(status="Создана", start_date=datetime(2025, 1, 1)),
+            Mock(status="Приостановлено", start_date=datetime(2025, 1, 5)),
+            Mock(status="В работе", start_date=datetime(2025, 1, 8)),
+        ]
+
+        # Test pause calculation
+        result = generator._calculate_pause(1, mock_history)
+
+        # Verify metrics service was called correctly
+        generator.metrics_service.calculate_pause_time.assert_called_once_with(
+            mock_history
+        )
+        assert result == 5
+
+    def test_calculate_ttd_pause_for_task_with_ready_status(self, test_reports_dir):
+        """Test TTD pause calculation for task with ready status."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock metrics service
+        generator.metrics_service.calculate_pause_time_up_to_date = Mock(return_value=3)
+
+        # Mock history data with ready status
+        mock_history = [
+            Mock(status="Создана", start_date=datetime(2025, 1, 1)),
+            Mock(status="Приостановлено", start_date=datetime(2025, 1, 3)),
+            Mock(status="Готова к разработке", start_date=datetime(2025, 1, 5)),
+        ]
+
+        # Test TTD pause calculation
+        result = generator._calculate_ttd_pause(1, mock_history)
+
+        # Verify metrics service was called correctly
+        generator.metrics_service.calculate_pause_time_up_to_date.assert_called_once_with(
+            mock_history, datetime(2025, 1, 5)
+        )
+        assert result == 3
+
+    def test_collect_csv_rows_with_pause_metrics(self, test_reports_dir):
+        """Test collecting CSV rows with pause metrics calculation."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters and tasks
+        from radiator.commands.models.time_to_market_models import Quarter, TaskData
+
+        quarters = [
+            Quarter(
+                name="2025.Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            )
+        ]
+        tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                summary="Task 1",
+                created_at=datetime(2025, 1, 1),
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                summary="Task 2",
+                created_at=datetime(2025, 1, 1),
+            ),
+        ]
+
+        # Mock methods
+        generator._load_quarters = Mock(return_value=quarters)
+        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._get_ttm_tasks_for_quarter = Mock(return_value=tasks)
+        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[5, None])
+        generator._calculate_devlt = Mock(side_effect=[8, None])
+        generator._calculate_ttd = Mock(side_effect=[12, None])
+        generator._get_ttd_target_date = Mock(side_effect=[datetime(2025, 1, 5), None])
+        generator._determine_quarter_for_date = Mock(side_effect=["2025.Q1", None])
+        generator._calculate_pause = Mock(side_effect=[3, 7])  # Mock pause
+        generator._calculate_ttd_pause = Mock(side_effect=[2, None])  # Mock TTD pause
+
+        # Test collecting rows
+        rows = generator._collect_csv_rows()
+
+        # Verify pause metrics are calculated
+        assert len(rows) == 2
+        row1, row2 = rows
+
+        # Check pause values
+        assert row1["Пауза"] == 3
+        assert row1["TTD Pause"] == 2
+        assert row2["Пауза"] == 7
+        assert row2["TTD Pause"] == ""
+
+        # Verify pause methods were called
+        assert generator._calculate_pause.call_count == 2
+        assert generator._calculate_ttd_pause.call_count == 2
+
+    def test_format_task_row_with_pause_none(self, test_reports_dir):
+        """Test formatting task row with pause None values."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1),
+        )
+
+        # Test with pause None
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=None,
+            ttd_pause=None,
+        )
+
+        assert row["Пауза"] == ""
+        assert row["TTD Pause"] == ""
+
+        # Test with pause values
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=8,
+            ttd=12,
+            ttd_quarter="2025.Q1",
+            pause=3,
+            ttd_pause=2,
+        )
+
+        assert row["Пауза"] == 3
+        assert row["TTD Pause"] == 2
 
 
 if __name__ == "__main__":
