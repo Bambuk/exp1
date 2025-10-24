@@ -70,22 +70,47 @@ class TTMDetailsReportGenerator:
             metric_type="ttm",
         )
 
-    def _calculate_ttm(self, task_id: int, done_statuses: List[str]) -> Optional[int]:
+    def _calculate_ttm(
+        self, task_id: int, done_statuses: List[str], history: Optional[List] = None
+    ) -> Optional[int]:
         """
         Calculate TTM metric for a task.
 
         Args:
             task_id: Task ID
             done_statuses: List of done status names
+            history: Optional pre-loaded task history
 
         Returns:
             TTM value in days or None if not found
         """
-        history = self.data_service.get_task_history(task_id)
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
         if not history:
             return None
 
         return self.metrics_service.calculate_time_to_market(history, done_statuses)
+
+    def _calculate_tail(
+        self, task_id: int, done_statuses: List[str], history: Optional[List] = None
+    ) -> Optional[int]:
+        """
+        Calculate Tail metric for a task.
+
+        Args:
+            task_id: Task ID
+            done_statuses: List of done status names
+            history: Optional pre-loaded task history
+
+        Returns:
+            Tail value in days or None if not found
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return None
+
+        return self.metrics_service.calculate_tail_metric(history, done_statuses)
 
     def _collect_csv_rows(self) -> List[dict]:
         """
@@ -102,16 +127,22 @@ class TTMDetailsReportGenerator:
             tasks = self._get_ttm_tasks_for_quarter(quarter)
 
             for task in tasks:
-                ttm = self._calculate_ttm(task.id, done_statuses)
+                # Load history once and reuse for both TTM and Tail calculations
+                history = self.data_service.get_task_history(task.id)
+
+                ttm = self._calculate_ttm(task.id, done_statuses, history)
+                tail = self._calculate_tail(task.id, done_statuses, history)
 
                 # Only include tasks with valid TTM
                 if ttm is not None:
-                    row = self._format_task_row(task, ttm, quarter.name)
+                    row = self._format_task_row(task, ttm, quarter.name, tail)
                     rows.append(row)
 
         return rows
 
-    def _format_task_row(self, task: TaskData, ttm: int, quarter_name: str) -> dict:
+    def _format_task_row(
+        self, task: TaskData, ttm: int, quarter_name: str, tail: Optional[int] = None
+    ) -> dict:
         """
         Format task data into CSV row dictionary.
 
@@ -119,6 +150,7 @@ class TTMDetailsReportGenerator:
             task: Task data
             ttm: TTM value in days
             quarter_name: Quarter name
+            tail: Tail value in days (optional)
 
         Returns:
             Dictionary with CSV row data
@@ -130,6 +162,7 @@ class TTMDetailsReportGenerator:
             "Команда": task.team or "",
             "Квартал": quarter_name,
             "TTM": ttm,
+            "Tail": tail if tail is not None else "",
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -158,6 +191,7 @@ class TTMDetailsReportGenerator:
                     "Команда",
                     "Квартал",
                     "TTM",
+                    "Tail",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
