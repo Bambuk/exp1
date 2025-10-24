@@ -209,7 +209,21 @@ class TrackerSyncCommand:
         created = 0
         updated = 0
 
+        # Дедупликация: оставляем только последнее вхождение каждого tracker_id
+        # Это решает проблему, когда API возвращает дубликаты из-за обновления во время пагинации
+        unique_tasks = {}
         for task_data in tasks_data:
+            tracker_id = task_data.get("tracker_id")
+            if tracker_id:
+                # Берем последнее вхождение (более свежие данные)
+                unique_tasks[tracker_id] = task_data
+
+        logger.info(
+            f"📊 Обрабатываем {len(tasks_data)} задач, после дедупликации: {len(unique_tasks)}"
+        )
+
+        # Обрабатываем только уникальные задачи
+        for task_data in unique_tasks.values():
             # Check if task exists
             existing_task = (
                 self.db.query(TrackerTask)
