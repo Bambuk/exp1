@@ -25,15 +25,17 @@ class TestGoogleSheetsColumnMapping:
             credentials_path="dummy_path", document_id="dummy_id", sheet_prefix="Test_"
         )
 
-        # Test DevLT column mapping
-        devlt_index = service._get_column_index("DevLT (дни)")
-        assert devlt_index == 14, f"DevLT should be at index 14, got {devlt_index}"
+        devlt_index = service._get_column_index("DevLT")
+        assert devlt_index == 8, f"DevLT should be at index 8, got {devlt_index}"
 
-        # Test Quarter column mapping
-        quarter_index = service._get_column_index("Квартал")
+        # Legacy alias still supported
+        devlt_alias_index = service._get_column_index("DevLT (дни)")
         assert (
-            quarter_index == 15
-        ), f"Quarter should be at index 15, got {quarter_index}"
+            devlt_alias_index == devlt_index
+        ), "Alias 'DevLT (дни)' should map to DevLT column"
+
+        quarter_index = service._get_column_index("Квартал")
+        assert quarter_index == 4, f"Quarter should be at index 4, got {quarter_index}"
 
     @patch(
         "radiator.services.google_sheets_service.service_account.Credentials.from_service_account_file"
@@ -49,14 +51,17 @@ class TestGoogleSheetsColumnMapping:
             credentials_path="dummy_path", document_id="dummy_id", sheet_prefix="Test_"
         )
 
-        # Test key columns
-        assert service._get_column_index("Автор") == 0
-        assert service._get_column_index("Команда") == 1
-        assert service._get_column_index("TTD") == 4
+        # Test key columns based on current CSV structure
+        assert service._get_column_index("Ключ задачи") == 0
+        assert service._get_column_index("Название") == 1
+        assert service._get_column_index("Автор") == 2
+        assert service._get_column_index("Команда") == 3
+        assert service._get_column_index("Квартал") == 4
         assert service._get_column_index("TTM") == 5
-        assert service._get_column_index("Tail") == 6
-        assert service._get_column_index("DevLT (дни)") == 14
-        assert service._get_column_index("Квартал") == 15
+        assert service._get_column_index("Пауза") == 6
+        assert service._get_column_index("Tail") == 7
+        assert service._get_column_index("DevLT") == 8
+        assert service._get_column_index("TTD") == 9
 
     @patch(
         "radiator.services.google_sheets_service.service_account.Credentials.from_service_account_file"
