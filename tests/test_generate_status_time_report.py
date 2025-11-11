@@ -15,14 +15,37 @@ def tmp_csv_path(tmp_path: Path) -> Path:
 
 def test_generate_csv_report_basic(tmp_csv_path):
     from radiator.commands.generate_status_time_report import StatusTimeReportGenerator
+    from radiator.commands.models.time_to_market_models import StatusHistoryEntry
 
     generator = StatusTimeReportGenerator(data_service=MagicMock())
 
-    tasks = [SimpleNamespace(id=1, key="CPO-1")]
+    tasks = [
+        SimpleNamespace(
+            id=1,
+            key="CPO-1",
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+    ]
     statuses = ["Discovery", "Delivery"]
     status_times = {"Discovery": 2, "Delivery": 3}
 
-    histories = {"CPO-1": [MagicMock()]}
+    histories = {
+        "CPO-1": [
+            StatusHistoryEntry(
+                status="Discovery",
+                status_display="Discovery",
+                start_date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                end_date=datetime(2025, 1, 4, tzinfo=timezone.utc),
+            ),
+            StatusHistoryEntry(
+                status="Delivery",
+                status_display="Delivery",
+                start_date=datetime(2025, 1, 4, tzinfo=timezone.utc),
+                end_date=datetime(2025, 1, 7, tzinfo=timezone.utc),
+            ),
+        ]
+    }
 
     generator._ensure_output_dir = MagicMock()
     generator._get_tasks = MagicMock(return_value=tasks)
@@ -39,8 +62,15 @@ def test_generate_csv_report_basic(tmp_csv_path):
         header = next(reader)
         row = next(reader)
 
-    assert header == ["Ключ задачи", "Discovery", "Delivery"]
-    assert row == ["CPO-1", "2", "3"]
+    assert header == [
+        "Ключ задачи",
+        "Название",
+        "Дата создания",
+        "Дата последнего изменения статуса",
+        "Discovery",
+        "Delivery",
+    ]
+    assert row == ["CPO-1", "Test Task", "2025-01-01", "2025-01-04", "2", "3"]
 
     generator._get_tasks.assert_called_once()
     generator.data_service.get_task_histories_by_keys_batch.assert_called_once_with(
@@ -52,14 +82,42 @@ def test_generate_csv_report_basic(tmp_csv_path):
 
 def test_generate_csv_with_multiple_tasks(tmp_csv_path):
     from radiator.commands.generate_status_time_report import StatusTimeReportGenerator
+    from radiator.commands.models.time_to_market_models import StatusHistoryEntry
 
     generator = StatusTimeReportGenerator(data_service=MagicMock())
 
-    tasks = [SimpleNamespace(id=1, key="CPO-1"), SimpleNamespace(id=2, key="CPO-2")]
+    tasks = [
+        SimpleNamespace(
+            id=1,
+            key="CPO-1",
+            summary="Task One",
+            created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        ),
+        SimpleNamespace(
+            id=2,
+            key="CPO-2",
+            summary="Task Two",
+            created_at=datetime(2025, 1, 5, tzinfo=timezone.utc),
+        ),
+    ]
     statuses = ["Discovery", "Done"]
     histories = {
-        "CPO-1": [MagicMock()],
-        "CPO-2": [MagicMock()],
+        "CPO-1": [
+            StatusHistoryEntry(
+                status="Discovery",
+                status_display="Discovery",
+                start_date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                end_date=datetime(2025, 1, 3, tzinfo=timezone.utc),
+            ),
+        ],
+        "CPO-2": [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 1, 6, tzinfo=timezone.utc),
+                end_date=datetime(2025, 1, 11, tzinfo=timezone.utc),
+            ),
+        ],
     }
 
     generator._ensure_output_dir = MagicMock()
@@ -78,9 +136,16 @@ def test_generate_csv_with_multiple_tasks(tmp_csv_path):
     with open(csv_path, newline="", encoding="utf-8") as fh:
         rows = list(csv.reader(fh))
 
-    assert rows[0] == ["Ключ задачи", "Discovery", "Done"]
-    assert rows[1] == ["CPO-1", "1", "0"]
-    assert rows[2] == ["CPO-2", "", "5"]
+    assert rows[0] == [
+        "Ключ задачи",
+        "Название",
+        "Дата создания",
+        "Дата последнего изменения статуса",
+        "Discovery",
+        "Done",
+    ]
+    assert rows[1] == ["CPO-1", "Task One", "2025-01-01", "2025-01-02", "1", "0"]
+    assert rows[2] == ["CPO-2", "Task Two", "2025-01-05", "2025-01-06", "", "5"]
 
     generator.data_service.get_task_histories_by_keys_batch.assert_called_once_with(
         ["CPO-1", "CPO-2"]
@@ -201,7 +266,14 @@ def test_generate_csv_no_tasks(tmp_csv_path):
     with open(csv_path, newline="", encoding="utf-8") as fh:
         rows = list(csv.reader(fh))
 
-    assert rows == [["Ключ задачи"]]
+    assert rows == [
+        [
+            "Ключ задачи",
+            "Название",
+            "Дата создания",
+            "Дата последнего изменения статуса",
+        ]
+    ]
     generator.data_service.get_task_histories_by_keys_batch.assert_not_called()
     generator._collect_unique_statuses.assert_not_called()
     generator._calculate_status_times.assert_not_called()

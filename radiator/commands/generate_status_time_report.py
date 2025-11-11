@@ -54,7 +54,14 @@ class StatusTimeReportGenerator:
             )
             with output_path.open("w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Ключ задачи"])
+                writer.writerow(
+                    [
+                        "Ключ задачи",
+                        "Название",
+                        "Дата создания",
+                        "Дата последнего изменения статуса",
+                    ]
+                )
             return output_path
 
         histories_by_key = self.data_service.get_task_histories_by_keys_batch(
@@ -64,7 +71,12 @@ class StatusTimeReportGenerator:
 
         with output_path.open("w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
-            header = ["Ключ задачи"] + statuses
+            header = [
+                "Ключ задачи",
+                "Название",
+                "Дата создания",
+                "Дата последнего изменения статуса",
+            ] + statuses
             writer.writerow(header)
 
             for task in tasks:
@@ -72,8 +84,24 @@ class StatusTimeReportGenerator:
                 if not history:
                     logger.warning("No history entries for task %s", task.key)
                 status_times = self._calculate_status_times(history)
+                last_status_change = self._get_last_status_change_date(history)
 
-                row = [task.key]
+                # Format dates
+                created_at_str = (
+                    task.created_at.strftime("%Y-%m-%d") if task.created_at else ""
+                )
+                last_status_change_str = (
+                    last_status_change.strftime("%Y-%m-%d")
+                    if last_status_change
+                    else ""
+                )
+
+                row = [
+                    task.key,
+                    task.summary or "",
+                    created_at_str,
+                    last_status_change_str,
+                ]
                 for status in statuses:
                     value = status_times.get(status)
                     if value is None:
@@ -133,6 +161,28 @@ class StatusTimeReportGenerator:
             )
 
         return status_durations
+
+    def _get_last_status_change_date(self, history: Iterable) -> Optional[datetime]:
+        """
+        Get the date of the last status change from history.
+
+        Args:
+            history: List of StatusHistoryEntry objects
+
+        Returns:
+            Datetime of last status change, or None if no history
+        """
+        if not history:
+            return None
+
+        # Find the maximum start_date (most recent status change)
+        max_date = None
+        for entry in history:
+            if entry.start_date:
+                if max_date is None or entry.start_date > max_date:
+                    max_date = entry.start_date
+
+        return max_date
 
 
 def parse_args() -> argparse.Namespace:
