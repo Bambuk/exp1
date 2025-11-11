@@ -25,6 +25,7 @@ def test_generate_csv_report_basic(tmp_csv_path):
             key="CPO-1",
             summary="Test Task",
             created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            status="Delivery",
         )
     ]
     statuses = ["Discovery", "Delivery"]
@@ -65,12 +66,21 @@ def test_generate_csv_report_basic(tmp_csv_path):
     assert header == [
         "Ключ задачи",
         "Название",
+        "Текущий статус",
         "Дата создания",
         "Дата последнего изменения статуса",
         "Discovery",
         "Delivery",
     ]
-    assert row == ["CPO-1", "Test Task", "2025-01-01", "2025-01-04", "2", "3"]
+    assert row == [
+        "CPO-1",
+        "Test Task",
+        "Delivery",
+        "2025-01-01",
+        "2025-01-04",
+        "2",
+        "3",
+    ]
 
     generator._get_tasks.assert_called_once()
     generator.data_service.get_task_histories_by_keys_batch.assert_called_once_with(
@@ -92,12 +102,14 @@ def test_generate_csv_with_multiple_tasks(tmp_csv_path):
             key="CPO-1",
             summary="Task One",
             created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            status="Discovery",
         ),
         SimpleNamespace(
             id=2,
             key="CPO-2",
             summary="Task Two",
             created_at=datetime(2025, 1, 5, tzinfo=timezone.utc),
+            status="Done",
         ),
     ]
     statuses = ["Discovery", "Done"]
@@ -139,13 +151,22 @@ def test_generate_csv_with_multiple_tasks(tmp_csv_path):
     assert rows[0] == [
         "Ключ задачи",
         "Название",
+        "Текущий статус",
         "Дата создания",
         "Дата последнего изменения статуса",
         "Discovery",
         "Done",
     ]
-    assert rows[1] == ["CPO-1", "Task One", "2025-01-01", "2025-01-02", "1", "0"]
-    assert rows[2] == ["CPO-2", "Task Two", "2025-01-05", "2025-01-06", "", "5"]
+    assert rows[1] == [
+        "CPO-1",
+        "Task One",
+        "Discovery",
+        "2025-01-01",
+        "2025-01-02",
+        "1",
+        "0",
+    ]
+    assert rows[2] == ["CPO-2", "Task Two", "Done", "2025-01-05", "2025-01-06", "", "5"]
 
     generator.data_service.get_task_histories_by_keys_batch.assert_called_once_with(
         ["CPO-1", "CPO-2"]
@@ -270,6 +291,7 @@ def test_generate_csv_no_tasks(tmp_csv_path):
         [
             "Ключ задачи",
             "Название",
+            "Текущий статус",
             "Дата создания",
             "Дата последнего изменения статуса",
         ]

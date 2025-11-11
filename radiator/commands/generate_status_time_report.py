@@ -58,6 +58,7 @@ class StatusTimeReportGenerator:
                     [
                         "Ключ задачи",
                         "Название",
+                        "Текущий статус",
                         "Дата создания",
                         "Дата последнего изменения статуса",
                     ]
@@ -74,6 +75,7 @@ class StatusTimeReportGenerator:
             header = [
                 "Ключ задачи",
                 "Название",
+                "Текущий статус",
                 "Дата создания",
                 "Дата последнего изменения статуса",
             ] + statuses
@@ -99,6 +101,7 @@ class StatusTimeReportGenerator:
                 row = [
                     task.key,
                     task.summary or "",
+                    task.status or "",
                     created_at_str,
                     last_status_change_str,
                 ]

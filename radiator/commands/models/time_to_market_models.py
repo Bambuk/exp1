@@ -54,6 +54,7 @@ class TaskData:
     team: Optional[str]
     created_at: datetime
     summary: Optional[str] = None
+    status: Optional[str] = None
 
 
 @dataclass

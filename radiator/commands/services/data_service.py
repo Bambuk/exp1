@@ -499,6 +499,7 @@ class DataService:
                         team=task.team,
                         summary=task.summary,
                         created_at=task.created_at,
+                        status=task.status,
                     )
                 )
 
