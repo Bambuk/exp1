@@ -464,3 +464,47 @@ class DataService:
             logger.error(f"Failed to load tasks by date range: {e}")
             self.db.rollback()
             return []
+
+    def get_tasks_by_queue(
+        self, queue: str, created_since: Optional[datetime] = None
+    ) -> List[TaskData]:
+        """
+        Get tasks filtered by queue prefix and optional created date.
+
+        Args:
+            queue: Tracker queue name (e.g. "CPO")
+            created_since: Optional date filter (inclusive)
+
+        Returns:
+            List of TaskData objects
+        """
+        try:
+            query = self.db.query(TrackerTask).filter(
+                TrackerTask.key.like(f"{queue}-%")
+            )
+
+            if created_since:
+                query = query.filter(TrackerTask.created_at >= created_since)
+
+            tasks = query.all()
+
+            result = []
+            for task in tasks:
+                result.append(
+                    TaskData(
+                        id=task.id,
+                        key=task.key,
+                        group_value=task.author,
+                        author=task.author,
+                        team=task.team,
+                        summary=task.summary,
+                        created_at=task.created_at,
+                    )
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to load tasks by queue {queue}: {e}")
+            self.db.rollback()
+            return []

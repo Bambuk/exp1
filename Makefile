@@ -247,6 +247,13 @@ generate-ttm-details-report:  ## Generate TTM Details CSV report with timestamp
 	@echo ""
 	@echo "✅ TTM Details report generated successfully!"
 
+generate-status-time-report: ## Generate status time report for queue with optional created-since
+	@echo "📊 Generating Status Time report..."
+	@mkdir -p data/reports
+	@. venv/bin/activate && python -m radiator.commands.generate_status_time_report --queue "$(QUEUE)" $(if $(CREATED_SINCE),--created-since "$(CREATED_SINCE)",)
+	@echo ""
+	@echo "✅ Status time report generated successfully!"
+
 # Database snapshot and restore commands
 db-snapshot:  ## Create snapshot of both production and test databases
 	@echo "📸 Creating snapshot of both databases..."

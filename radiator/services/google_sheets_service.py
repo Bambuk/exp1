@@ -667,28 +667,39 @@ class GoogleSheetsService:
         Returns:
             Column index (0-based)
         """
-        # Standard column mapping for details CSV
-        # Based on the actual fieldnames in generate_task_details_csv
+        # Updated column mapping for status time report CSV
         column_mapping = {
-            "Автор": 0,
-            "Команда": 1,
-            "Ключ задачи": 2,
-            "Название": 3,
-            "TTD": 4,
+            "Ключ задачи": 0,
+            "Название": 1,
+            "Автор": 2,
+            "Команда": 3,
+            "Квартал": 4,
             "TTM": 5,
-            "Tail": 6,
-            "Пауза": 7,
-            "TTD Pause": 8,
-            "Discovery backlog (дни)": 9,
-            "Готова к разработке (дни)": 10,
-            "Возвраты с Testing": 11,
-            "Возвраты с Внешний тест": 12,
-            "Всего возвратов": 13,
-            "DevLT (дни)": 14,
-            "Квартал": 15,
+            "Пауза": 6,
+            "Tail": 7,
+            "DevLT": 8,
+            "TTD": 9,
+            "TTD Pause": 10,
+            "Discovery backlog (дни)": 11,
+            "Готова к разработке (дни)": 12,
+            "Возвраты с Testing": 13,
+            "Возвраты с Внешний тест": 14,
+            "Всего возвратов": 15,
+            "Квартал TTD": 16,
         }
 
-        return column_mapping.get(column_name, 0)
+        alias_mapping = {
+            "DevLT (дни)": "DevLT",
+        }
+
+        if column_name in column_mapping:
+            return column_mapping[column_name]
+
+        if column_name in alias_mapping:
+            alias = alias_mapping[column_name]
+            return column_mapping.get(alias, 0)
+
+        return 0
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
         """
