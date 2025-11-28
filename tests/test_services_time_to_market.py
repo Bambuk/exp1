@@ -83,6 +83,38 @@ class TestConfigService:
             assert result.discovery_statuses == []
             assert result.done_statuses == []
 
+    def test_get_statuses_after_external_test(self):
+        """Test getting statuses after 'МП / Внешний тест'."""
+        service = ConfigService("data/config")
+
+        result = service.get_statuses_after("МП / Внешний тест")
+
+        # Should return list of statuses that come after "МП / Внешний тест" in status_order.txt
+        assert isinstance(result, list)
+        assert len(result) > 0
+        # First status should be "Готово к релизу" (according to status_order.txt)
+        assert "Готово к релизу" in result
+        # Should include other subsequent statuses
+        assert "Раскатка релиза" in result or "Выпущено в продуктив" in result
+
+    def test_get_statuses_after_nonexistent_status(self):
+        """Test getting statuses after non-existent status."""
+        service = ConfigService("data/config")
+
+        result = service.get_statuses_after("Несуществующий статус")
+
+        # Should return empty list if status not found
+        assert result == []
+
+    def test_get_statuses_after_last_status(self):
+        """Test getting statuses after last status in file."""
+        service = ConfigService("data/config")
+
+        result = service.get_statuses_after("Закрыт")
+
+        # Should return empty list if status is last
+        assert result == []
+
 
 class TestMetricsService:
     """Tests for MetricsService - new component."""
@@ -527,6 +559,149 @@ class TestMetricsServiceWithStrategies:
         # Ожидаемый DevLT: 271 день (2024-05-02 → 2025-01-29)
         # Первое длинное "МП / В работе" (2024-05-02) → последнее длинное "МП / Внешний тест" (2025-01-29)
         assert result == 271
+
+    def test_calculate_dev_lead_time_fallback_to_subsequent_status(self):
+        """Test DevLT calculation with fallback to subsequent status when all external test entries are short."""
+        # Create service with config_dir to enable fallback
+        service = MetricsService(config_dir="data/config")
+
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),  # Valid work entry (> 5 minutes)
+            ),
+            # Short external test entry (< 5 minutes) - should be ignored
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 10, 0, 2),  # 2 minutes - short
+            ),
+            # Subsequent status with valid entry
+            StatusHistoryEntry(
+                "Готово к релизу",
+                "Готово к релизу",
+                datetime(2024, 1, 15),
+                None,  # Open interval - should be used
+            ),
+        ]
+
+        result = service.calculate_dev_lead_time(history)
+
+        # Should be 10 days from first "МП / В работе" (1/5) to "Готово к релизу" (1/15)
+        assert result == 10
+
+    def test_calculate_dev_lead_time_no_subsequent_statuses(self):
+        """Test DevLT returns None when no valid external test and no subsequent statuses."""
+        service = MetricsService(config_dir="data/config")
+
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),  # Valid work entry
+            ),
+            # Short external test entry (< 5 minutes) - should be ignored
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 10, 0, 2),  # 2 minutes - short
+            ),
+            # No subsequent statuses in history
+        ]
+
+        result = service.calculate_dev_lead_time(history)
+
+        # Should return None - no valid external test and no subsequent statuses
+        assert result is None
+
+    def test_calculate_dev_lead_time_subsequent_status_validation(self):
+        """Test DevLT fallback validates subsequent statuses correctly."""
+        service = MetricsService(config_dir="data/config")
+
+        # Test case 1: Subsequent status with open interval - should be used
+        history_open = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 10, 0, 2),  # Short - ignored
+            ),
+            StatusHistoryEntry(
+                "Готово к релизу",
+                "Готово к релизу",
+                datetime(2024, 1, 15),
+                None,  # Open interval - should be used
+            ),
+        ]
+
+        result_open = service.calculate_dev_lead_time(history_open)
+        assert result_open == 10  # 1/5 to 1/15
+
+        # Test case 2: Subsequent status with closed interval < 5 minutes - should be ignored
+        history_short = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 10, 0, 2),  # Short - ignored
+            ),
+            StatusHistoryEntry(
+                "Готово к релизу",
+                "Готово к релизу",
+                datetime(2024, 1, 15),
+                datetime(2024, 1, 15, 0, 2),  # 2 minutes - short, should be ignored
+            ),
+        ]
+
+        result_short = service.calculate_dev_lead_time(history_short)
+        assert result_short is None  # No valid subsequent status
+
+        # Test case 3: Subsequent status with closed interval >= 5 minutes - should be used
+        history_valid = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 10, 0, 2),  # Short - ignored
+            ),
+            StatusHistoryEntry(
+                "Готово к релизу",
+                "Готово к релизу",
+                datetime(2024, 1, 15),
+                datetime(2024, 1, 16),  # 1 day - valid, should be used
+            ),
+        ]
+
+        result_valid = service.calculate_dev_lead_time(history_valid)
+        assert result_valid == 10  # 1/5 to 1/15
 
 
 class TestDataService:

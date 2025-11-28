@@ -342,8 +342,20 @@ class TestTTMDetailsReport:
         # Mock quarter determination - will be handled by stable_done mock
         # generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
 
-        # Mock data service
-        generator.data_service.get_task_history = Mock(return_value=[])
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
 
         # Mock all calculation methods
         generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
@@ -1217,8 +1229,20 @@ class TestTTMDetailsReport:
         # Mock quarter determination
         generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
 
-        # Mock data service
-        generator.data_service.get_task_history = Mock(return_value=[])
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
 
         # Mock all calculation methods
         generator._calculate_ttm = Mock(side_effect=[15, 20, 10])
@@ -1696,15 +1720,27 @@ class TestTTMDetailsReport:
 
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
-        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._load_done_statuses = Mock(return_value=["Done"])
         # Mock new method for date range (all tasks at once)
         generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
 
         # Mock quarter determination
         generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
 
-        # Mock data service
-        generator.data_service.get_task_history = Mock(return_value=[])
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
 
         # Mock all calculation methods
         generator._calculate_ttm = Mock(side_effect=[15, 20])
@@ -1915,7 +1951,7 @@ class TestTTMDetailsReport:
 
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
-        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._load_done_statuses = Mock(return_value=["Done"])
         # Mock new method for date range (all tasks at once)
         generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
 
@@ -1942,7 +1978,20 @@ class TestTTMDetailsReport:
         generator._calculate_all_returns_batched = Mock(
             return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
         )
-        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
         generator._calculate_ttm = Mock(side_effect=[15, 20])
         generator._calculate_tail = Mock(side_effect=[5, None])
         generator._calculate_devlt = Mock(side_effect=[8, None])
@@ -2053,6 +2102,9 @@ class TestTTMDetailsReport:
             "Возвраты с Внешний тест",
             "Всего возвратов",
             "Квартал TTD",
+            "Создана",
+            "Начало работы",
+            "Завершено",
         ]
         assert headers == expected_headers
 
@@ -2181,7 +2233,7 @@ class TestTTMDetailsReport:
 
         # Mock methods
         generator._load_quarters = Mock(return_value=quarters)
-        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._load_done_statuses = Mock(return_value=["Done"])
         # Mock new method for date range (all tasks at once)
         generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
 
@@ -2208,7 +2260,20 @@ class TestTTMDetailsReport:
         generator._calculate_all_returns_batched = Mock(
             return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
         )
-        generator.data_service.get_task_history = Mock(return_value=[])  # Mock history
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
         generator._calculate_ttm = Mock(side_effect=[15, 20])
         generator._calculate_tail = Mock(side_effect=[5, None])
         generator._calculate_devlt = Mock(side_effect=[8, None])
@@ -2323,6 +2388,9 @@ class TestTTMDetailsReport:
             "Возвраты с Внешний тест",  # New column after Готова к разработке (дни)
             "Всего возвратов",  # New column after Готова к разработке (дни)
             "Квартал TTD",
+            "Создана",
+            "Начало работы",
+            "Завершено",
         ]
         assert headers == expected_headers
 
@@ -2397,15 +2465,27 @@ class TestTTMDetailsReport:
             ),
         ]
         generator._load_quarters = Mock(return_value=quarters)
-        generator._load_done_statuses = Mock(return_value=["done"])
+        generator._load_done_statuses = Mock(return_value=["Done"])
         # Mock new method for date range (all tasks at once)
         generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=tasks)
 
         # Mock quarter determination
         generator._determine_quarter_for_ttm = Mock(return_value="2025.Q1")
 
-        # Mock data service
-        generator.data_service.get_task_history = Mock(return_value=[])
+        # Mock data service with valid history containing done status for quarter determination
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_history_with_done = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            )
+        ]
+        generator.data_service.get_task_history = Mock(
+            return_value=mock_history_with_done
+        )
 
         # Mock all calculation methods
         generator._calculate_ttm = Mock(side_effect=[15, 20])

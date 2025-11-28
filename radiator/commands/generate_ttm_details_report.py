@@ -33,7 +33,7 @@ class TTMDetailsReportGenerator:
         self.config_dir = config_dir
         self.config_service = ConfigService(config_dir)
         self.data_service = DataService(db)
-        self.metrics_service = MetricsService()
+        self.metrics_service = MetricsService(config_dir=config_dir)
         self.author_team_mapping_service = AuthorTeamMappingService(
             f"{config_dir}/cpo_authors.txt"
         )

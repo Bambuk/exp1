@@ -113,3 +113,42 @@ class ConfigService:
         except Exception as e:
             logger.error(f"Failed to load status mapping: {e}")
             return StatusMapping(discovery_statuses=[], done_statuses=[])
+
+    def get_statuses_after(self, status_name: str) -> List[str]:
+        """
+        Get list of statuses that come after the specified status in status_order.txt.
+
+        Args:
+            status_name: Name of the status to find subsequent statuses for
+
+        Returns:
+            List of status names that come after the specified status, empty list if status not found
+        """
+        try:
+            mapping_file = self.config_dir / "status_order.txt"
+            if not mapping_file.exists():
+                logger.warning(f"Status mapping file not found: {mapping_file}")
+                return []
+
+            statuses = []
+            found_status = False
+
+            with open(mapping_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and ";" in line:
+                        status, _ = line.split(";", 1)
+                        status = status.strip()
+
+                        if found_status:
+                            # Add all statuses after the found one
+                            statuses.append(status)
+                        elif status == status_name:
+                            # Found the target status, start collecting subsequent ones
+                            found_status = True
+
+            return statuses
+
+        except Exception as e:
+            logger.error(f"Failed to get statuses after '{status_name}': {e}")
+            return []

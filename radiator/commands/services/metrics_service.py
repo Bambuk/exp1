@@ -14,6 +14,7 @@ from radiator.commands.models.time_to_market_models import (
     TaskData,
     TimeMetrics,
 )
+from radiator.commands.services.config_service import ConfigService
 from radiator.core.logging import logger
 
 
@@ -94,6 +95,7 @@ class MetricsService:
         ttd_strategy: StartDateStrategy = None,
         ttm_strategy: StartDateStrategy = None,
         min_status_duration_seconds: int = None,
+        config_dir: str = None,
     ):
         """
         Initialize metrics service with strategies.
@@ -102,6 +104,7 @@ class MetricsService:
             ttd_strategy: Strategy for TTD start date calculation
             ttm_strategy: Strategy for TTM start date calculation
             min_status_duration_seconds: Minimum time in status (seconds) to consider valid
+            config_dir: Configuration directory path for loading status order (optional)
         """
         self.ttd_strategy = ttd_strategy or FirstChangeStrategy()
         self.ttm_strategy = ttm_strategy or FirstChangeStrategy()
@@ -114,6 +117,9 @@ class MetricsService:
             self.min_status_duration_seconds = int(
                 os.getenv("MIN_STATUS_DURATION_SECONDS", "300")
             )
+
+        # Initialize ConfigService if config_dir is provided
+        self.config_service = ConfigService(config_dir) if config_dir else None
 
     def _filter_short_status_transitions(
         self, history_data: List[StatusHistoryEntry]
@@ -599,6 +605,8 @@ class MetricsService:
         """
         Calculate Development Lead Time: time from first "МП / В работе" with duration > 5 min
         to last "МП / Внешний тест" with duration > 5 min.
+        If no valid "МП / Внешний тест" entries found, falls back to first valid subsequent status
+        (statuses after "МП / Внешний тест" in status_order.txt).
         Filters out short status transitions (< min_status_duration_seconds).
         Does NOT exclude pause time (calendar time).
 
@@ -606,7 +614,7 @@ class MetricsService:
             history_data: List of status history entries
 
         Returns:
-            Number of days or None if either status not found
+            Number of days or None if start status not found or no valid end status found
         """
         try:
             if not history_data:
@@ -621,7 +629,7 @@ class MetricsService:
                 e for e in sorted_history if e.status == "МП / Внешний тест"
             ]
 
-            if not work_entries or not external_test_entries:
+            if not work_entries:
                 return None
 
             # Filter "МП / В работе" entries: must have end_date and duration > 5 minutes
@@ -645,22 +653,61 @@ class MetricsService:
                     if duration >= self.min_status_duration_seconds:
                         valid_external_test_entries.append(entry)
 
-            if not valid_work_entries or not valid_external_test_entries:
+            if not valid_work_entries:
                 return None
 
             # Find first valid "МП / В работе" (by start_date)
             first_work_entry = min(valid_work_entries, key=lambda x: x.start_date)
 
-            # Find last valid "МП / Внешний тест" (by start_date)
-            last_external_test_entry = max(
-                valid_external_test_entries, key=lambda x: x.start_date
-            )
+            # Try to use valid "МП / Внешний тест" entries first
+            if valid_external_test_entries:
+                # Find last valid "МП / Внешний тест" (by start_date)
+                last_external_test_entry = max(
+                    valid_external_test_entries, key=lambda x: x.start_date
+                )
 
-            # Calculate calendar days (no pause exclusion)
-            total_days = (
-                last_external_test_entry.start_date - first_work_entry.start_date
-            ).days
-            return max(0, total_days)  # Ensure non-negative
+                # Calculate calendar days (no pause exclusion)
+                total_days = (
+                    last_external_test_entry.start_date - first_work_entry.start_date
+                ).days
+                return max(0, total_days)  # Ensure non-negative
+
+            # Fallback: if no valid "МП / Внешний тест", try subsequent statuses
+            if self.config_service:
+                subsequent_statuses = self.config_service.get_statuses_after(
+                    "МП / Внешний тест"
+                )
+                if subsequent_statuses:
+                    # Find first valid entry in any subsequent status
+                    valid_subsequent_entries = []
+                    for entry in sorted_history:
+                        if entry.status in subsequent_statuses:
+                            # Validate: open intervals OK, closed intervals >= 5 minutes
+                            if entry.end_date is None:
+                                # Open interval - consider as valid
+                                valid_subsequent_entries.append(entry)
+                            else:
+                                duration = (
+                                    entry.end_date - entry.start_date
+                                ).total_seconds()
+                                if duration >= self.min_status_duration_seconds:
+                                    valid_subsequent_entries.append(entry)
+
+                    if valid_subsequent_entries:
+                        # Use first valid subsequent status entry (by start_date)
+                        first_subsequent_entry = min(
+                            valid_subsequent_entries, key=lambda x: x.start_date
+                        )
+
+                        # Calculate calendar days (no pause exclusion)
+                        total_days = (
+                            first_subsequent_entry.start_date
+                            - first_work_entry.start_date
+                        ).days
+                        return max(0, total_days)  # Ensure non-negative
+
+            # No valid "МП / Внешний тест" and no valid subsequent statuses
+            return None
 
         except Exception as e:
             logger.warning(f"Failed to calculate Development Lead Time: {e}")
