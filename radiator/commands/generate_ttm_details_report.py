@@ -448,6 +448,38 @@ class TTMDetailsReportGenerator:
             history, "Готова к разработке"
         )
 
+    def _get_last_discovery_backlog_exit_date(
+        self, history: List
+    ) -> Optional[datetime]:
+        """
+        Get the date of last exit from Discovery backlog status.
+
+        Args:
+            history: Task history entries
+
+        Returns:
+            Date of last exit from Discovery backlog or None if not found
+        """
+        if not history:
+            return None
+
+        # Sort history by start_date to ensure chronological order
+        sorted_history = sorted(history, key=lambda x: x.start_date)
+
+        # Find all Discovery backlog entries
+        discovery_backlog_entries = [
+            entry for entry in sorted_history if entry.status == "Discovery backlog"
+        ]
+
+        if not discovery_backlog_entries:
+            return None
+
+        # Get the last Discovery backlog entry
+        last_entry = discovery_backlog_entries[-1]
+
+        # Return end_date if it exists (means task exited from Discovery backlog)
+        return last_entry.end_date if last_entry.end_date else None
+
     def _get_team_by_author(self, task: TaskData) -> str:
         """
         Get team for task using AuthorTeamMappingService if task.team is None.
@@ -510,10 +542,19 @@ class TTMDetailsReportGenerator:
         for task in all_tasks:
             history = self.data_service.get_task_history(task.id)
 
+            # Находим stable_done один раз для использования в нескольких местах
+            stable_done = self.metrics_service._find_stable_done(history, done_statuses)
+
             # Определяем квартал для задачи (TTM уже есть)
-            quarter_name = self._determine_quarter_for_ttm(
-                history, quarters, done_statuses
-            )
+            quarter_name = None
+            if stable_done:
+                done_date = stable_done.start_date
+                # Find matching quarter
+                for quarter in quarters:
+                    if quarter.start_date <= done_date <= quarter.end_date:
+                        quarter_name = quarter.name
+                        break
+
             if not quarter_name:
                 continue
 
@@ -536,6 +577,11 @@ class TTMDetailsReportGenerator:
                 "ready_for_dev_days": self._calculate_ready_for_dev_days(
                     task.id, history
                 ),
+                "created_at": task.created_at,
+                "last_discovery_backlog_exit_date": self._get_last_discovery_backlog_exit_date(
+                    history
+                ),
+                "stable_done_date": stable_done.start_date if stable_done else None,
             }
             tasks_data.append(task_metrics)
 
@@ -565,6 +611,9 @@ class TTMDetailsReportGenerator:
                 testing_returns,
                 external_returns,
                 testing_returns + external_returns,
+                task_metrics["created_at"],
+                task_metrics["last_discovery_backlog_exit_date"],
+                task_metrics["stable_done_date"],
             )
             rows.append(row)
 
@@ -586,6 +635,9 @@ class TTMDetailsReportGenerator:
         testing_returns: Optional[int] = None,
         external_returns: Optional[int] = None,
         total_returns: Optional[int] = None,
+        created_at: Optional[datetime] = None,
+        last_discovery_backlog_exit_date: Optional[datetime] = None,
+        stable_done_date: Optional[datetime] = None,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -629,6 +681,13 @@ class TTMDetailsReportGenerator:
             else "",
             "Всего возвратов": total_returns if total_returns is not None else "",
             "Квартал TTD": ttd_quarter or "",
+            "Создана": created_at.strftime("%Y-%m-%d") if created_at else "",
+            "Начало работы": last_discovery_backlog_exit_date.strftime("%Y-%m-%d")
+            if last_discovery_backlog_exit_date
+            else "",
+            "Завершено": stable_done_date.strftime("%Y-%m-%d")
+            if stable_done_date
+            else "",
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -668,6 +727,9 @@ class TTMDetailsReportGenerator:
                     "Возвраты с Внешний тест",
                     "Всего возвратов",
                     "Квартал TTD",
+                    "Создана",
+                    "Начало работы",
+                    "Завершено",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()

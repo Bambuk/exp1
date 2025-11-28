@@ -42,6 +42,25 @@ class TestTTMDetailsReport:
         expected_headers = "Ключ задачи,Название,Автор,Команда,Квартал,TTM"
         assert expected_headers in content
 
+        # Check new date headers after Квартал TTD
+        import csv
+
+        with open(result_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+            assert "Квартал TTD" in headers
+            assert "Создана" in headers
+            assert "Начало работы" in headers
+            assert "Завершено" in headers
+            # Check order: new columns should be after Квартал TTD
+            ttd_index = headers.index("Квартал TTD")
+            created_index = headers.index("Создана")
+            start_index = headers.index("Начало работы")
+            done_index = headers.index("Завершено")
+            assert created_index > ttd_index
+            assert start_index > ttd_index
+            assert done_index > ttd_index
+
         # Should only have headers (no data rows)
         lines = content.strip().split("\n")
         assert len(lines) == 1  # Only header row
@@ -320,8 +339,8 @@ class TestTTMDetailsReport:
             return_value=all_mock_tasks
         )
 
-        # Mock quarter determination
-        generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
+        # Mock quarter determination - will be handled by stable_done mock
+        # generator._determine_quarter_for_ttm = Mock(side_effect=["Q1", "Q1", "Q2"])
 
         # Mock data service
         generator.data_service.get_task_history = Mock(return_value=[])
@@ -338,6 +357,33 @@ class TestTTMDetailsReport:
             side_effect=[None, None, None]
         )
         generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None, None])
+        generator._get_last_discovery_backlog_exit_date = Mock(
+            side_effect=[datetime(2025, 1, 10), datetime(2025, 1, 15), None]
+        )
+        # Mock metrics_service._find_stable_done
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_stable_done_1 = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 2, 1),  # In Q1
+            end_date=None,
+        )
+        mock_stable_done_2 = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 2, 15),  # In Q1
+            end_date=None,
+        )
+        mock_stable_done_3 = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 5, 1),  # In Q2
+            end_date=None,
+        )
+        generator.metrics_service._find_stable_done = Mock(
+            side_effect=[mock_stable_done_1, mock_stable_done_2, mock_stable_done_3]
+        )
 
         # Mock returns calculation
         generator._calculate_all_returns_batched = Mock(
@@ -414,6 +460,9 @@ class TestTTMDetailsReport:
                 "Возвраты с Внешний тест": "",
                 "Всего возвратов": "",
                 "Квартал TTD": "",
+                "Создана": "",
+                "Начало работы": "",
+                "Завершено": "",
             },
             {
                 "Ключ задачи": "CPO-456",
@@ -433,6 +482,9 @@ class TestTTMDetailsReport:
                 "Возвраты с Внешний тест": "",
                 "Всего возвратов": "",
                 "Квартал TTD": "",
+                "Создана": "",
+                "Начало работы": "",
+                "Завершено": "",
             },
         ]
         generator._collect_csv_rows = Mock(return_value=mock_rows)
@@ -473,6 +525,9 @@ class TestTTMDetailsReport:
                 "Возвраты с Внешний тест",
                 "Всего возвратов",
                 "Квартал TTD",
+                "Создана",
+                "Начало работы",
+                "Завершено",
             ]
             assert headers == expected_headers
 
@@ -543,6 +598,9 @@ class TestTTMDetailsReport:
                     "Возвраты с Внешний тест",
                     "Всего возвратов",
                     "Квартал TTD",
+                    "Создана",
+                    "Начало работы",
+                    "Завершено",
                 ]
                 assert headers == expected_headers
 
@@ -551,8 +609,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 17
-                        ), f"Row {i} has {len(row)} columns, expected 17"
+                            len(row) == 20
+                        ), f"Row {i} has {len(row)} columns, expected 20"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -643,14 +701,17 @@ class TestTTMDetailsReport:
                 "Возвраты с Внешний тест",
                 "Всего возвратов",
                 "Квартал TTD",
+                "Создана",
+                "Начало работы",
+                "Завершено",
             ]
             assert headers == expected_headers
 
             # Check first data row has Tail column
             row1 = lines[1]
             assert (
-                len(row1) == 17
-            )  # 17 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, and Квартал TTD
+                len(row1) == 20
+            )  # 20 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -732,14 +793,17 @@ class TestTTMDetailsReport:
                 "Возвраты с Внешний тест",
                 "Всего возвратов",
                 "Квартал TTD",
+                "Создана",
+                "Начало работы",
+                "Завершено",
             ]
             assert headers == expected_headers
 
             # Check first data row has DevLT column
             row1 = lines[1]
             assert (
-                len(row1) == 17
-            )  # 17 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, and Квартал TTD
+                len(row1) == 20
+            )  # 20 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -897,9 +961,17 @@ class TestTTMDetailsReport:
             summary="Task 1",
         )
 
-        # Test formatting with DevLT = None
+        # Test formatting with DevLT = None and new date fields = None
+        created_date = datetime(2025, 1, 1)
         row = generator._format_task_row(
-            task, ttm=15, quarter_name="Q1", tail=None, devlt=None
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=None,
+            devlt=None,
+            created_at=None,
+            last_discovery_backlog_exit_date=None,
+            stable_done_date=None,
         )
 
         # Verify DevLT is formatted as empty string
@@ -911,16 +983,29 @@ class TestTTMDetailsReport:
         assert row["TTM"] == 15
         assert row["Tail"] == ""  # None formatted as empty string
         assert row["DevLT"] == ""  # None formatted as empty string
+        assert row["Создана"] == ""  # None formatted as empty string
+        assert row["Начало работы"] == ""  # None formatted as empty string
+        assert row["Завершено"] == ""  # None formatted as empty string
 
-        # Test formatting with DevLT = 10
+        # Test formatting with DevLT = 10 and date fields with values
         row_with_devlt = generator._format_task_row(
-            task, ttm=15, quarter_name="Q1", tail=5, devlt=10
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            tail=5,
+            devlt=10,
+            created_at=created_date,
+            last_discovery_backlog_exit_date=datetime(2025, 1, 10),
+            stable_done_date=datetime(2025, 1, 20),
         )
 
         # Verify DevLT is formatted correctly
         assert row_with_devlt["TTM"] == 15
         assert row_with_devlt["Tail"] == 5
         assert row_with_devlt["DevLT"] == 10  # Valid value preserved
+        assert row_with_devlt["Создана"] == "2025-01-01"
+        assert row_with_devlt["Начало работы"] == "2025-01-10"
+        assert row_with_devlt["Завершено"] == "2025-01-20"
 
     def test_calculate_tail_for_task_with_mp_external_test(self, test_reports_dir):
         """Test calculating Tail for task with МП / Внешний тест status."""
@@ -1295,6 +1380,9 @@ class TestTTMDetailsReport:
                     "Возвраты с Внешний тест",
                     "Всего возвратов",
                     "Квартал TTD",
+                    "Создана",
+                    "Начало работы",
+                    "Завершено",
                 ]
                 assert headers == expected_headers
 
@@ -1303,8 +1391,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 17
-                        ), f"Row {i} has {len(row)} columns, expected 17"
+                            len(row) == 20
+                        ), f"Row {i} has {len(row)} columns, expected 20"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -1481,6 +1569,9 @@ class TestTTMDetailsReport:
             "Возвраты с Внешний тест",
             "Всего возвратов",
             "Квартал TTD",  # New TTD quarter column
+            "Создана",
+            "Начало работы",
+            "Завершено",
         ]
         assert headers == expected_headers
 
@@ -1732,6 +1823,9 @@ class TestTTMDetailsReport:
             "Возвраты с Внешний тест",
             "Всего возвратов",
             "Квартал TTD",
+            "Создана",
+            "Начало работы",
+            "Завершено",
         ]
         assert headers == expected_headers
 
@@ -2647,6 +2741,149 @@ class TestTTMDetailsReport:
         # CRITICAL: No cross-contamination
         intersection = cpo_5770_tasks & cpo_4370_tasks
         assert len(intersection) == 0, f"Found cross-contamination: {intersection}"
+
+    def test_get_last_discovery_backlog_exit_date_with_multiple_entries(
+        self, test_reports_dir
+    ):
+        """Test getting last Discovery backlog exit date with multiple entries."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History with multiple Discovery backlog entries
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="Discovery backlog",
+                status_display="Discovery backlog",
+                start_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 10),  # First exit
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2025, 1, 10),
+                end_date=datetime(2025, 1, 15),
+            ),
+            StatusHistoryEntry(
+                status="Discovery backlog",
+                status_display="Discovery backlog",
+                start_date=datetime(2025, 1, 15),
+                end_date=datetime(2025, 1, 20),  # Last exit - should return this
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2025, 1, 20),
+                end_date=None,
+            ),
+        ]
+
+        result = generator._get_last_discovery_backlog_exit_date(mock_history)
+
+        # Should return end_date of last Discovery backlog entry
+        assert result == datetime(2025, 1, 20)
+
+    def test_get_last_discovery_backlog_exit_date_no_discovery_backlog(
+        self, test_reports_dir
+    ):
+        """Test getting last Discovery backlog exit date when no Discovery backlog exists."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History without Discovery backlog
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="В работе",
+                status_display="В работе",
+                start_date=datetime(2025, 1, 5),
+                end_date=None,
+            ),
+        ]
+
+        result = generator._get_last_discovery_backlog_exit_date(mock_history)
+
+        # Should return None
+        assert result is None
+
+    def test_get_last_discovery_backlog_exit_date_no_end_date(self, test_reports_dir):
+        """Test getting last Discovery backlog exit date when current status is Discovery backlog."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History with Discovery backlog as current status (no end_date)
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="Discovery backlog",
+                status_display="Discovery backlog",
+                start_date=datetime(2025, 1, 5),
+                end_date=None,  # Current status
+            ),
+        ]
+
+        result = generator._get_last_discovery_backlog_exit_date(mock_history)
+
+        # Should return None (no exit yet)
+        assert result is None
+
+    def test_get_last_discovery_backlog_exit_date_empty_history(self, test_reports_dir):
+        """Test getting last Discovery backlog exit date with empty history."""
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Empty history
+        mock_history = []
+
+        result = generator._get_last_discovery_backlog_exit_date(mock_history)
+
+        # Should return None
+        assert result is None
 
 
 if __name__ == "__main__":
