@@ -540,6 +540,7 @@ class TestTTMDetailsReport:
                 "Создана",
                 "Начало работы",
                 "Завершено",
+                "Разработка",
             ]
             assert headers == expected_headers
 
@@ -613,6 +614,7 @@ class TestTTMDetailsReport:
                     "Создана",
                     "Начало работы",
                     "Завершено",
+                    "Разработка",
                 ]
                 assert headers == expected_headers
 
@@ -621,8 +623,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 20
-                        ), f"Row {i} has {len(row)} columns, expected 20"
+                            len(row) == 21
+                        ), f"Row {i} has {len(row)} columns, expected 21"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -716,13 +718,14 @@ class TestTTMDetailsReport:
                 "Создана",
                 "Начало работы",
                 "Завершено",
+                "Разработка",
             ]
             assert headers == expected_headers
 
             # Check first data row has Tail column
             row1 = lines[1]
             assert (
-                len(row1) == 20
+                len(row1) == 21
             )  # 20 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
@@ -808,13 +811,14 @@ class TestTTMDetailsReport:
                 "Создана",
                 "Начало работы",
                 "Завершено",
+                "Разработка",
             ]
             assert headers == expected_headers
 
             # Check first data row has DevLT column
             row1 = lines[1]
             assert (
-                len(row1) == 20
+                len(row1) == 21
             )  # 20 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
@@ -1407,6 +1411,7 @@ class TestTTMDetailsReport:
                     "Создана",
                     "Начало работы",
                     "Завершено",
+                    "Разработка",
                 ]
                 assert headers == expected_headers
 
@@ -1415,8 +1420,8 @@ class TestTTMDetailsReport:
                     # Check that data rows have correct number of columns
                     for i, row in enumerate(rows[1:], 1):
                         assert (
-                            len(row) == 20
-                        ), f"Row {i} has {len(row)} columns, expected 20"
+                            len(row) == 21
+                        ), f"Row {i} has {len(row)} columns, expected 21"
 
                         # Check that TTM column is numeric or empty
                         ttm_value = row[5]
@@ -1596,6 +1601,7 @@ class TestTTMDetailsReport:
             "Создана",
             "Начало работы",
             "Завершено",
+            "Разработка",
         ]
         assert headers == expected_headers
 
@@ -1862,6 +1868,7 @@ class TestTTMDetailsReport:
             "Создана",
             "Начало работы",
             "Завершено",
+            "Разработка",
         ]
         assert headers == expected_headers
 
@@ -2105,6 +2112,7 @@ class TestTTMDetailsReport:
             "Создана",
             "Начало работы",
             "Завершено",
+            "Разработка",
         ]
         assert headers == expected_headers
 
@@ -2391,6 +2399,7 @@ class TestTTMDetailsReport:
             "Создана",
             "Начало работы",
             "Завершено",
+            "Разработка",
         ]
         assert headers == expected_headers
 
@@ -2964,6 +2973,331 @@ class TestTTMDetailsReport:
 
         # Should return None
         assert result is None
+
+    def test_has_valid_work_status_with_valid_entry(self, test_reports_dir):
+        """Test _has_valid_work_status returns True for task with valid 'МП / В работе' status."""
+        from datetime import datetime, timedelta
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History with valid "МП / В работе" entry (>= 5 minutes)
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="МП / В работе",
+                status_display="МП / В работе",
+                start_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 6),  # 1 day - valid (> 5 minutes)
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        result = generator._has_valid_work_status(task_id=1, history=mock_history)
+
+        assert result is True
+
+    def test_has_valid_work_status_without_valid_entry(self, test_reports_dir):
+        """Test _has_valid_work_status returns False for task without valid 'МП / В работе' status."""
+        from datetime import datetime, timedelta
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History without "МП / В работе" status
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 1, 5),
+                end_date=None,
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        result = generator._has_valid_work_status(task_id=1, history=mock_history)
+
+        assert result is False
+
+    def test_has_valid_work_status_with_short_entry(self, test_reports_dir):
+        """Test _has_valid_work_status returns False for task with short 'МП / В работе' entry (< 5 minutes)."""
+        from datetime import datetime, timedelta
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History with short "МП / В работе" entry (< 5 minutes)
+        short_start = datetime(2025, 1, 5, 12, 0, 0)
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=short_start,
+            ),
+            StatusHistoryEntry(
+                status="МП / В работе",
+                status_display="МП / В работе",
+                start_date=short_start,
+                end_date=short_start
+                + timedelta(seconds=200),  # 200 seconds - short (< 5 minutes)
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        result = generator._has_valid_work_status(task_id=1, history=mock_history)
+
+        assert result is False
+
+    def test_has_valid_work_status_with_open_entry(self, test_reports_dir):
+        """Test _has_valid_work_status returns False for task with open 'МП / В работе' entry (no end_date)."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # History with open "МП / В работе" entry (no end_date)
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 1, 5),
+            ),
+            StatusHistoryEntry(
+                status="МП / В работе",
+                status_display="МП / В работе",
+                start_date=datetime(2025, 1, 5),
+                end_date=None,  # Open interval - not valid
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        result = generator._has_valid_work_status(task_id=1, history=mock_history)
+
+        assert result is False
+
+    def test_ttm_details_csv_has_development_column(self, test_reports_dir):
+        """Test that CSV contains 'Разработка' column at the end."""
+        import csv
+
+        generator = TTMDetailsReportGenerator(Mock(), test_reports_dir)
+        output_path = f"{test_reports_dir}/test_development.csv"
+
+        # Mock empty data to get just headers
+        generator._collect_csv_rows = Mock(return_value=[])
+
+        generator.generate_csv(output_path)
+
+        # Read CSV and check headers
+        with open(output_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames
+
+        # Check that "Разработка" is in headers and is the last column
+        assert "Разработка" in headers
+        assert headers[-1] == "Разработка"
+
+    def test_format_task_row_with_development_flag(self, test_reports_dir):
+        """Test formatting task row with development flag."""
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        task = TaskData(
+            id=1,
+            key="CPO-123",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            summary="Test Task",
+            created_at=datetime(2025, 1, 1),
+        )
+
+        # Test with has_development=True
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            has_development=True,
+        )
+
+        assert row["Разработка"] == 1
+
+        # Test with has_development=False
+        row = generator._format_task_row(
+            task,
+            ttm=15,
+            quarter_name="Q1",
+            has_development=False,
+        )
+
+        assert row["Разработка"] == 0
+
+    def test_collect_csv_rows_with_development_flag(self, test_reports_dir):
+        """Test collecting CSV rows with development flag (1/0)."""
+        from datetime import datetime, timedelta
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+        from radiator.commands.models.time_to_market_models import (
+            Quarter,
+            StatusHistoryEntry,
+            TaskData,
+        )
+
+        mock_db = Mock()
+        generator = TTMDetailsReportGenerator(db=mock_db, config_dir=test_reports_dir)
+
+        # Mock quarters
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            )
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+        generator._load_done_statuses = Mock(return_value=["Done"])
+
+        # Mock tasks
+        mock_tasks = [
+            TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Author1",
+                author="Author1",
+                team=None,
+                created_at=datetime(2025, 1, 1),
+                summary="Task with development",
+            ),
+            TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Author2",
+                author="Author2",
+                team=None,
+                created_at=datetime(2025, 1, 1),
+                summary="Task without development",
+            ),
+        ]
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(
+            return_value=mock_tasks
+        )
+
+        # Mock history for task 1: with valid "МП / В работе" (>= 5 minutes)
+        work_start = datetime(2025, 2, 1, 12, 0, 0)
+        mock_history_with_work = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            ),
+            StatusHistoryEntry(
+                status="МП / В работе",
+                status_display="МП / В работе",
+                start_date=work_start,
+                end_date=work_start + timedelta(days=1),  # 1 day - valid (> 5 minutes)
+            ),
+        ]
+
+        # Mock history for task 2: without valid "МП / В работе"
+        mock_history_without_work = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 15),  # Within Q1
+                end_date=None,
+            ),
+        ]
+
+        # Mock get_task_history to return different histories for different tasks
+        def get_history_side_effect(task_id):
+            if task_id == 1:
+                return mock_history_with_work
+            elif task_id == 2:
+                return mock_history_without_work
+            return []
+
+        generator.data_service.get_task_history = Mock(
+            side_effect=get_history_side_effect
+        )
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(side_effect=[15, 20])
+        generator._calculate_tail = Mock(side_effect=[5, 3])
+        generator._calculate_devlt = Mock(side_effect=[8, None])
+        generator._calculate_ttd = Mock(side_effect=[None, None])
+        generator._calculate_ttd_quarter = Mock(side_effect=[None, None])
+        generator._calculate_pause = Mock(side_effect=[None, None])
+        generator._calculate_ttd_pause = Mock(side_effect=[None, None])
+        generator._calculate_discovery_backlog_days = Mock(side_effect=[None, None])
+        generator._calculate_ready_for_dev_days = Mock(side_effect=[None, None])
+        generator._get_last_discovery_backlog_exit_date = Mock(side_effect=[None, None])
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-123": (0, 0), "CPO-456": (0, 0)}
+        )
+
+        # Test collecting CSV rows
+        rows = generator._collect_csv_rows()
+
+        # Verify rows were collected
+        assert len(rows) == 2
+
+        # Check first row: task with valid "МП / В работе" should have "Разработка" = 1
+        row1 = rows[0]
+        assert row1["Ключ задачи"] == "CPO-123"
+        assert row1["Разработка"] == 1
+
+        # Check second row: task without valid "МП / В работе" should have "Разработка" = 0
+        row2 = rows[1]
+        assert row2["Ключ задачи"] == "CPO-456"
+        assert row2["Разработка"] == 0
 
 
 if __name__ == "__main__":

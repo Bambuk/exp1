@@ -500,6 +500,45 @@ class TTMDetailsReportGenerator:
 
         return ""
 
+    def _has_valid_work_status(
+        self, task_id: int, history: Optional[List] = None
+    ) -> bool:
+        """
+        Check if task has valid 'МП / В работе' status entry (>= 5 minutes).
+
+        Args:
+            task_id: Task ID
+            history: Optional pre-loaded task history
+
+        Returns:
+            True if task has valid 'МП / В работе' entry, False otherwise
+        """
+        if history is None:
+            history = self.data_service.get_task_history(task_id)
+        if not history:
+            return False
+
+        # Sort history by date
+        sorted_history = sorted(history, key=lambda x: x.start_date)
+
+        # Find all "МП / В работе" entries
+        work_entries = [e for e in sorted_history if e.status == "МП / В работе"]
+
+        if not work_entries:
+            return False
+
+        # Filter "МП / В работе" entries: must have end_date and duration > 5 minutes
+        # Same validation logic as in calculate_dev_lead_time
+        for entry in work_entries:
+            if entry.end_date is None:
+                continue  # Skip open intervals (work not completed)
+
+            duration = (entry.end_date - entry.start_date).total_seconds()
+            if duration >= self.metrics_service.min_status_duration_seconds:
+                return True  # Found at least one valid entry
+
+        return False  # No valid entries found
+
     def _calculate_testing_returns(self, task_key: str) -> tuple[int, int]:
         """
         Calculate testing returns for a task.
@@ -582,6 +621,7 @@ class TTMDetailsReportGenerator:
                     history
                 ),
                 "stable_done_date": stable_done.start_date if stable_done else None,
+                "has_development": self._has_valid_work_status(task.id, history),
             }
             tasks_data.append(task_metrics)
 
@@ -614,6 +654,7 @@ class TTMDetailsReportGenerator:
                 task_metrics["created_at"],
                 task_metrics["last_discovery_backlog_exit_date"],
                 task_metrics["stable_done_date"],
+                task_metrics["has_development"],
             )
             rows.append(row)
 
@@ -638,6 +679,7 @@ class TTMDetailsReportGenerator:
         created_at: Optional[datetime] = None,
         last_discovery_backlog_exit_date: Optional[datetime] = None,
         stable_done_date: Optional[datetime] = None,
+        has_development: bool = False,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -688,6 +730,7 @@ class TTMDetailsReportGenerator:
             "Завершено": stable_done_date.strftime("%Y-%m-%d")
             if stable_done_date
             else "",
+            "Разработка": 1 if has_development else 0,
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -730,6 +773,7 @@ class TTMDetailsReportGenerator:
                     "Создана",
                     "Начало работы",
                     "Завершено",
+                    "Разработка",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
