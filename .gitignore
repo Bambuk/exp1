@@ -169,3 +169,6 @@ sheet-api-key.json
 .test_state.json
 backup_radiator_*.backup
 =0.8.0
+
+# Utility scripts
+check_work_status_distribution.py
