@@ -627,8 +627,8 @@ class TestTTMDetailsReport:
                 # Check that data rows have correct number of columns
                 for i, row in enumerate(rows[1:], 1):
                     assert (
-                        len(row) == 21
-                    ), f"Row {i} has {len(row)} columns, expected 21"
+                        len(row) == 22
+                    ), f"Row {i} has {len(row)} columns, expected 22"
 
                     # Check that TTM column is numeric or empty
                     ttm_value = row[5]
@@ -1429,8 +1429,8 @@ class TestTTMDetailsReport:
                 # Check that data rows have correct number of columns
                 for i, row in enumerate(rows[1:], 1):
                     assert (
-                        len(row) == 21
-                    ), f"Row {i} has {len(row)} columns, expected 21"
+                        len(row) == 22
+                    ), f"Row {i} has {len(row)} columns, expected 22"
 
                     # Check that TTM column is numeric or empty
                     ttm_value = row[5]
