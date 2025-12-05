@@ -244,10 +244,10 @@ class GoogleSheetsService:
 
         except HttpError as e:
             logger.error(f"Failed to upload CSV {file_path.name}: {e}")
-            return False
+            return None
         except Exception as e:
             logger.error(f"Unexpected error uploading CSV {file_path.name}: {e}")
-            return False
+            return None
 
     def _auto_resize_columns(self, sheet_name: str, num_columns: int):
         """
