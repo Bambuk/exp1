@@ -4008,12 +4008,21 @@ class TestTTMDetailsReport:
         generator.metrics_service.calculate_pause_time_up_to_date = Mock(return_value=0)
 
         # Test _calculate_ttm_unfinished
+        from datetime import timezone
+
         with patch(
             "radiator.commands.generate_ttm_details_report.datetime"
         ) as mock_datetime:
-            mock_datetime.now.return_value = datetime.now().replace(
+            current_date = datetime.now(timezone.utc).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
+
+            # Mock datetime.now to return timezone-aware datetime
+            def mock_now(tz=None):
+                return current_date
+
+            mock_datetime.now = mock_now
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
             result = generator._calculate_ttm_unfinished(
                 mock_history, mock_done_statuses
             )
@@ -4079,13 +4088,36 @@ class TestTTMDetailsReport:
         generator.metrics_service.calculate_pause_time_up_to_date = Mock(return_value=3)
 
         # Test _calculate_ttm_unfinished
+        from datetime import timezone
+
+        current_date = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        # Create a mock datetime module that preserves datetime class but mocks now()
+        import datetime as dt_module
+
+        original_datetime = dt_module.datetime
+        mock_datetime_class = type(
+            "datetime",
+            (original_datetime,),
+            {
+                "now": lambda tz=None: current_date,
+                "__new__": original_datetime.__new__,
+                "__init__": original_datetime.__init__,
+            },
+        )
+        # Copy all attributes from original datetime
+        for attr in dir(original_datetime):
+            if not attr.startswith("_") and attr != "now":
+                try:
+                    setattr(mock_datetime_class, attr, getattr(original_datetime, attr))
+                except (TypeError, AttributeError):
+                    pass
+
         with patch(
-            "radiator.commands.generate_ttm_details_report.datetime"
-        ) as mock_datetime:
-            current_date = datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-            mock_datetime.now.return_value = current_date
+            "radiator.commands.generate_ttm_details_report.datetime",
+            mock_datetime_class,
+        ):
             result = generator._calculate_ttm_unfinished(
                 mock_history, mock_done_statuses
             )

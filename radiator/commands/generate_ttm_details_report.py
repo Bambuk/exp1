@@ -1,7 +1,7 @@
 """TTM Details Report generator for Time To Market metrics."""
 
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -122,8 +122,12 @@ class TTMDetailsReportGenerator:
             if start_date is None:
                 return None
 
+            # Нормализуем start_date к timezone-aware (UTC) если он naive
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+
             # Use current date as end date for unfinished tasks
-            current_date = datetime.now()
+            current_date = datetime.now(timezone.utc)
 
             # Calculate pause time up to current date
             pause_time = self.metrics_service.calculate_pause_time_up_to_date(
@@ -610,8 +614,13 @@ class TTMDetailsReportGenerator:
         # Но для незавершенных задач нужно расширить до текущей даты
         start_date = min(q.start_date for q in quarters)
         end_date = max(q.end_date for q in quarters)
+        # Нормализуем даты к timezone-aware (UTC) если они naive
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=timezone.utc)
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=timezone.utc)
         # Расширяем до текущей даты для незавершенных задач
-        current_date = datetime.now()
+        current_date = datetime.now(timezone.utc)
         if current_date > end_date:
             end_date = current_date
 
