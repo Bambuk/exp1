@@ -14,6 +14,7 @@ from radiator.commands.services.author_team_mapping_service import (
 from radiator.commands.services.config_service import ConfigService
 from radiator.commands.services.data_service import DataService
 from radiator.commands.services.metrics_service import MetricsService
+from radiator.commands.services.team_lead_mapping_service import TeamLeadMappingService
 from radiator.commands.services.testing_returns_service import TestingReturnsService
 from radiator.core.logging import logger
 
@@ -36,6 +37,9 @@ class TTMDetailsReportGenerator:
         self.metrics_service = MetricsService(config_dir=config_dir)
         self.author_team_mapping_service = AuthorTeamMappingService(
             f"{config_dir}/cpo_authors.txt"
+        )
+        self.team_lead_mapping_service = TeamLeadMappingService(
+            f"{config_dir}/teamsleads.txt"
         )
         self.testing_returns_service = TestingReturnsService(db)
 
@@ -543,6 +547,20 @@ class TTMDetailsReportGenerator:
 
         return ""
 
+    def _get_pm_lead_by_team(self, team: str) -> str:
+        """
+        Get PM Lead for team using TeamLeadMappingService.
+
+        Args:
+            team: Team name
+
+        Returns:
+            PM Lead name or "Без команды" if team not found
+        """
+        if not team:
+            return "Без команды"
+        return self.team_lead_mapping_service.get_lead_by_team(team)
+
     def _has_valid_work_status(
         self, task_id: int, history: Optional[List] = None
     ) -> bool:
@@ -849,12 +867,15 @@ class TTMDetailsReportGenerator:
         """
         # Get team using the dedicated method
         team = self._get_team_by_author(task)
+        # Get PM Lead using TeamLeadMappingService
+        pm_lead = self._get_pm_lead_by_team(team)
 
         return {
             "Ключ задачи": task.key,
             "Название": task.summary or "",
             "Автор": task.author or "",
             "Команда": team,
+            "PM Lead": pm_lead,
             "Квартал": quarter_name,
             "TTM": ttm,
             "Пауза": pause if pause is not None else "",
@@ -911,6 +932,7 @@ class TTMDetailsReportGenerator:
                     "Название",
                     "Автор",
                     "Команда",
+                    "PM Lead",
                     "Квартал",
                     "TTM",
                     "Пауза",

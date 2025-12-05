@@ -39,7 +39,7 @@ class TestTTMDetailsReport:
             content = f.read()
 
         # Check headers
-        expected_headers = "Ключ задачи,Название,Автор,Команда,Квартал,TTM"
+        expected_headers = "Ключ задачи,Название,Автор,Команда,PM Lead,Квартал,TTM"
         assert expected_headers in content
 
         # Check new date headers after Квартал TTD
@@ -462,6 +462,7 @@ class TestTTMDetailsReport:
                 "Название": "Task 1",
                 "Автор": "Author1",
                 "Команда": "",
+                "PM Lead": "",
                 "Квартал": "Q1",
                 "TTM": 15,
                 "Пауза": "",
@@ -484,6 +485,7 @@ class TestTTMDetailsReport:
                 "Название": "Task 2",
                 "Автор": "Author2",
                 "Команда": "",
+                "PM Lead": "",
                 "Квартал": "Q1",
                 "TTM": 20,
                 "Пауза": "",
@@ -527,6 +529,7 @@ class TestTTMDetailsReport:
                 "Название",
                 "Автор",
                 "Команда",
+                "PM Lead",
                 "Квартал",
                 "TTM",
                 "Пауза",
@@ -553,14 +556,15 @@ class TestTTMDetailsReport:
             assert row1[0] == "CPO-123"
             assert row1[1] == "Task 1"
             assert row1[2] == "Author1"
-            assert row1[3] == ""
-            assert row1[4] == "Q1"
-            assert row1[5] == "15"
+            assert row1[3] == ""  # Команда
+            assert row1[4] == ""  # PM Lead
+            assert row1[5] == "Q1"  # Квартал
+            assert row1[6] == "15"  # TTM
 
             # Check second data row
             row2 = lines[2].split(",")
             assert row2[0] == "CPO-456"
-            assert row2[5] == "20"
+            assert row2[6] == "20"  # TTM
 
         # Verify _collect_csv_rows was called
         generator._collect_csv_rows.assert_called_once()
@@ -601,6 +605,7 @@ class TestTTMDetailsReport:
                 "Название",
                 "Автор",
                 "Команда",
+                "PM Lead",
                 "Квартал",
                 "TTM",
                 "Пауза",
@@ -627,11 +632,11 @@ class TestTTMDetailsReport:
                 # Check that data rows have correct number of columns
                 for i, row in enumerate(rows[1:], 1):
                     assert (
-                        len(row) == 22
-                    ), f"Row {i} has {len(row)} columns, expected 22"
+                        len(row) == 23
+                    ), f"Row {i} has {len(row)} columns, expected 23"
 
                     # Check that TTM column is numeric or empty
-                    ttm_value = row[5]
+                    ttm_value = row[6]
                     if ttm_value:  # Not empty
                         try:
                             int(ttm_value)
@@ -664,6 +669,7 @@ class TestTTMDetailsReport:
                 "Название": "Task 1",
                 "Автор": "Author1",
                 "Команда": "",
+                "PM Lead": "",
                 "Квартал": "Q1",
                 "TTM": 15,
                 "Пауза": "",
@@ -706,6 +712,7 @@ class TestTTMDetailsReport:
                 "Название",
                 "Автор",
                 "Команда",
+                "PM Lead",
                 "Квартал",
                 "TTM",
                 "Пауза",
@@ -730,12 +737,12 @@ class TestTTMDetailsReport:
             # Check first data row has Tail column
             row1 = lines[1]  # csv.reader already returns list of lists
             assert (
-                len(row1) == 22
-            )  # 22 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
+                len(row1) == 23
+            )  # 23 columns including Команда, PM Lead, Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
             assert row1[0] == "CPO-123"
-            assert row1[5] == "15"  # TTM
-            assert row1[6] == ""  # Tail (empty)
-            assert row1[7] == ""  # DevLT (empty)
+            assert row1[6] == "15"  # TTM
+            assert row1[8] == ""  # Tail (empty)
+            assert row1[9] == ""  # DevLT (empty)
 
     def test_ttm_details_csv_has_devlt_column(self, test_reports_dir):
         """Test that TTM Details CSV has DevLT column after Tail."""
@@ -758,6 +765,7 @@ class TestTTMDetailsReport:
                 "Название": "Task 1",
                 "Автор": "Author1",
                 "Команда": "",
+                "PM Lead": "",
                 "Квартал": "Q1",
                 "TTM": 15,
                 "Пауза": "",
@@ -800,6 +808,7 @@ class TestTTMDetailsReport:
                 "Название",
                 "Автор",
                 "Команда",
+                "PM Lead",
                 "Квартал",
                 "TTM",
                 "Пауза",
@@ -824,12 +833,12 @@ class TestTTMDetailsReport:
             # Check first data row has DevLT column
             row1 = lines[1]  # csv.reader already returns list of lists
             assert (
-                len(row1) == 22
-            )  # 22 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
+                len(row1) == 23
+            )  # 23 columns including Команда, PM Lead, Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
             assert row1[0] == "CPO-123"
-            assert row1[5] == "15"  # TTM
-            assert row1[6] == ""  # Tail (empty)
-            assert row1[7] == ""  # DevLT (empty)
+            assert row1[6] == "15"  # TTM
+            assert row1[8] == ""  # Tail (empty)
+            assert row1[9] == ""  # DevLT (empty)
 
     def test_calculate_devlt_for_task_with_valid_statuses(self, test_reports_dir):
         """Test calculating DevLT for task with МП / В работе and МП / Внешний тест statuses."""
@@ -1403,6 +1412,7 @@ class TestTTMDetailsReport:
                 "Название",
                 "Автор",
                 "Команда",
+                "PM Lead",
                 "Квартал",
                 "TTM",
                 "Пауза",
@@ -1429,11 +1439,11 @@ class TestTTMDetailsReport:
                 # Check that data rows have correct number of columns
                 for i, row in enumerate(rows[1:], 1):
                     assert (
-                        len(row) == 22
-                    ), f"Row {i} has {len(row)} columns, expected 22"
+                        len(row) == 23
+                    ), f"Row {i} has {len(row)} columns, expected 23"
 
                     # Check that TTM column is numeric or empty
-                    ttm_value = row[5]
+                    ttm_value = row[6]
                     if ttm_value:  # Not empty
                         try:
                             int(ttm_value)
@@ -1443,7 +1453,7 @@ class TestTTMDetailsReport:
                             ), f"TTM value '{ttm_value}' in row {i} is not numeric"
 
                     # Check that Tail column is numeric or empty
-                    tail_value = row[6]
+                    tail_value = row[8]
                     if tail_value:  # Not empty
                         try:
                             int(tail_value)
@@ -1453,7 +1463,7 @@ class TestTTMDetailsReport:
                             ), f"Tail value '{tail_value}' in row {i} is not numeric"
 
                         # Check that DevLT column is numeric or empty
-                        devlt_value = row[7]
+                        devlt_value = row[9]
                         if devlt_value:  # Not empty
                             try:
                                 int(devlt_value)
@@ -1516,6 +1526,69 @@ class TestTTMDetailsReport:
             )  # Should be populated from mapping
             assert row["TTM"] == 15
             assert row["Tail"] == 5
+
+    def test_ttm_details_csv_has_pm_lead_column(self, test_reports_dir):
+        """Test that TTM Details CSV has PM Lead column after Команда."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Create temporary directory and team-lead mapping file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            teamsleads_file = Path(temp_dir) / "teamsleads.txt"
+            with open(teamsleads_file, "w", encoding="utf-8") as f:
+                f.write("Авторизация;Лиза Купчинаус\n")
+                f.write("Гео и сервисы;Саша Тихонов\n")
+                f.write("Каталог;Марина Волкова\n")
+                f.write("Корзинка и заказ;Саша Тихонов\n")
+
+            # Mock database session
+            mock_db = Mock()
+
+            # Create generator with custom config dir containing teamsleads file
+            generator = TTMDetailsReportGenerator(db=mock_db, config_dir=temp_dir)
+
+            # Mock task data
+            from datetime import datetime
+
+            from radiator.commands.models.time_to_market_models import TaskData
+
+            task = TaskData(
+                id=1,
+                key="CPO-123",
+                group_value="Александр Тихонов",
+                author="Александр Тихонов",
+                team="Корзинка и заказ",
+                created_at=datetime.now(),
+                summary="Test task",
+            )
+
+            # Test formatting task row - should populate PM Lead field
+            row = generator._format_task_row(task, ttm=15, quarter_name="Q1", tail=5)
+
+            # Verify PM Lead field is populated from TeamLeadMappingService
+            assert row["Команда"] == "Корзинка и заказ"
+            assert row["PM Lead"] == "Саша Тихонов"  # Should be populated from mapping
+
+            # Test with nonexistent team (should return "Без команды")
+            task2 = TaskData(
+                id=2,
+                key="CPO-456",
+                group_value="Test Author",
+                author="Test Author",
+                team="Несуществующая команда",
+                created_at=datetime.now(),
+                summary="Test task 2",
+            )
+            row2 = generator._format_task_row(task2, ttm=10, quarter_name="Q1")
+            assert row2["Команда"] == "Несуществующая команда"
+            assert (
+                row2["PM Lead"] == "Без команды"
+            )  # Should be "Без команды" for nonexistent team
 
     def test_team_field_uses_existing_team_if_available(self, test_reports_dir):
         """Test that existing team is used if available, not AuthorTeamMappingService."""
@@ -1594,6 +1667,7 @@ class TestTTMDetailsReport:
             "Название",
             "Автор",
             "Команда",
+            "PM Lead",
             "Квартал",
             "TTM",
             "Пауза",
@@ -1862,6 +1936,7 @@ class TestTTMDetailsReport:
             "Название",
             "Автор",
             "Команда",
+            "PM Lead",
             "Квартал",
             "TTM",
             "Пауза",  # New pause column after TTM
@@ -2107,6 +2182,7 @@ class TestTTMDetailsReport:
             "Название",
             "Автор",
             "Команда",
+            "PM Lead",
             "Квартал",
             "TTM",
             "Пауза",
@@ -2395,6 +2471,7 @@ class TestTTMDetailsReport:
             "Название",
             "Автор",
             "Команда",
+            "PM Lead",
             "Квартал",
             "TTM",
             "Пауза",

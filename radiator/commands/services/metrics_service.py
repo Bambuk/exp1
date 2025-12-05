@@ -238,11 +238,22 @@ class MetricsService:
             return 0
 
         try:
+            from datetime import timezone
+
+            # Нормализуем end_date к timezone-aware (UTC) если он naive
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+
             total_pause_time = 0
             sorted_history = sorted(history_data, key=lambda x: x.start_date)
 
             for i, entry in enumerate(sorted_history):
-                if entry.status == self.pause_status and entry.start_date < end_date:
+                # Нормализуем entry.start_date к timezone-aware (UTC) если он naive
+                entry_start = entry.start_date
+                if entry_start.tzinfo is None:
+                    entry_start = entry_start.replace(tzinfo=timezone.utc)
+
+                if entry.status == self.pause_status and entry_start < end_date:
                     # Find the next status change to calculate pause duration
                     next_entry = None
                     for j in range(i + 1, len(sorted_history)):
@@ -250,12 +261,22 @@ class MetricsService:
                             next_entry = sorted_history[j]
                             break
 
-                    if next_entry and next_entry.start_date <= end_date:
-                        pause_duration = (next_entry.start_date - entry.start_date).days
-                        total_pause_time += max(0, pause_duration)
-                    elif not next_entry or next_entry.start_date > end_date:
-                        # Pause period extends beyond end_date, calculate up to end_date
-                        pause_duration = (end_date - entry.start_date).days
+                    if next_entry:
+                        # Нормализуем next_entry.start_date к timezone-aware (UTC) если он naive
+                        next_start = next_entry.start_date
+                        if next_start.tzinfo is None:
+                            next_start = next_start.replace(tzinfo=timezone.utc)
+
+                        if next_start <= end_date:
+                            pause_duration = (next_start - entry_start).days
+                            total_pause_time += max(0, pause_duration)
+                        else:
+                            # Pause period extends beyond end_date, calculate up to end_date
+                            pause_duration = (end_date - entry_start).days
+                            total_pause_time += max(0, pause_duration)
+                    else:
+                        # No next entry, calculate up to end_date
+                        pause_duration = (end_date - entry_start).days
                         total_pause_time += max(0, pause_duration)
 
             return total_pause_time
