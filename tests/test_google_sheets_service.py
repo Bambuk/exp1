@@ -827,3 +827,224 @@ class TestGoogleSheetsService:
 
         # Verify that formatting was called
         mock_service.service.spreadsheets().batchUpdate.assert_called()
+
+    def test_apply_conditional_formatting_to_details_ttm(self, mock_service):
+        """Test conditional formatting for TTM column (> 180)."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_details(
+            sheet_id=100, sheet_name="Details", num_rows=10
+        )
+
+        # Verify batchUpdate was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None, "batchUpdate() was not called with arguments"
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTM rule (column index 6)
+        ttm_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 6
+        ]
+
+        assert len(ttm_rules) == 1
+        rule = ttm_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert (
+            rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "180"
+        )
+        bg_color = rule["booleanRule"]["format"]["backgroundColor"]
+        assert bg_color["red"] == 1.0
+        assert bg_color["green"] == 0.647
+        assert bg_color["blue"] == 0.0
+
+    def test_apply_conditional_formatting_to_details_tail(self, mock_service):
+        """Test conditional formatting for Tail column (> 60)."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_details(
+            sheet_id=100, sheet_name="Details", num_rows=10
+        )
+
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find Tail rule (column index 8)
+        tail_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 8
+        ]
+
+        assert len(tail_rules) == 1
+        rule = tail_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_details_devlt(self, mock_service):
+        """Test conditional formatting for DevLT column (> 60)."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_details(
+            sheet_id=100, sheet_name="Details", num_rows=10
+        )
+
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find DevLT rule (column index 9)
+        devlt_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 9
+        ]
+
+        assert len(devlt_rules) == 1
+        rule = devlt_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_details_ttd(self, mock_service):
+        """Test conditional formatting for TTD column (> 60)."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_details(
+            sheet_id=100, sheet_name="Details", num_rows=10
+        )
+
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTD rule (column index 10)
+        ttd_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 10
+        ]
+
+        assert len(ttd_rules) == 1
+        rule = ttd_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_details_all_columns(self, mock_service):
+        """Test that conditional formatting is applied to all required columns."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_details(
+            sheet_id=100, sheet_name="Details", num_rows=10
+        )
+
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Should have 4 rules (TTM, Tail, DevLT, TTD)
+        conditional_rules = [
+            req for req in requests if "addConditionalFormatRule" in req
+        ]
+        assert len(conditional_rules) == 4
+
+        # Check that all required columns are covered
+        column_indices = [
+            req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            for req in conditional_rules
+        ]
+        assert 6 in column_indices  # TTM
+        assert 8 in column_indices  # Tail
+        assert 9 in column_indices  # DevLT
+        assert 10 in column_indices  # TTD
+
+        # Check that formatting excludes header row (startRowIndex = 1)
+        for req in conditional_rules:
+            range_obj = req["addConditionalFormatRule"]["rule"]["ranges"][0]
+            assert range_obj["startRowIndex"] == 1  # Skip header
+
+    @patch("radiator.services.google_sheets_service.pd.read_csv")
+    def test_upload_csv_to_sheet_includes_conditional_formatting(
+        self, mock_read_csv, mock_service
+    ):
+        """Test that conditional formatting is applied when uploading CSV."""
+        # Mock sheet creation
+        mock_service.service.spreadsheets().get().execute.return_value = {"sheets": []}
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+        mock_service._get_sheet_id = Mock(return_value=100)
+
+        # Mock CSV reading
+        from pathlib import Path
+
+        import pandas as pd
+
+        test_csv = Path("/tmp/test_upload.csv")
+        df = pd.DataFrame(
+            {
+                "Ключ задачи": ["CPO-1", "CPO-2"],
+                "TTM": [200, 150],
+                "Tail": [70, 50],
+                "DevLT": [80, 40],
+                "TTD": [90, 30],
+            }
+        )
+        mock_read_csv.return_value = df
+        result = mock_service.upload_csv_to_sheet(test_csv, "TestSheet")
+
+        # Verify conditional formatting was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        conditional_formatting_calls = [
+            call
+            for call in calls
+            if call[1]
+            and "requests" in call[1]["body"]
+            and any(
+                "addConditionalFormatRule" in req for req in call[1]["body"]["requests"]
+            )
+        ]
+        assert len(conditional_formatting_calls) > 0

@@ -241,6 +241,13 @@ class GoogleSheetsService:
             # Add filter to all data (headers + data rows)
             self._add_filter_to_all_data(sheet_name, len(df.columns), len(df) + 1)
 
+            # Apply conditional formatting to highlight cells exceeding thresholds
+            sheet_id = self._get_sheet_id(sheet_name)
+            if sheet_id is not None:
+                self._apply_conditional_formatting_to_details(
+                    sheet_id=sheet_id, sheet_name=sheet_name, num_rows=len(df)
+                )
+
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
             return sheet_name
 
@@ -1060,6 +1067,100 @@ class GoogleSheetsService:
 
         except Exception as e:
             logger.error(f"Failed to apply formatting to percentile statistics: {e}")
+            return False
+
+    def _apply_conditional_formatting_to_details(
+        self, sheet_id: int, sheet_name: str, num_rows: int
+    ) -> bool:
+        """
+        Apply conditional formatting to Details sheet to highlight cells exceeding thresholds.
+
+        Args:
+            sheet_id: ID of the sheet
+            sheet_name: Name of the sheet
+            num_rows: Number of data rows (excluding header)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            requests = []
+
+            # Define columns and thresholds
+            formatting_rules = [
+                {
+                    "column_index": TTMDetailsColumns.get_column_index("TTM"),
+                    "threshold": 180,
+                },
+                {
+                    "column_index": TTMDetailsColumns.get_column_index("Tail"),
+                    "threshold": 60,
+                },
+                {
+                    "column_index": TTMDetailsColumns.get_column_index("DevLT"),
+                    "threshold": 60,
+                },
+                {
+                    "column_index": TTMDetailsColumns.get_column_index("TTD"),
+                    "threshold": 60,
+                },
+            ]
+
+            # Create conditional formatting rule for each column
+            for rule_index, rule_config in enumerate(formatting_rules):
+                requests.append(
+                    {
+                        "addConditionalFormatRule": {
+                            "rule": {
+                                "ranges": [
+                                    {
+                                        "sheetId": sheet_id,
+                                        "startRowIndex": 1,  # Skip header row
+                                        "endRowIndex": num_rows + 1,
+                                        "startColumnIndex": rule_config["column_index"],
+                                        "endColumnIndex": rule_config["column_index"]
+                                        + 1,
+                                    }
+                                ],
+                                "booleanRule": {
+                                    "condition": {
+                                        "type": "NUMBER_GREATER",
+                                        "values": [
+                                            {
+                                                "userEnteredValue": str(
+                                                    rule_config["threshold"]
+                                                )
+                                            }
+                                        ],
+                                    },
+                                    "format": {
+                                        "backgroundColor": {
+                                            "red": 1.0,
+                                            "green": 0.647,
+                                            "blue": 0.0,
+                                        }
+                                    },
+                                },
+                            },
+                            "index": rule_index,
+                        }
+                    }
+                )
+
+            # Apply conditional formatting via batchUpdate
+            if requests:
+                self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=self.document_id, body={"requests": requests}
+                ).execute()
+
+                logger.info(
+                    f"Successfully applied conditional formatting to {sheet_name}"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to apply conditional formatting to {sheet_name}: {e}")
             return False
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
