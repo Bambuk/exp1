@@ -248,6 +248,14 @@ class GoogleSheetsService:
                     sheet_id=sheet_id, sheet_name=sheet_name, num_rows=len(df)
                 )
 
+                # Freeze first row and resize 'Название' column
+                self._freeze_first_row(sheet_id=sheet_id, sheet_name=sheet_name)
+                self._resize_name_column(sheet_id=sheet_id, sheet_name=sheet_name)
+
+                # Freeze first row and resize 'Название' column
+                self._freeze_first_row(sheet_id=sheet_id, sheet_name=sheet_name)
+                self._resize_name_column(sheet_id=sheet_id, sheet_name=sheet_name)
+
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
             return sheet_name
 
@@ -1161,6 +1169,89 @@ class GoogleSheetsService:
 
         except Exception as e:
             logger.error(f"Failed to apply conditional formatting to {sheet_name}: {e}")
+            return False
+
+    def _freeze_first_row(self, sheet_id: int, sheet_name: str) -> bool:
+        """
+        Freeze the first row (header) in the sheet.
+
+        Args:
+            sheet_id: ID of the sheet
+            sheet_name: Name of the sheet
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            request_body = {
+                "requests": [
+                    {
+                        "updateSheetProperties": {
+                            "properties": {
+                                "sheetId": sheet_id,
+                                "gridProperties": {"frozenRowCount": 1},
+                            },
+                            "fields": "gridProperties.frozenRowCount",
+                        }
+                    }
+                ]
+            }
+
+            self.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.document_id, body=request_body
+            ).execute()
+
+            logger.info(f"Successfully froze first row in {sheet_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to freeze first row in {sheet_name}: {e}")
+            return False
+
+    def _resize_name_column(self, sheet_id: int, sheet_name: str) -> bool:
+        """
+        Resize 'Название' column to fixed width (500 pixels).
+
+        Args:
+            sheet_id: ID of the sheet
+            sheet_name: Name of the sheet
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Use fixed width of 500 pixels
+            name_column_index = TTMDetailsColumns.get_column_index("Название")
+            fixed_width = 500
+
+            request_body = {
+                "requests": [
+                    {
+                        "updateDimensionProperties": {
+                            "range": {
+                                "sheetId": sheet_id,
+                                "dimension": "COLUMNS",
+                                "startIndex": name_column_index,
+                                "endIndex": name_column_index + 1,
+                            },
+                            "properties": {"pixelSize": fixed_width},
+                            "fields": "pixelSize",
+                        }
+                    }
+                ]
+            }
+
+            self.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.document_id, body=request_body
+            ).execute()
+
+            logger.info(
+                f"Successfully resized 'Название' column to {fixed_width}px in {sheet_name}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to resize 'Название' column in {sheet_name}: {e}")
             return False
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:

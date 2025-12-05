@@ -1048,3 +1048,120 @@ class TestGoogleSheetsService:
             )
         ]
         assert len(conditional_formatting_calls) > 0
+
+    def test_freeze_first_row_in_details(self, mock_service):
+        """Test freezing first row in Details sheet."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._freeze_first_row(sheet_id=100, sheet_name="Details")
+
+        # Verify batchUpdate was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None, "batchUpdate() was not called with arguments"
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find freeze row request
+        freeze_requests = [req for req in requests if "updateSheetProperties" in req]
+
+        assert len(freeze_requests) == 1
+        freeze_req = freeze_requests[0]["updateSheetProperties"]
+        assert freeze_req["properties"]["sheetId"] == 100
+        assert freeze_req["properties"]["gridProperties"]["frozenRowCount"] == 1
+        assert freeze_req["fields"] == "gridProperties.frozenRowCount"
+
+    def test_resize_name_column(self, mock_service):
+        """Test resizing 'Название' column to half width."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._resize_name_column(sheet_id=100, sheet_name="Details")
+
+        # Verify batchUpdate was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None, "batchUpdate() was not called with arguments"
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find resize column request
+        resize_requests = [
+            req for req in requests if "updateDimensionProperties" in req
+        ]
+
+        assert len(resize_requests) == 1
+        resize_req = resize_requests[0]["updateDimensionProperties"]
+        assert resize_req["range"]["sheetId"] == 100
+        assert resize_req["range"]["dimension"] == "COLUMNS"
+        assert resize_req["range"]["startIndex"] == 1  # Column B (Название)
+        assert resize_req["range"]["endIndex"] == 2
+        assert "pixelSize" in resize_req["properties"]
+        assert resize_req["fields"] == "pixelSize"
+
+    @patch("radiator.services.google_sheets_service.pd.read_csv")
+    def test_upload_csv_to_sheet_applies_freeze_and_resize(
+        self, mock_read_csv, mock_service
+    ):
+        """Test that freeze and resize are applied when uploading CSV."""
+        # Mock sheet creation
+        mock_service.service.spreadsheets().get().execute.return_value = {"sheets": []}
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+        mock_service._get_sheet_id = Mock(return_value=100)
+
+        # Mock CSV reading
+        from pathlib import Path
+
+        import pandas as pd
+
+        test_csv = Path("/tmp/test_upload.csv")
+        df = pd.DataFrame(
+            {
+                "Ключ задачи": ["CPO-1", "CPO-2"],
+                "Название": ["Task 1", "Task 2"],
+                "TTM": [200, 150],
+            }
+        )
+        mock_read_csv.return_value = df
+        result = mock_service.upload_csv_to_sheet(test_csv, "TestSheet")
+
+        # Verify freeze and resize were called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        freeze_calls = [
+            call
+            for call in calls
+            if call[1]
+            and "requests" in call[1]["body"]
+            and any(
+                "updateSheetProperties" in req
+                and req["updateSheetProperties"]["properties"]
+                .get("gridProperties", {})
+                .get("frozenRowCount")
+                == 1
+                for req in call[1]["body"]["requests"]
+            )
+        ]
+        resize_calls = [
+            call
+            for call in calls
+            if call[1]
+            and "requests" in call[1]["body"]
+            and any(
+                "updateDimensionProperties" in req
+                and req["updateDimensionProperties"]["range"]["startIndex"] == 1
+                for req in call[1]["body"]["requests"]
+            )
+        ]
+
+        assert len(freeze_calls) > 0, "Freeze first row was not called"
+        assert len(resize_calls) > 0, "Resize name column was not called"
