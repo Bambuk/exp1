@@ -622,3 +622,208 @@ class TestGoogleSheetsService:
         assert result["ttm_pivot"] == 200
         # Verify sheet name was retrieved by ID
         mock_service._get_sheet_name_by_id.assert_called()
+
+    def test_apply_percentile_statistics_formatting_ttm_headers_bold(
+        self, mock_service
+    ):
+        """Test that TTM Pivot headers are formatted with bold text."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_percentile_statistics_formatting(
+            sheet_id=200, start_column_index=15, pivot_type="ttm"
+        )
+
+        # Verify batchUpdate was called with actual arguments
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:  # Has keyword args or positional args
+                call_args = call
+                break
+        assert call_args is not None, "batchUpdate() was not called with arguments"
+        requests = call_args[1]["body"]["requests"]
+
+        # Find requests for bold formatting (headers in rows 2, 4, 6)
+        bold_requests = [
+            req
+            for req in requests
+            if "repeatCell" in req
+            and "textFormat" in req["repeatCell"]["cell"]["userEnteredFormat"]
+            and req["repeatCell"]["cell"]["userEnteredFormat"]["textFormat"].get(
+                "bold", False
+            )
+        ]
+
+        # Should have 3 bold requests for headers (rows 2, 4, 6)
+        assert len(bold_requests) == 3
+
+        # Check that rows 2, 4, 6 are formatted
+        bold_rows = [
+            req["repeatCell"]["range"]["startRowIndex"] for req in bold_requests
+        ]
+        assert 1 in bold_rows  # Row 2 (0-based index 1)
+        assert 3 in bold_rows  # Row 4 (0-based index 3)
+        assert 5 in bold_rows  # Row 6 (0-based index 5)
+
+    def test_apply_percentile_statistics_formatting_ttm_thresholds_orange(
+        self, mock_service
+    ):
+        """Test that TTM Pivot threshold values have orange background."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_percentile_statistics_formatting(
+            sheet_id=200, start_column_index=15, pivot_type="ttm"
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        requests = call_args[1]["body"]["requests"]
+
+        # Find requests for orange background (threshold column in rows 3, 5, 7)
+        orange_requests = [
+            req
+            for req in requests
+            if "repeatCell" in req
+            and req["repeatCell"]["cell"]["userEnteredFormat"].get("backgroundColor")
+        ]
+
+        # Should have 3 orange requests for thresholds (rows 3, 5, 7, column 2)
+        assert len(orange_requests) == 3
+
+        # Check orange color (RGB: 255, 165, 0 = 1.0, 0.647, 0.0)
+        for req in orange_requests:
+            bg_color = req["repeatCell"]["cell"]["userEnteredFormat"]["backgroundColor"]
+            assert bg_color["red"] == 1.0
+            assert bg_color["green"] == 0.647
+            assert bg_color["blue"] == 0.0
+
+        # Check that rows 3, 5, 7 are formatted
+        orange_rows = [
+            req["repeatCell"]["range"]["startRowIndex"] for req in orange_requests
+        ]
+        assert 2 in orange_rows  # Row 3 (0-based index 2)
+        assert 4 in orange_rows  # Row 5 (0-based index 4)
+        assert 6 in orange_rows  # Row 7 (0-based index 6)
+
+        # Check that column 2 (threshold column) is formatted
+        for req in orange_requests:
+            assert (
+                req["repeatCell"]["range"]["startColumnIndex"] == 15 + 2
+            )  # start_column_index + 2 (third column)
+
+    def test_apply_percentile_statistics_formatting_ttd_headers_bold(
+        self, mock_service
+    ):
+        """Test that TTD Pivot headers are formatted with bold text."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_percentile_statistics_formatting(
+            sheet_id=200, start_column_index=11, pivot_type="ttd"
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        requests = call_args[1]["body"]["requests"]
+
+        # Find requests for bold formatting (header in row 2)
+        bold_requests = [
+            req
+            for req in requests
+            if "repeatCell" in req
+            and "textFormat" in req["repeatCell"]["cell"]["userEnteredFormat"]
+            and req["repeatCell"]["cell"]["userEnteredFormat"]["textFormat"].get(
+                "bold", False
+            )
+        ]
+
+        # Should have 1 bold request for header (row 2)
+        assert len(bold_requests) == 1
+
+        # Check that row 2 is formatted
+        assert bold_requests[0]["repeatCell"]["range"]["startRowIndex"] == 1
+
+    def test_apply_percentile_statistics_formatting_ttd_thresholds_orange(
+        self, mock_service
+    ):
+        """Test that TTD Pivot threshold value has orange background."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_percentile_statistics_formatting(
+            sheet_id=200, start_column_index=11, pivot_type="ttd"
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        requests = call_args[1]["body"]["requests"]
+
+        # Find requests for orange background (threshold column in row 3)
+        orange_requests = [
+            req
+            for req in requests
+            if "repeatCell" in req
+            and req["repeatCell"]["cell"]["userEnteredFormat"].get("backgroundColor")
+        ]
+
+        # Should have 1 orange request for threshold (row 3, column 2)
+        assert len(orange_requests) == 1
+
+        # Check orange color
+        bg_color = orange_requests[0]["repeatCell"]["cell"]["userEnteredFormat"][
+            "backgroundColor"
+        ]
+        assert bg_color["red"] == 1.0
+        assert bg_color["green"] == 0.647
+        assert bg_color["blue"] == 0.0
+
+        # Check that row 3 is formatted
+        assert orange_requests[0]["repeatCell"]["range"]["startRowIndex"] == 2
+
+        # Check that column 2 (threshold column) is formatted
+        assert (
+            orange_requests[0]["repeatCell"]["range"]["startColumnIndex"] == 11 + 2
+        )  # start_column_index + 2
+
+    def test_apply_percentile_statistics_formatting_api_calls(self, mock_service):
+        """Test that formatting API calls are structured correctly."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_percentile_statistics_formatting(
+            sheet_id=200, start_column_index=15, pivot_type="ttm"
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        requests = call_args[1]["body"]["requests"]
+
+        # Verify all requests have correct structure
+        for req in requests:
+            assert "repeatCell" in req
+            assert "range" in req["repeatCell"]
+            assert "cell" in req["repeatCell"]
+            assert "userEnteredFormat" in req["repeatCell"]["cell"]
+            assert "fields" in req["repeatCell"]
+
+            # Verify range has sheetId
+            assert req["repeatCell"]["range"]["sheetId"] == 200
+
+    def test_add_percentile_statistics_includes_formatting(self, mock_service):
+        """Test that formatting is applied when adding percentile statistics."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(
+            side_effect=lambda x: {
+                15: "P",
+                17: "R",
+                6: "G",
+                8: "I",
+                9: "J",
+            }.get(x, chr(ord("A") + x))
+        )
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name="Report_20240101",
+            pivot_type="ttm",
+        )
+
+        # Verify that formatting was called
+        mock_service.service.spreadsheets().batchUpdate.assert_called()

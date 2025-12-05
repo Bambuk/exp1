@@ -903,10 +903,163 @@ class GoogleSheetsService:
             logger.info(
                 f"Successfully added percentile statistics to {sheet_name} at {range_name}"
             )
+
+            # Apply formatting
+            self._apply_percentile_statistics_formatting(
+                sheet_id=sheet_id,
+                start_column_index=start_column_index,
+                pivot_type=pivot_type,
+            )
+
             return True
 
         except Exception as e:
             logger.error(f"Failed to add percentile statistics to {sheet_name}: {e}")
+            return False
+
+    def _apply_percentile_statistics_formatting(
+        self, sheet_id: int, start_column_index: int, pivot_type: str
+    ) -> bool:
+        """
+        Apply formatting to percentile statistics (bold headers, orange threshold values).
+
+        Args:
+            sheet_id: ID of the sheet with pivot table
+            start_column_index: Starting column index for statistics (0-based)
+            pivot_type: Type of pivot ("ttd" or "ttm")
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            requests = []
+
+            if pivot_type == "ttm":
+                # TTM Pivot: bold headers in rows 2, 4, 6 (0-based: 1, 3, 5)
+                # Orange thresholds in column 3 (start_column_index + 2) of rows 3, 5, 7 (0-based: 2, 4, 6)
+                header_rows = [1, 3, 5]  # Rows 2, 4, 6 (0-based)
+                threshold_rows = [2, 4, 6]  # Rows 3, 5, 7 (0-based)
+                threshold_column = start_column_index + 2  # Third column (0-based)
+
+                # Apply bold formatting to header rows (all 3 columns)
+                for row_index in header_rows:
+                    requests.append(
+                        {
+                            "repeatCell": {
+                                "range": {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": row_index,
+                                    "endRowIndex": row_index + 1,
+                                    "startColumnIndex": start_column_index,
+                                    "endColumnIndex": start_column_index + 3,
+                                },
+                                "cell": {
+                                    "userEnteredFormat": {
+                                        "textFormat": {"bold": True},
+                                    }
+                                },
+                                "fields": "userEnteredFormat.textFormat.bold",
+                            }
+                        }
+                    )
+
+                # Apply orange background to threshold values
+                for row_index in threshold_rows:
+                    requests.append(
+                        {
+                            "repeatCell": {
+                                "range": {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": row_index,
+                                    "endRowIndex": row_index + 1,
+                                    "startColumnIndex": threshold_column,
+                                    "endColumnIndex": threshold_column + 1,
+                                },
+                                "cell": {
+                                    "userEnteredFormat": {
+                                        "backgroundColor": {
+                                            "red": 1.0,
+                                            "green": 0.647,
+                                            "blue": 0.0,
+                                        }
+                                    }
+                                },
+                                "fields": "userEnteredFormat.backgroundColor",
+                            }
+                        }
+                    )
+
+            elif pivot_type == "ttd":
+                # TTD Pivot: bold header in row 2 (0-based: 1)
+                # Orange threshold in column 3 (start_column_index + 2) of row 3 (0-based: 2)
+                header_row = 1  # Row 2 (0-based)
+                threshold_row = 2  # Row 3 (0-based)
+                threshold_column = start_column_index + 2  # Third column (0-based)
+
+                # Apply bold formatting to header row (all 3 columns)
+                requests.append(
+                    {
+                        "repeatCell": {
+                            "range": {
+                                "sheetId": sheet_id,
+                                "startRowIndex": header_row,
+                                "endRowIndex": header_row + 1,
+                                "startColumnIndex": start_column_index,
+                                "endColumnIndex": start_column_index + 3,
+                            },
+                            "cell": {
+                                "userEnteredFormat": {
+                                    "textFormat": {"bold": True},
+                                }
+                            },
+                            "fields": "userEnteredFormat.textFormat.bold",
+                        }
+                    }
+                )
+
+                # Apply orange background to threshold value
+                requests.append(
+                    {
+                        "repeatCell": {
+                            "range": {
+                                "sheetId": sheet_id,
+                                "startRowIndex": threshold_row,
+                                "endRowIndex": threshold_row + 1,
+                                "startColumnIndex": threshold_column,
+                                "endColumnIndex": threshold_column + 1,
+                            },
+                            "cell": {
+                                "userEnteredFormat": {
+                                    "backgroundColor": {
+                                        "red": 1.0,
+                                        "green": 0.647,
+                                        "blue": 0.0,
+                                    }
+                                }
+                            },
+                            "fields": "userEnteredFormat.backgroundColor",
+                        }
+                    }
+                )
+
+            else:
+                logger.error(f"Unknown pivot type: {pivot_type}")
+                return False
+
+            # Apply formatting via batchUpdate
+            if requests:
+                self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=self.document_id, body={"requests": requests}
+                ).execute()
+
+                logger.info(
+                    f"Successfully applied formatting to percentile statistics (pivot_type={pivot_type})"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to apply formatting to percentile statistics: {e}")
             return False
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
