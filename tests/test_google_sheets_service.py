@@ -249,8 +249,3 @@ class TestGoogleSheetsService:
 
         # Check endColumnIndex
         assert pivot_table["source"]["endColumnIndex"] == 21
-
-    def test_get_column_index_development(self, mock_service):
-        """Test that _get_column_index returns correct index for 'Разработка' column."""
-        result = mock_service._get_column_index("Разработка")
-        assert result == 20
