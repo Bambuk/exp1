@@ -15,6 +15,33 @@ from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
 
 logger = logging.getLogger(__name__)
 
+# Column notes mapping based on TTM_DETAILS_REPORT_GUIDE.md
+COLUMN_NOTES = {
+    "Ключ задачи": "Ключ задачи из трекера (например, CPO-123)",
+    "Название": "Название задачи",
+    "Автор": "Автор задачи",
+    "Команда": "Команда автора (определяется через AuthorTeamMappingService если не указана в задаче)",
+    "PM Lead": "PM Lead команды (определяется через TeamLeadMappingService)",
+    "TTM": "Количество дней от создания задачи до завершения (для завершенных задач) или до текущей даты (для незавершенных)",
+    "TTD": "Количество дней от создания задачи до перехода в статус Готова к разработке",
+    "Tail": "Время от перехода в done-статус до стабильного завершения",
+    "DevLT": "Время в статусе МП / В работе (только для валидных записей >= 5 минут)",
+    "Пауза": "Общее время пауз в задаче",
+    "TTD Pause": "Время пауз до достижения статуса Готова к разработке",
+    "Discovery backlog (дни)": "Время, проведенное в статусе Discovery backlog",
+    "Готова к разработке (дни)": "Время, проведенное в статусе Готова к разработке",
+    "Возвраты с Testing": "Количество возвратов в статус Testing для всех связанных FULLSTACK задач",
+    "Возвраты с Внешний тест": "Количество возвратов в статус Внешний тест для всех связанных FULLSTACK задач",
+    "Всего возвратов": "Сумма возвратов с Testing и Внешний тест",
+    "Квартал": "Квартал завершения задачи (определяется по дате stable_done для завершенных задач)",
+    "Квартал TTD": "Квартал перехода в статус Готова к разработке",
+    "Создана": "Дата создания задачи",
+    "Начало работы": "Дата последнего выхода из статуса Discovery backlog",
+    "Завершено": "Дата стабильного завершения (stable_done) для завершенных задач",
+    "Разработка": "1 если задача имеет валидный статус МП / В работе (>= 5 минут), иначе 0",
+    "Завершена": "1 для завершенных задач (с stable_done), 0 для незавершенных",
+}
+
 
 class GoogleSheetsService:
     """Service for uploading CSV files to Google Sheets as new worksheets."""
@@ -255,6 +282,13 @@ class GoogleSheetsService:
                 # Freeze first row and resize 'Название' column
                 self._freeze_first_row(sheet_id=sheet_id, sheet_name=sheet_name)
                 self._resize_name_column(sheet_id=sheet_id, sheet_name=sheet_name)
+
+                # Add notes to column headers
+                self._add_column_notes_to_details(
+                    sheet_id=sheet_id,
+                    sheet_name=sheet_name,
+                    column_names=list(df.columns),
+                )
 
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
             return sheet_name
@@ -1252,6 +1286,61 @@ class GoogleSheetsService:
 
         except Exception as e:
             logger.error(f"Failed to resize 'Название' column in {sheet_name}: {e}")
+            return False
+
+    def _add_column_notes_to_details(
+        self, sheet_id: int, sheet_name: str, column_names: List[str]
+    ) -> bool:
+        """
+        Add notes to column headers in Details sheet.
+
+        Args:
+            sheet_id: ID of the sheet
+            sheet_name: Name of the sheet
+            column_names: List of column names (headers)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            requests = []
+
+            for column_index, column_name in enumerate(column_names):
+                # Get note for this column if available
+                note_text = COLUMN_NOTES.get(column_name)
+                if not note_text:
+                    continue
+
+                requests.append(
+                    {
+                        "repeatCell": {
+                            "range": {
+                                "sheetId": sheet_id,
+                                "startRowIndex": 0,  # Header row (0-based)
+                                "endRowIndex": 1,
+                                "startColumnIndex": column_index,
+                                "endColumnIndex": column_index + 1,
+                            },
+                            "cell": {"note": note_text},
+                            "fields": "note",
+                        }
+                    }
+                )
+
+            # Apply notes via batchUpdate
+            if requests:
+                self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=self.document_id, body={"requests": requests}
+                ).execute()
+
+                logger.info(
+                    f"Successfully added notes to {len(requests)} column headers in {sheet_name}"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to add column notes to {sheet_name}: {e}")
             return False
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:

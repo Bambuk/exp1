@@ -1165,3 +1165,114 @@ class TestGoogleSheetsService:
 
         assert len(freeze_calls) > 0, "Freeze first row was not called"
         assert len(resize_calls) > 0, "Resize name column was not called"
+
+    def test_add_column_notes_to_details(self, mock_service):
+        """Test adding notes to column headers in Details sheet."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        column_names = ["Ключ задачи", "Название", "TTM", "TTD"]
+        mock_service._add_column_notes_to_details(
+            sheet_id=100, sheet_name="Details", column_names=column_names
+        )
+
+        # Verify batchUpdate was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:
+                call_args = call
+                break
+        assert call_args is not None, "batchUpdate() was not called with arguments"
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find note requests
+        note_requests = [
+            req
+            for req in requests
+            if "repeatCell" in req and "note" in req["repeatCell"]["cell"]
+        ]
+
+        # Should have notes for all columns that have descriptions
+        assert len(note_requests) == len(column_names)
+
+        # Check that notes are added to row 0 (header row)
+        for req in note_requests:
+            assert req["repeatCell"]["range"]["startRowIndex"] == 0
+            assert req["repeatCell"]["range"]["endRowIndex"] == 1
+            assert "note" in req["repeatCell"]["cell"]
+            assert req["repeatCell"]["fields"] == "note"
+
+    def test_add_column_notes_mapping(self, mock_service):
+        """Test that column notes mapping is correct."""
+        # Check that all TTMDetailsColumns have notes (or at least key columns)
+        from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
+        from radiator.services.google_sheets_service import COLUMN_NOTES
+
+        key_columns = [
+            "Ключ задачи",
+            "TTM",
+            "TTD",
+            "Tail",
+            "DevLT",
+            "Возвраты с Testing",
+        ]
+
+        for column in key_columns:
+            assert column in COLUMN_NOTES, f"Column '{column}' missing in COLUMN_NOTES"
+
+    def test_add_column_notes_text_cleaning(self, mock_service):
+        """Test that column notes don't contain markdown or special characters."""
+        from radiator.services.google_sheets_service import COLUMN_NOTES
+
+        # Check that notes don't contain markdown formatting
+        for column, note in COLUMN_NOTES.items():
+            assert "**" not in note, f"Note for '{column}' contains markdown bold"
+            assert "`" not in note, f"Note for '{column}' contains markdown code"
+            assert (
+                "<" not in note or ">" not in note
+            ), f"Note for '{column}' contains HTML tags"
+
+    @patch("radiator.services.google_sheets_service.pd.read_csv")
+    def test_upload_csv_to_sheet_includes_column_notes(
+        self, mock_read_csv, mock_service
+    ):
+        """Test that column notes are added when uploading CSV."""
+        # Mock sheet creation
+        mock_service.service.spreadsheets().get().execute.return_value = {"sheets": []}
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+        mock_service._get_sheet_id = Mock(return_value=100)
+
+        # Mock CSV reading
+        from pathlib import Path
+
+        import pandas as pd
+
+        test_csv = Path("/tmp/test_upload.csv")
+        df = pd.DataFrame(
+            {
+                "Ключ задачи": ["CPO-1", "CPO-2"],
+                "Название": ["Task 1", "Task 2"],
+                "TTM": [200, 150],
+            }
+        )
+        mock_read_csv.return_value = df
+        result = mock_service.upload_csv_to_sheet(test_csv, "TestSheet")
+
+        # Verify column notes were called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        note_calls = [
+            call
+            for call in calls
+            if call[1]
+            and "requests" in call[1]["body"]
+            and any(
+                "repeatCell" in req
+                and "note" in req.get("repeatCell", {}).get("cell", {})
+                for req in call[1]["body"]["requests"]
+            )
+        ]
+
+        assert len(note_calls) > 0, "Column notes were not added"
