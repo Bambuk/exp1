@@ -573,6 +573,11 @@ class GoogleSheetsService:
                         "sortOrder": "ASCENDING",
                     },
                     {
+                        "sourceColumnOffset": self._get_column_index("PM Lead"),
+                        "showTotals": False,
+                        "sortOrder": "ASCENDING",
+                    },
+                    {
                         "sourceColumnOffset": self._get_column_index("Команда"),
                         "showTotals": False,
                         "sortOrder": "ASCENDING",

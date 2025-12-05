@@ -207,7 +207,7 @@ class TestGoogleSheetsService:
 
         # Check rows structure
         rows = pivot_table["rows"]
-        assert len(rows) == 4
+        assert len(rows) == 5, "Expected 5 rows in grouping"
 
         # First row should be "Разработка"
         assert rows[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
@@ -219,13 +219,18 @@ class TestGoogleSheetsService:
             "Завершена"
         )
 
-        # Third row should be "Команда"
+        # Third row should be "PM Lead"
         assert rows[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "PM Lead"
+        )
+
+        # Fourth row should be "Команда"
+        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Команда"
         )
 
-        # Fourth row should be "Квартал"
-        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+        # Fifth row should be "Квартал"
+        assert rows[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Квартал"
         )
 
@@ -243,7 +248,7 @@ class TestGoogleSheetsService:
 
         # Check rows structure
         rows = pivot_table["rows"]
-        assert len(rows) == 4
+        assert len(rows) == 5, "Expected 5 rows in grouping"
 
         # First row should be "Разработка"
         assert rows[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
@@ -255,13 +260,18 @@ class TestGoogleSheetsService:
             "Завершена"
         )
 
-        # Third row should be "Команда"
+        # Third row should be "PM Lead"
         assert rows[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "PM Lead"
+        )
+
+        # Fourth row should be "Команда"
+        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Команда"
         )
 
-        # Fourth row should be "Квартал"
-        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+        # Fifth row should be "Квартал"
+        assert rows[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Квартал"
         )
 

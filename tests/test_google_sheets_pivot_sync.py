@@ -67,6 +67,7 @@ class TestGoogleSheetsPivotSync:
 
         # Check row grouping indices
         rows = pivot_table_ttd["rows"]
+        assert len(rows) == 5, "Expected 5 rows in grouping"
         assert rows[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Разработка"
         )
@@ -74,9 +75,12 @@ class TestGoogleSheetsPivotSync:
             "Завершена"
         )
         assert rows[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
-            "Команда"
+            "PM Lead"
         )
         assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
+        assert rows[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Квартал"
         )
 
@@ -118,6 +122,7 @@ class TestGoogleSheetsPivotSync:
 
         # Check row grouping indices
         rows_ttm = pivot_table_ttm["rows"]
+        assert len(rows_ttm) == 5, "Expected 5 rows in grouping"
         assert rows_ttm[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Разработка"
         )
@@ -125,8 +130,76 @@ class TestGoogleSheetsPivotSync:
             "Завершена"
         )
         assert rows_ttm[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
-            "Команда"
+            "PM Lead"
         )
         assert rows_ttm[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
+        assert rows_ttm[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Квартал"
+        )
+
+    def test_pivot_table_has_pm_lead_before_team(self, mock_service):
+        """Test that pivot tables have PM Lead before Команда in row grouping."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        # Test TTD pivot table
+        request_ttd = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttd"
+        )
+        assert request_ttd is not None
+        pivot_table_ttd = request_ttd["updateCells"]["rows"][0]["values"][0][
+            "pivotTable"
+        ]
+
+        rows_ttd = pivot_table_ttd["rows"]
+        # Check that we have 5 rows (was 4)
+        assert len(rows_ttd) == 5, f"Expected 5 rows, got {len(rows_ttd)}"
+
+        # Check order: Разработка → Завершена → PM Lead → Команда → Квартал
+        assert rows_ttd[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Разработка"
+        )
+        assert rows_ttd[1]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Завершена"
+        )
+        assert rows_ttd[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "PM Lead"
+        ), "PM Lead should be at index 2, before Команда"
+        assert rows_ttd[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
+        assert rows_ttd[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Квартал"
+        )
+
+        # Test TTM pivot table
+        request_ttm = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttm"
+        )
+        assert request_ttm is not None
+        pivot_table_ttm = request_ttm["updateCells"]["rows"][0]["values"][0][
+            "pivotTable"
+        ]
+
+        rows_ttm = pivot_table_ttm["rows"]
+        # Check that we have 5 rows (was 4)
+        assert len(rows_ttm) == 5, f"Expected 5 rows, got {len(rows_ttm)}"
+
+        # Check order: Разработка → Завершена → PM Lead → Команда → Квартал
+        assert rows_ttm[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Разработка"
+        )
+        assert rows_ttm[1]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Завершена"
+        )
+        assert rows_ttm[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "PM Lead"
+        ), "PM Lead should be at index 2, before Команда"
+        assert rows_ttm[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
+        assert rows_ttm[4]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
             "Квартал"
         )
