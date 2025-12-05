@@ -348,24 +348,148 @@ class TestGoogleSheetsService:
     def test_calculate_pivot_table_width_ttd(self, mock_service):
         """Test calculation of TTD pivot table width."""
         width = mock_service._calculate_pivot_table_width("ttd")
-        # TTD Pivot: 5 row groupings + 4 value columns = 9 колонок
-        assert width == 9
+        # TTD Pivot: 5 row groupings + 6 value columns = 11 колонок
+        assert width == 11
 
     def test_calculate_pivot_table_width_ttm(self, mock_service):
         """Test calculation of TTM pivot table width."""
         width = mock_service._calculate_pivot_table_width("ttm")
-        # TTM Pivot: 5 row groupings + 8 value columns = 13 колонок
-        assert width == 13
+        # TTM Pivot: 5 row groupings + 10 value columns = 15 колонок
+        assert width == 15
+
+    def test_build_pivot_table_request_ttd_has_discovery_backlog_mean(
+        self, mock_service
+    ):
+        """Test that TTD pivot table has 'Discovery backlog Mean' metric."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttd"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+        values = pivot_table["values"]
+
+        # Check that we have 6 values (was 4)
+        assert len(values) == 6, "TTD pivot should have 6 value columns"
+
+        # Find Discovery backlog Mean
+        discovery_backlog_mean = next(
+            (v for v in values if v["name"] == "Discovery backlog Mean"), None
+        )
+        assert discovery_backlog_mean is not None, "Discovery backlog Mean not found"
+        assert discovery_backlog_mean[
+            "sourceColumnOffset"
+        ] == TTMDetailsColumns.get_column_index(
+            "Discovery backlog (дни)"
+        ), "Discovery backlog Mean should use Discovery backlog (дни) column"
+        assert (
+            discovery_backlog_mean["summarizeFunction"] == "AVERAGE"
+        ), "Discovery backlog Mean should use AVERAGE function"
+
+    def test_build_pivot_table_request_ttd_has_ready_for_dev_mean(self, mock_service):
+        """Test that TTD pivot table has 'Готова к разработке Mean' metric."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttd"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+        values = pivot_table["values"]
+
+        # Check that we have 6 values (was 4)
+        assert len(values) == 6, "TTD pivot should have 6 value columns"
+
+        # Find Готова к разработке Mean
+        ready_for_dev_mean = next(
+            (v for v in values if v["name"] == "Готова к разработке Mean"), None
+        )
+        assert ready_for_dev_mean is not None, "Готова к разработке Mean not found"
+        assert ready_for_dev_mean[
+            "sourceColumnOffset"
+        ] == TTMDetailsColumns.get_column_index(
+            "Готова к разработке (дни)"
+        ), "Готова к разработке Mean should use Готова к разработке (дни) column"
+        assert (
+            ready_for_dev_mean["summarizeFunction"] == "AVERAGE"
+        ), "Готова к разработке Mean should use AVERAGE function"
+
+    def test_build_pivot_table_request_ttm_has_discovery_backlog_mean(
+        self, mock_service
+    ):
+        """Test that TTM pivot table has 'Discovery backlog Mean' metric."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttm"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+        values = pivot_table["values"]
+
+        # Check that we have 10 values (was 8)
+        assert len(values) == 10, "TTM pivot should have 10 value columns"
+
+        # Find Discovery backlog Mean
+        discovery_backlog_mean = next(
+            (v for v in values if v["name"] == "Discovery backlog Mean"), None
+        )
+        assert discovery_backlog_mean is not None, "Discovery backlog Mean not found"
+        assert discovery_backlog_mean[
+            "sourceColumnOffset"
+        ] == TTMDetailsColumns.get_column_index(
+            "Discovery backlog (дни)"
+        ), "Discovery backlog Mean should use Discovery backlog (дни) column"
+        assert (
+            discovery_backlog_mean["summarizeFunction"] == "AVERAGE"
+        ), "Discovery backlog Mean should use AVERAGE function"
+
+    def test_build_pivot_table_request_ttm_has_ready_for_dev_mean(self, mock_service):
+        """Test that TTM pivot table has 'Готова к разработке Mean' metric."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttm"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+        values = pivot_table["values"]
+
+        # Check that we have 10 values (was 8)
+        assert len(values) == 10, "TTM pivot should have 10 value columns"
+
+        # Find Готова к разработке Mean
+        ready_for_dev_mean = next(
+            (v for v in values if v["name"] == "Готова к разработке Mean"), None
+        )
+        assert ready_for_dev_mean is not None, "Готова к разработке Mean not found"
+        assert ready_for_dev_mean[
+            "sourceColumnOffset"
+        ] == TTMDetailsColumns.get_column_index(
+            "Готова к разработке (дни)"
+        ), "Готова к разработке Mean should use Готова к разработке (дни) column"
+        assert (
+            ready_for_dev_mean["summarizeFunction"] == "AVERAGE"
+        ), "Готова к разработке Mean should use AVERAGE function"
 
     def test_add_percentile_statistics_ttm_pivot(self, mock_service):
         """Test adding percentile statistics for TTM Pivot."""
         mock_service._get_sheet_id = Mock(return_value=200)
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
         # Mock _index_to_column_letter for different calls:
-        # - 15 for start position (P)
+        # - 17 for start position (R)
         # - 6 for TTM (G), 8 for Tail (I), 9 for DevLT (J)
         mock_service._index_to_column_letter = Mock(
-            side_effect=lambda x: {15: "P", 17: "R", 6: "G", 8: "I", 9: "J"}.get(
+            side_effect=lambda x: {17: "R", 19: "T", 6: "G", 8: "I", 9: "J"}.get(
                 x, chr(ord("A") + x)
             )
         )
@@ -390,7 +514,7 @@ class TestGoogleSheetsService:
         assert call_args is not None, "values().update() was not called with arguments"
 
         # Check range
-        assert call_args[1]["range"] == "TTM Pivot!P2:R7"
+        assert call_args[1]["range"] == "TTM Pivot!R2:T7"
         # Check valueInputOption
         assert call_args[1]["valueInputOption"] == "USER_ENTERED"
 
@@ -409,12 +533,12 @@ class TestGoogleSheetsService:
     def test_add_percentile_statistics_ttd_pivot(self, mock_service):
         """Test adding percentile statistics for TTD Pivot."""
         mock_service._get_sheet_id = Mock(return_value=200)
-        mock_service._calculate_pivot_table_width = Mock(return_value=9)
+        mock_service._calculate_pivot_table_width = Mock(return_value=11)
         # Mock _index_to_column_letter for different calls:
-        # - 11 for start position (L)
+        # - 13 for start position (N)
         # - 10 for TTD (K)
         mock_service._index_to_column_letter = Mock(
-            side_effect=lambda x: {11: "L", 13: "N", 10: "K"}.get(x, chr(ord("A") + x))
+            side_effect=lambda x: {13: "N", 15: "P", 10: "K"}.get(x, chr(ord("A") + x))
         )
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
@@ -437,7 +561,7 @@ class TestGoogleSheetsService:
         assert call_args is not None, "values().update() was not called with arguments"
 
         # Check range
-        assert call_args[1]["range"] == "TTD Pivot!L2:N3"
+        assert call_args[1]["range"] == "TTD Pivot!N2:P3"
         # Check valueInputOption
         assert call_args[1]["valueInputOption"] == "USER_ENTERED"
 
@@ -461,36 +585,36 @@ class TestGoogleSheetsService:
         )
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
-        # Test TTM: width 13, start column should be 15 (P)
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        # Test TTM: width 15, start column should be 17 (R)
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
         mock_service._add_percentile_statistics(
             sheet_id=200,
             sheet_name="TTM Pivot",
             source_sheet_name="Report",
             pivot_type="ttm",
         )
-        # Verify _index_to_column_letter was called with 15
-        mock_service._index_to_column_letter.assert_any_call(15)
+        # Verify _index_to_column_letter was called with 17
+        mock_service._index_to_column_letter.assert_any_call(17)
 
         # Reset mock
         mock_service._index_to_column_letter.reset_mock()
 
-        # Test TTD: width 9, start column should be 11 (L)
-        mock_service._calculate_pivot_table_width = Mock(return_value=9)
+        # Test TTD: width 11, start column should be 13 (N)
+        mock_service._calculate_pivot_table_width = Mock(return_value=11)
         mock_service._add_percentile_statistics(
             sheet_id=200,
             sheet_name="TTD Pivot",
             source_sheet_name="Report",
             pivot_type="ttd",
         )
-        # Verify _index_to_column_letter was called with 11
-        mock_service._index_to_column_letter.assert_any_call(11)
+        # Verify _index_to_column_letter was called with 13
+        mock_service._index_to_column_letter.assert_any_call(13)
 
     def test_add_percentile_statistics_formulas(self, mock_service):
         """Test that PERCENTILE formulas use correct source sheet name."""
         mock_service._get_sheet_id = Mock(return_value=200)
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
-        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._index_to_column_letter = Mock(return_value="R")
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
         source_sheet_name = "Report_20240101_120000"
@@ -514,8 +638,8 @@ class TestGoogleSheetsService:
     def test_add_percentile_statistics_sheet_name_escaping(self, mock_service):
         """Test that sheet names with spaces are properly escaped in formulas."""
         mock_service._get_sheet_id = Mock(return_value=200)
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
-        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._index_to_column_letter = Mock(return_value="R")
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
         source_sheet_name = "Report With Spaces"
@@ -560,8 +684,8 @@ class TestGoogleSheetsService:
             "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
         }
         mock_service._get_sheet_id = Mock(return_value=100)  # Source sheet
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
-        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._index_to_column_letter = Mock(return_value="R")
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
         result = mock_service._create_google_pivot_table(
@@ -584,8 +708,8 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
             "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
         }
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
-        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._index_to_column_letter = Mock(return_value="R")
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
         df = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
@@ -608,8 +732,8 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
             "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
         }
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
-        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._index_to_column_letter = Mock(return_value="R")
         mock_service.service.spreadsheets().values().update().execute.return_value = {}
 
         df = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
@@ -630,7 +754,7 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         mock_service._apply_percentile_statistics_formatting(
-            sheet_id=200, start_column_index=15, pivot_type="ttm"
+            sheet_id=200, start_column_index=17, pivot_type="ttm"
         )
 
         # Verify batchUpdate was called with actual arguments
@@ -672,7 +796,7 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         mock_service._apply_percentile_statistics_formatting(
-            sheet_id=200, start_column_index=15, pivot_type="ttm"
+            sheet_id=200, start_column_index=17, pivot_type="ttm"
         )
 
         call_args = mock_service.service.spreadsheets().batchUpdate.call_args
@@ -717,7 +841,7 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         mock_service._apply_percentile_statistics_formatting(
-            sheet_id=200, start_column_index=11, pivot_type="ttd"
+            sheet_id=200, start_column_index=13, pivot_type="ttd"
         )
 
         call_args = mock_service.service.spreadsheets().batchUpdate.call_args
@@ -747,7 +871,7 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         mock_service._apply_percentile_statistics_formatting(
-            sheet_id=200, start_column_index=11, pivot_type="ttd"
+            sheet_id=200, start_column_index=13, pivot_type="ttd"
         )
 
         call_args = mock_service.service.spreadsheets().batchUpdate.call_args
@@ -785,7 +909,7 @@ class TestGoogleSheetsService:
         mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         mock_service._apply_percentile_statistics_formatting(
-            sheet_id=200, start_column_index=15, pivot_type="ttm"
+            sheet_id=200, start_column_index=17, pivot_type="ttm"
         )
 
         call_args = mock_service.service.spreadsheets().batchUpdate.call_args
@@ -805,11 +929,11 @@ class TestGoogleSheetsService:
     def test_add_percentile_statistics_includes_formatting(self, mock_service):
         """Test that formatting is applied when adding percentile statistics."""
         mock_service._get_sheet_id = Mock(return_value=200)
-        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
         mock_service._index_to_column_letter = Mock(
             side_effect=lambda x: {
-                15: "P",
                 17: "R",
+                19: "T",
                 6: "G",
                 8: "I",
                 9: "J",

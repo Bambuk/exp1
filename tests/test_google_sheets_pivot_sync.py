@@ -84,9 +84,9 @@ class TestGoogleSheetsPivotSync:
             "Квартал"
         )
 
-        # Check values indices - TTD pivot table should have TTD and TTD Pause columns
+        # Check values indices - TTD pivot table should have TTD, TTD Pause, Discovery backlog Mean, and Готова к разработке Mean columns
         values = pivot_table_ttd["values"]
-        assert len(values) == 4, "TTD pivot should have 4 value columns"
+        assert len(values) == 6, "TTD pivot should have 6 value columns"
 
         # Check TTD column indices (first 3 values use TTD)
         expected_ttd_index = TTMDetailsColumns.get_column_index("TTD")

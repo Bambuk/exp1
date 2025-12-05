@@ -723,6 +723,20 @@ class GoogleSheetsService:
                         "summarizeFunction": "AVERAGE",
                         "name": "TTD Pause Mean",
                     },
+                    {
+                        "sourceColumnOffset": self._get_column_index(
+                            "Discovery backlog (дни)"
+                        ),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "Discovery backlog Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index(
+                            "Готова к разработке (дни)"
+                        ),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "Готова к разработке Mean",
+                    },
                 ]
             elif pivot_type == "ttm":
                 # TTM pivot table values
@@ -766,6 +780,20 @@ class GoogleSheetsService:
                         "sourceColumnOffset": self._get_column_index("DevLT (дни)"),
                         "summarizeFunction": "MAX",
                         "name": "DevLT Max",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index(
+                            "Discovery backlog (дни)"
+                        ),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "Discovery backlog Mean",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index(
+                            "Готова к разработке (дни)"
+                        ),
+                        "summarizeFunction": "AVERAGE",
+                        "name": "Готова к разработке Mean",
                     },
                 ]
 
@@ -853,14 +881,14 @@ class GoogleSheetsService:
         base_groupings = 5
 
         if pivot_type == "ttd":
-            # TTD Pivot: 5 row groupings + 4 value columns
-            return base_groupings + 4
+            # TTD Pivot: 5 row groupings + 6 value columns
+            return base_groupings + 6
         elif pivot_type == "ttm":
-            # TTM Pivot: 5 row groupings + 8 value columns
-            return base_groupings + 8
+            # TTM Pivot: 5 row groupings + 10 value columns
+            return base_groupings + 10
         else:
             logger.warning(f"Unknown pivot type: {pivot_type}, defaulting to TTD width")
-            return base_groupings + 4
+            return base_groupings + 6
 
     def _add_percentile_statistics(
         self,
