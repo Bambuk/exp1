@@ -292,3 +292,333 @@ class TestGoogleSheetsService:
         assert (
             pivot_table["source"]["endColumnIndex"] == expected_count
         ), f"endColumnIndex should equal TTMDetailsColumns.get_column_count(). Expected {expected_count}, got {pivot_table['source']['endColumnIndex']}"
+
+    def test_index_to_column_letter_basic(self, mock_service):
+        """Test basic column letter conversion (A-Z)."""
+        assert mock_service._index_to_column_letter(0) == "A"
+        assert mock_service._index_to_column_letter(1) == "B"
+        assert mock_service._index_to_column_letter(25) == "Z"
+
+    def test_index_to_column_letter_extended(self, mock_service):
+        """Test extended column letter conversion (AA-ZZ)."""
+        assert mock_service._index_to_column_letter(26) == "AA"
+        assert mock_service._index_to_column_letter(27) == "AB"
+        assert mock_service._index_to_column_letter(51) == "AZ"
+        assert mock_service._index_to_column_letter(52) == "BA"
+
+    def test_index_to_column_letter_specific(self, mock_service):
+        """Test specific column indices used in the codebase."""
+        # TTM: индекс 6 → колонка G (A=0, B=1, C=2, D=3, E=4, F=5, G=6)
+        assert mock_service._index_to_column_letter(6) == "G"
+        # Tail: индекс 8 → колонка I (A=0, ..., H=7, I=8)
+        assert mock_service._index_to_column_letter(8) == "I"
+        # DevLT: индекс 9 → колонка J
+        assert mock_service._index_to_column_letter(9) == "J"
+        # TTD: индекс 10 → колонка K
+        assert mock_service._index_to_column_letter(10) == "K"
+        # TTM Pivot start column: 15 → P (A=0, ..., O=14, P=15)
+        assert mock_service._index_to_column_letter(15) == "P"
+        # TTD Pivot start column: 11 → L (A=0, ..., K=10, L=11)
+        assert mock_service._index_to_column_letter(11) == "L"
+
+    def test_get_sheet_name_by_id_success(self, mock_service):
+        """Test successful sheet name retrieval by ID."""
+        mock_service.service.spreadsheets().get().execute.return_value = {
+            "sheets": [
+                {"properties": {"title": "Sheet1", "sheetId": 123}},
+                {"properties": {"title": "Sheet2", "sheetId": 456}},
+            ]
+        }
+
+        result = mock_service._get_sheet_name_by_id(123)
+        assert result == "Sheet1"
+
+        result = mock_service._get_sheet_name_by_id(456)
+        assert result == "Sheet2"
+
+    def test_get_sheet_name_by_id_not_found(self, mock_service):
+        """Test sheet name retrieval when sheet ID not found."""
+        mock_service.service.spreadsheets().get().execute.return_value = {
+            "sheets": [{"properties": {"title": "Sheet1", "sheetId": 123}}]
+        }
+
+        result = mock_service._get_sheet_name_by_id(999)
+        assert result is None
+
+    def test_calculate_pivot_table_width_ttd(self, mock_service):
+        """Test calculation of TTD pivot table width."""
+        width = mock_service._calculate_pivot_table_width("ttd")
+        # TTD Pivot: 5 row groupings + 4 value columns = 9 колонок
+        assert width == 9
+
+    def test_calculate_pivot_table_width_ttm(self, mock_service):
+        """Test calculation of TTM pivot table width."""
+        width = mock_service._calculate_pivot_table_width("ttm")
+        # TTM Pivot: 5 row groupings + 8 value columns = 13 колонок
+        assert width == 13
+
+    def test_add_percentile_statistics_ttm_pivot(self, mock_service):
+        """Test adding percentile statistics for TTM Pivot."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        # Mock _index_to_column_letter for different calls:
+        # - 15 for start position (P)
+        # - 6 for TTM (G), 8 for Tail (I), 9 for DevLT (J)
+        mock_service._index_to_column_letter = Mock(
+            side_effect=lambda x: {15: "P", 17: "R", 6: "G", 8: "I", 9: "J"}.get(
+                x, chr(ord("A") + x)
+            )
+        )
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name="Report_20240101",
+            pivot_type="ttm",
+        )
+
+        # Verify that values().update() was called with actual arguments
+        # Note: update() is called twice - once for mock setup, once for actual call
+        calls = mock_service.service.spreadsheets().values().update.call_args_list
+        # Find the call with actual arguments (not just call())
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:  # Has keyword args or positional args
+                call_args = call
+                break
+        assert call_args is not None, "values().update() was not called with arguments"
+
+        # Check range
+        assert call_args[1]["range"] == "TTM Pivot!P2:R7"
+        # Check valueInputOption
+        assert call_args[1]["valueInputOption"] == "USER_ENTERED"
+
+        # Check data structure
+        body = call_args[1]["body"]
+        values = body["values"]
+        assert len(values) == 6  # 6 rows
+
+        # Check first row (headers)
+        assert values[0] == ["ТТМ, 50 перц.", "ТТМ, 85 перц. ", "TTM, порог"]
+        # Check second row (formulas) - TTM is at index 6, which is column G
+        assert values[1][0] == "=PERCENTILE('Report_20240101'!G:G;0,5)"
+        assert values[1][1] == "=PERCENTILE('Report_20240101'!G:G;0,85)"
+        assert values[1][2] == 180
+
+    def test_add_percentile_statistics_ttd_pivot(self, mock_service):
+        """Test adding percentile statistics for TTD Pivot."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._calculate_pivot_table_width = Mock(return_value=9)
+        # Mock _index_to_column_letter for different calls:
+        # - 11 for start position (L)
+        # - 10 for TTD (K)
+        mock_service._index_to_column_letter = Mock(
+            side_effect=lambda x: {11: "L", 13: "N", 10: "K"}.get(x, chr(ord("A") + x))
+        )
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTD Pivot",
+            source_sheet_name="Report_20240101",
+            pivot_type="ttd",
+        )
+
+        # Verify that values().update() was called with actual arguments
+        # Note: update() is called twice - once for mock setup, once for actual call
+        calls = mock_service.service.spreadsheets().values().update.call_args_list
+        # Find the call with actual arguments (not just call())
+        call_args = None
+        for call in calls:
+            if call[1] or call[0]:  # Has keyword args or positional args
+                call_args = call
+                break
+        assert call_args is not None, "values().update() was not called with arguments"
+
+        # Check range
+        assert call_args[1]["range"] == "TTD Pivot!L2:N3"
+        # Check valueInputOption
+        assert call_args[1]["valueInputOption"] == "USER_ENTERED"
+
+        # Check data structure
+        body = call_args[1]["body"]
+        values = body["values"]
+        assert len(values) == 2  # 2 rows
+
+        # Check first row (headers)
+        assert values[0] == ["ТТD, 50 перц.", "ТТD, 85 перц. ", "TTD, порог"]
+        # Check second row (formulas) - TTD is at index 10, which is column K
+        assert values[1][0] == "=PERCENTILE('Report_20240101'!K:K;0,5)"
+        assert values[1][1] == "=PERCENTILE('Report_20240101'!K:K;0,85)"
+        assert values[1][2] == 60
+
+    def test_add_percentile_statistics_position_calculation(self, mock_service):
+        """Test that position calculation is correct (end of pivot table + 2 columns)."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._index_to_column_letter = Mock(
+            side_effect=lambda x: chr(ord("A") + x)
+        )
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        # Test TTM: width 13, start column should be 15 (P)
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name="Report",
+            pivot_type="ttm",
+        )
+        # Verify _index_to_column_letter was called with 15
+        mock_service._index_to_column_letter.assert_any_call(15)
+
+        # Reset mock
+        mock_service._index_to_column_letter.reset_mock()
+
+        # Test TTD: width 9, start column should be 11 (L)
+        mock_service._calculate_pivot_table_width = Mock(return_value=9)
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTD Pivot",
+            source_sheet_name="Report",
+            pivot_type="ttd",
+        )
+        # Verify _index_to_column_letter was called with 11
+        mock_service._index_to_column_letter.assert_any_call(11)
+
+    def test_add_percentile_statistics_formulas(self, mock_service):
+        """Test that PERCENTILE formulas use correct source sheet name."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        source_sheet_name = "Report_20240101_120000"
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name=source_sheet_name,
+            pivot_type="ttm",
+        )
+
+        call_args = mock_service.service.spreadsheets().values().update.call_args
+        body = call_args[1]["body"]
+        values = body["values"]
+
+        # Check that formulas contain source sheet name
+        assert f"'{source_sheet_name}'" in values[1][0]  # TTM 50 percentile
+        assert f"'{source_sheet_name}'" in values[1][1]  # TTM 85 percentile
+        assert f"'{source_sheet_name}'" in values[3][0]  # Tail 50 percentile
+        assert f"'{source_sheet_name}'" in values[5][0]  # DevLT 50 percentile
+
+    def test_add_percentile_statistics_sheet_name_escaping(self, mock_service):
+        """Test that sheet names with spaces are properly escaped in formulas."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        source_sheet_name = "Report With Spaces"
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name=source_sheet_name,
+            pivot_type="ttm",
+        )
+
+        call_args = mock_service.service.spreadsheets().values().update.call_args
+        body = call_args[1]["body"]
+        values = body["values"]
+
+        # Check that formulas contain escaped sheet name
+        assert f"'{source_sheet_name}'" in values[1][0]
+
+    def test_add_percentile_statistics_dynamic_positioning(self, mock_service):
+        """Test that position changes when pivot table width changes."""
+        mock_service._get_sheet_id = Mock(return_value=200)
+        mock_service._index_to_column_letter = Mock(
+            side_effect=lambda x: chr(ord("A") + x)
+        )
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        # Simulate wider pivot table (e.g., if columns were added)
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+        mock_service._add_percentile_statistics(
+            sheet_id=200,
+            sheet_name="TTM Pivot",
+            source_sheet_name="Report",
+            pivot_type="ttm",
+        )
+
+        # Verify position shifted: 15 + 2 = 17
+        mock_service._index_to_column_letter.assert_any_call(17)
+
+    def test_create_pivot_table_with_percentile_statistics(self, mock_service):
+        """Test full cycle of creating pivot table with percentile statistics."""
+        # Mock sheet creation
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
+            "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
+        }
+        mock_service._get_sheet_id = Mock(return_value=100)  # Source sheet
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        result = mock_service._create_google_pivot_table(
+            document_id="test_doc",
+            source_sheet_id=100,
+            sheet_name="TTM Pivot",
+            pivot_type="ttm",
+            source_sheet_name="Report_20240101",
+        )
+
+        assert result == 200
+        # Verify that percentile statistics were added
+        mock_service.service.spreadsheets().values().update.assert_called()
+
+    def test_create_pivot_tables_from_dataframe_with_source_sheet_name(
+        self, mock_service
+    ):
+        """Test creating pivot tables with source sheet name provided."""
+        mock_service._get_sheet_id = Mock(return_value=100)
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
+            "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
+        }
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        df = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
+        result = mock_service.create_pivot_tables_from_dataframe(
+            details_data=df,
+            document_id="test_doc",
+            source_sheet_name="Report_20240101",
+        )
+
+        assert result["ttm_pivot"] == 200
+        # Verify source_sheet_name was used
+        mock_service._get_sheet_id.assert_called_with("Report_20240101")
+
+    def test_create_pivot_tables_from_dataframe_without_source_sheet_name(
+        self, mock_service
+    ):
+        """Test creating pivot tables with automatic source sheet name detection."""
+        mock_service._get_source_sheet_id = Mock(return_value=100)
+        mock_service._get_sheet_name_by_id = Mock(return_value="Report_20240101")
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
+            "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
+        }
+        mock_service._calculate_pivot_table_width = Mock(return_value=13)
+        mock_service._index_to_column_letter = Mock(return_value="P")
+        mock_service.service.spreadsheets().values().update().execute.return_value = {}
+
+        df = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
+        result = mock_service.create_pivot_tables_from_dataframe(
+            details_data=df,
+            document_id="test_doc",
+            source_sheet_name=None,
+        )
+
+        assert result["ttm_pivot"] == 200
+        # Verify sheet name was retrieved by ID
+        mock_service._get_sheet_name_by_id.assert_called()

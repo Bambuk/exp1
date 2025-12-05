@@ -363,6 +363,30 @@ class GoogleSheetsService:
             logger.error(f"Failed to get sheet ID for {sheet_name}: {e}")
             return None
 
+    def _get_sheet_name_by_id(self, sheet_id: int) -> Optional[str]:
+        """
+        Get sheet name by sheet ID.
+
+        Args:
+            sheet_id: ID of the sheet
+
+        Returns:
+            Sheet name or None if not found
+        """
+        try:
+            spreadsheet = (
+                self.service.spreadsheets()
+                .get(spreadsheetId=self.document_id)
+                .execute()
+            )
+            for sheet in spreadsheet["sheets"]:
+                if sheet["properties"]["sheetId"] == sheet_id:
+                    return sheet["properties"]["title"]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get sheet name for ID {sheet_id}: {e}")
+            return None
+
     def test_connection(self) -> bool:
         """
         Test connection to Google Sheets.
@@ -416,17 +440,29 @@ class GoogleSheetsService:
                 logger.error("Could not find source sheet for pivot tables")
                 return {"ttd_pivot": None, "ttm_pivot": None}
 
+            # Get source sheet name if not provided
+            if source_sheet_name is None:
+                source_sheet_name = self._get_sheet_name_by_id(source_sheet_id)
+
             # Create TTD pivot table with unique name
             import time
 
             timestamp = int(time.time())
             ttd_sheet_id = self._create_google_pivot_table(
-                document_id, source_sheet_id, f"TTD Pivot {timestamp}", "ttd"
+                document_id,
+                source_sheet_id,
+                f"TTD Pivot {timestamp}",
+                "ttd",
+                source_sheet_name=source_sheet_name,
             )
 
             # Create TTM pivot table with unique name
             ttm_sheet_id = self._create_google_pivot_table(
-                document_id, source_sheet_id, f"TTM Pivot {timestamp}", "ttm"
+                document_id,
+                source_sheet_id,
+                f"TTM Pivot {timestamp}",
+                "ttm",
+                source_sheet_name=source_sheet_name,
             )
 
             return {"ttd_pivot": ttd_sheet_id, "ttm_pivot": ttm_sheet_id}
@@ -478,7 +514,12 @@ class GoogleSheetsService:
             return None
 
     def _create_google_pivot_table(
-        self, document_id: str, source_sheet_id: int, sheet_name: str, pivot_type: str
+        self,
+        document_id: str,
+        source_sheet_id: int,
+        sheet_name: str,
+        pivot_type: str,
+        source_sheet_name: Optional[str] = None,
     ) -> Optional[int]:
         """
         Create a Google Sheets pivot table.
@@ -488,6 +529,7 @@ class GoogleSheetsService:
             source_sheet_id: Source sheet ID with data
             sheet_name: Name for the new pivot sheet
             pivot_type: Type of pivot ("ttd" or "ttm")
+            source_sheet_name: Optional name of the source sheet (for percentile statistics)
 
         Returns:
             New sheet ID if successful, None otherwise
@@ -524,6 +566,23 @@ class GoogleSheetsService:
                 self.service.spreadsheets().batchUpdate(
                     spreadsheetId=document_id, body={"requests": [pivot_table_request]}
                 ).execute()
+
+            # Add percentile statistics
+            # Get source sheet name if not provided
+            if source_sheet_name is None:
+                source_sheet_name = self._get_sheet_name_by_id(source_sheet_id)
+
+            if source_sheet_name:
+                self._add_percentile_statistics(
+                    sheet_id=new_sheet_id,
+                    sheet_name=sheet_name,
+                    source_sheet_name=source_sheet_name,
+                    pivot_type=pivot_type,
+                )
+            else:
+                logger.warning(
+                    f"Could not determine source sheet name for percentile statistics"
+                )
 
             logger.info(f"Successfully created Google Sheets pivot table: {sheet_name}")
             return new_sheet_id
@@ -685,6 +744,24 @@ class GoogleSheetsService:
             logger.error(f"Failed to build pivot table request: {e}")
             return None
 
+    def _index_to_column_letter(self, index: int) -> str:
+        """
+        Convert 0-based column index to Google Sheets column letter (A-Z, AA-ZZ, ...).
+
+        Args:
+            index: 0-based column index
+
+        Returns:
+            Column letter (e.g., "A", "B", "AA", "AB")
+        """
+        result = ""
+        index += 1  # Convert to 1-based
+        while index > 0:
+            index -= 1
+            result = chr(ord("A") + (index % 26)) + result
+            index //= 26
+        return result
+
     def _get_column_index(self, column_name: str) -> int:
         """
         Get column index for a given column name.
@@ -712,6 +789,125 @@ class GoogleSheetsService:
                 f"Column '{column_name}' not found in TTM Details structure, using index 0"
             )
             return 0
+
+    def _calculate_pivot_table_width(self, pivot_type: str) -> int:
+        """
+        Calculate the width (number of columns) of a pivot table.
+
+        Args:
+            pivot_type: Type of pivot ("ttd" or "ttm")
+
+        Returns:
+            Number of columns in the pivot table
+        """
+        # Base: 5 row groupings (Разработка, Завершена, PM Lead, Команда, Квартал)
+        base_groupings = 5
+
+        if pivot_type == "ttd":
+            # TTD Pivot: 5 row groupings + 4 value columns
+            return base_groupings + 4
+        elif pivot_type == "ttm":
+            # TTM Pivot: 5 row groupings + 8 value columns
+            return base_groupings + 8
+        else:
+            logger.warning(f"Unknown pivot type: {pivot_type}, defaulting to TTD width")
+            return base_groupings + 4
+
+    def _add_percentile_statistics(
+        self,
+        sheet_id: int,
+        sheet_name: str,
+        source_sheet_name: str,
+        pivot_type: str,
+    ) -> bool:
+        """
+        Add percentile statistics next to pivot table.
+
+        Args:
+            sheet_id: ID of the sheet with pivot table
+            sheet_name: Name of the sheet with pivot table
+            source_sheet_name: Name of the source sheet with data
+            pivot_type: Type of pivot ("ttd" or "ttm")
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Calculate pivot table width
+            pivot_table_width = self._calculate_pivot_table_width(pivot_type)
+
+            # Calculate start column index (end of pivot table + 2 columns)
+            start_column_index = pivot_table_width + 2
+            start_column_letter = self._index_to_column_letter(start_column_index)
+            end_column_letter = self._index_to_column_letter(start_column_index + 2)
+
+            # Get column letters for metrics using TTMDetailsColumns indices
+            ttm_column_index = TTMDetailsColumns.get_column_index("TTM")
+            tail_column_index = TTMDetailsColumns.get_column_index("Tail")
+            devlt_column_index = TTMDetailsColumns.get_column_index("DevLT")
+            ttd_column_index = TTMDetailsColumns.get_column_index("TTD")
+
+            ttm_column_letter = self._index_to_column_letter(ttm_column_index)
+            tail_column_letter = self._index_to_column_letter(tail_column_index)
+            devlt_column_letter = self._index_to_column_letter(devlt_column_index)
+            ttd_column_letter = self._index_to_column_letter(ttd_column_index)
+
+            # Prepare data based on pivot type
+            if pivot_type == "ttm":
+                # TTM Pivot: 6 rows, 3 columns
+                data = [
+                    ["ТТМ, 50 перц.", "ТТМ, 85 перц. ", "TTM, порог"],
+                    [
+                        f"=PERCENTILE('{source_sheet_name}'!{ttm_column_letter}:{ttm_column_letter};0,5)",
+                        f"=PERCENTILE('{source_sheet_name}'!{ttm_column_letter}:{ttm_column_letter};0,85)",
+                        180,
+                    ],
+                    ["Tail, 50 перц.", "Tail, 85 перц. ", "Tail, порог"],
+                    [
+                        f"=PERCENTILE('{source_sheet_name}'!{tail_column_letter}:{tail_column_letter};0,5)",
+                        f"=PERCENTILE('{source_sheet_name}'!{tail_column_letter}:{tail_column_letter};0,85)",
+                        60,
+                    ],
+                    ["DevLT, 50 perc", "DevLT, 85 perc", "DevLT, порог"],
+                    [
+                        f"=PERCENTILE('{source_sheet_name}'!{devlt_column_letter}:{devlt_column_letter};0,5)",
+                        f"=PERCENTILE('{source_sheet_name}'!{devlt_column_letter}:{devlt_column_letter};0,85)",
+                        60,
+                    ],
+                ]
+                range_name = f"{sheet_name}!{start_column_letter}2:{end_column_letter}7"
+            elif pivot_type == "ttd":
+                # TTD Pivot: 2 rows, 3 columns
+                data = [
+                    ["ТТD, 50 перц.", "ТТD, 85 перц. ", "TTD, порог"],
+                    [
+                        f"=PERCENTILE('{source_sheet_name}'!{ttd_column_letter}:{ttd_column_letter};0,5)",
+                        f"=PERCENTILE('{source_sheet_name}'!{ttd_column_letter}:{ttd_column_letter};0,85)",
+                        60,
+                    ],
+                ]
+                range_name = f"{sheet_name}!{start_column_letter}2:{end_column_letter}3"
+            else:
+                logger.error(f"Unknown pivot type: {pivot_type}")
+                return False
+
+            # Write data to sheet
+            body = {"values": data}
+            self.service.spreadsheets().values().update(
+                spreadsheetId=self.document_id,
+                range=range_name,
+                valueInputOption="USER_ENTERED",  # Use USER_ENTERED to process formulas
+                body=body,
+            ).execute()
+
+            logger.info(
+                f"Successfully added percentile statistics to {sheet_name} at {range_name}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to add percentile statistics to {sheet_name}: {e}")
+            return False
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
         """
