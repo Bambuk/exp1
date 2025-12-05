@@ -14,9 +14,8 @@ class TestOptimizedSync:
 
     def test_sync_uses_search_data_directly(self, db_session):
         """Test that sync uses search data directly without get_tasks_batch."""
-        # Create sync command with real database session
-        sync_cmd = TrackerSyncCommand()
-        sync_cmd.db = db_session
+        # Create sync command with test database session
+        sync_cmd = TrackerSyncCommand(db=db_session)
 
         # Mock search data with full task information
         search_task_data = {

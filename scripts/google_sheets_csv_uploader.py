@@ -112,8 +112,8 @@ class GoogleSheetsCSVUploader:
                 return False
 
             # Upload to Google Sheets
-            success = self.sheets_service.upload_csv_to_sheet(file_path)
-            if success:
+            uploaded_sheet_name = self.sheets_service.upload_csv_to_sheet(file_path)
+            if uploaded_sheet_name:
                 logging.info(f"Successfully uploaded {file_path.name} to Google Sheets")
                 return True
             else:
@@ -187,14 +187,16 @@ class GoogleSheetsCSVUploader:
                 return False
 
             # Upload to Google Sheets
-            success = self.sheets_service.upload_csv_to_sheet(file_path)
-            if not success:
+            uploaded_sheet_name = self.sheets_service.upload_csv_to_sheet(file_path)
+            if not uploaded_sheet_name:
                 logging.error(f"Failed to upload {file_path.name} to Google Sheets")
                 return False
 
-            # Create pivot tables using the DataFrame data
+            # Create pivot tables using the DataFrame data and the uploaded sheet name
             pivot_results = self.sheets_service.create_pivot_tables_from_dataframe(
-                df, self.sheets_service.document_id
+                df,
+                self.sheets_service.document_id,
+                source_sheet_name=uploaded_sheet_name,
             )
 
             if pivot_results["ttd_pivot"] is None or pivot_results["ttm_pivot"] is None:

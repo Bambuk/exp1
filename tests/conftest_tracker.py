@@ -1,4 +1,33 @@
-"""Pytest configuration for tracker tests."""
+"""
+Pytest configuration for tracker tests.
+
+ВАЖНО: Правила работы с БД в тестах
+
+1. НИКОГДА не используйте SessionLocal() напрямую в тестах
+   ❌ ПЛОХО: with SessionLocal() as db:
+   ✅ ХОРОШО: def test_something(db_session):
+
+2. Всегда используйте фикстуры:
+   - db_session - для прямого доступа к БД
+   - sync_command - для TrackerSyncCommand с тестовой БД
+
+3. При создании TrackerSyncCommand:
+   ❌ ПЛОХО: sync_cmd = TrackerSyncCommand()
+   ✅ ХОРОШО: sync_cmd = TrackerSyncCommand(db=db_session)
+   ✅ ХОРОШО: sync_cmd = sync_command  # используя фикстуру
+
+4. Если нужно заменить db после создания:
+   sync_cmd = TrackerSyncCommand()
+   sync_cmd.db.close()  # Закрыть старое подключение
+   sync_cmd.db = db_session  # Использовать тестовую сессию
+
+Эти правила предотвращают случайную запись в живую БД.
+
+Для AI агентов:
+- При написании тестов всегда используйте фикстуры db_session или sync_command
+- Никогда не импортируйте и не используйте SessionLocal напрямую в тестах
+- Если видите код с SessionLocal() в тестах - это ошибка, нужно исправить
+"""
 
 from datetime import datetime, timezone
 from typing import Generator
@@ -124,3 +153,22 @@ def mock_sync_command():
     command = TrackerSyncCommand()
     command.db = Mock()
     return command
+
+
+@pytest.fixture
+def sync_command(db_session):
+    """
+    Create TrackerSyncCommand with test database session.
+
+    This fixture ensures that TrackerSyncCommand always uses test database,
+    preventing accidental writes to production database.
+
+    Usage:
+        def test_something(sync_command):
+            result = sync_command.run(filters={"query": "test"}, limit=1)
+    """
+    from radiator.commands.sync_tracker import TrackerSyncCommand
+
+    cmd = TrackerSyncCommand(db=db_session)
+    yield cmd
+    # Cleanup handled by db_session fixture

@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 from tqdm import tqdm
 
 # Add project root to path
@@ -61,8 +62,29 @@ from radiator.utils.fields_loader import load_fields_list
 class TrackerSyncCommand:
     """Command for syncing tracker data."""
 
-    def __init__(self):
-        self.db = SessionLocal()
+    def __init__(self, db: Optional[Session] = None):
+        """
+        Initialize TrackerSyncCommand.
+
+        Args:
+            db: Optional database session. If not provided, creates a new session.
+                In test environment, it's recommended to pass db_session fixture
+                to avoid connecting to production database.
+        """
+        if db is None:
+            # Check for test environment and warn if SessionLocal might connect to production
+            if settings.ENVIRONMENT == "test":
+                import warnings
+
+                warnings.warn(
+                    "TrackerSyncCommand created without db parameter in test environment. "
+                    "This may connect to production database. Use db_session fixture instead.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            self.db = SessionLocal()
+        else:
+            self.db = db
         self.sync_log: Optional[TrackerSyncLog] = None
         try:
             self.fields = load_fields_list()

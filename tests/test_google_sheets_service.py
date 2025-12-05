@@ -179,3 +179,78 @@ class TestGoogleSheetsService:
 
         result = mock_service.test_connection()
         assert result is False
+
+    def test_get_column_index_development(self, mock_service):
+        """Test that _get_column_index returns correct index for 'Разработка' column."""
+        result = mock_service._get_column_index("Разработка")
+        assert result == 20
+
+    def test_build_pivot_table_request_ttd_has_development_first(self, mock_service):
+        """Test that TTD pivot table has 'Разработка' as first row grouping."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttd"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+
+        # Check rows structure
+        rows = pivot_table["rows"]
+        assert len(rows) == 3
+
+        # First row should be "Разработка" (index 20)
+        assert rows[0]["sourceColumnOffset"] == 20
+
+        # Second row should be "Команда" (index 3)
+        assert rows[1]["sourceColumnOffset"] == 3
+
+        # Third row should be "Квартал" (index 4)
+        assert rows[2]["sourceColumnOffset"] == 4
+
+    def test_build_pivot_table_request_ttm_has_development_first(self, mock_service):
+        """Test that TTM pivot table has 'Разработка' as first row grouping."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttm"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+
+        # Check rows structure
+        rows = pivot_table["rows"]
+        assert len(rows) == 3
+
+        # First row should be "Разработка" (index 20)
+        assert rows[0]["sourceColumnOffset"] == 20
+
+        # Second row should be "Команда" (index 3)
+        assert rows[1]["sourceColumnOffset"] == 3
+
+        # Third row should be "Квартал" (index 4)
+        assert rows[2]["sourceColumnOffset"] == 4
+
+    def test_build_pivot_table_request_end_column_index(self, mock_service):
+        """Test that endColumnIndex is updated to 21."""
+        source_sheet_id = 100
+        target_sheet_id = 200
+
+        request = mock_service._build_pivot_table_request(
+            source_sheet_id, target_sheet_id, "ttd"
+        )
+
+        assert request is not None
+        pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
+
+        # Check endColumnIndex
+        assert pivot_table["source"]["endColumnIndex"] == 21
+
+    def test_get_column_index_development(self, mock_service):
+        """Test that _get_column_index returns correct index for 'Разработка' column."""
+        result = mock_service._get_column_index("Разработка")
+        assert result == 20

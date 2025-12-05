@@ -28,9 +28,8 @@ class TestPaginationDuplicates:
         # Создаем тестовый tracker_id
         test_tracker_id = f"test_pagination_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-        # Создаем команду синхронизации
-        sync_cmd = TrackerSyncCommand()
-        sync_cmd.db = db_session
+        # Создаем команду синхронизации с тестовой БД
+        sync_cmd = TrackerSyncCommand(db=db_session)
 
         # Очищаем тестовые данные
         db_session.query(TrackerTask).filter(
@@ -90,9 +89,8 @@ class TestPaginationDuplicates:
             for i in range(1, 6)
         ]
 
-        # Создаем команду синхронизации
-        sync_cmd = TrackerSyncCommand()
-        sync_cmd.db = db_session
+        # Создаем команду синхронизации с тестовой БД
+        sync_cmd = TrackerSyncCommand(db=db_session)
 
         # Очищаем тестовые данные
         for task_id in test_tasks:

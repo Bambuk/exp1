@@ -193,7 +193,7 @@ class GoogleSheetsService:
 
     def upload_csv_to_sheet(
         self, file_path: Path, sheet_name: Optional[str] = None
-    ) -> bool:
+    ) -> Optional[str]:
         """
         Upload CSV file as a new sheet in Google Sheets.
 
@@ -202,13 +202,13 @@ class GoogleSheetsService:
             sheet_name: Optional custom sheet name (defaults to filename)
 
         Returns:
-            True if successful, False otherwise
+            Name of the created sheet if successful, None otherwise
         """
         try:
             # Read CSV file
             df = self._read_csv_file(file_path)
             if df is None:
-                return False
+                return None
 
             # Prepare sheet name
             if sheet_name is None:
@@ -216,7 +216,7 @@ class GoogleSheetsService:
 
             # Create new sheet
             if not self.create_sheet(sheet_name):
-                return False
+                return None
 
             # Prepare data for upload
             data = self._prepare_data_for_sheets(df)
@@ -240,7 +240,7 @@ class GoogleSheetsService:
             self._add_filter_to_all_data(sheet_name, len(df.columns), len(df) + 1)
 
             logger.info(f"Successfully uploaded {file_path.name} to sheet {sheet_name}")
-            return True
+            return sheet_name
 
         except HttpError as e:
             logger.error(f"Failed to upload CSV {file_path.name}: {e}")
@@ -383,7 +383,10 @@ class GoogleSheetsService:
             return False
 
     def create_pivot_tables_from_dataframe(
-        self, details_data: pd.DataFrame, document_id: str
+        self,
+        details_data: pd.DataFrame,
+        document_id: str,
+        source_sheet_name: Optional[str] = None,
     ) -> Dict[str, Optional[int]]:
         """
         Create Google Sheets pivot tables from DataFrame data.
@@ -391,6 +394,7 @@ class GoogleSheetsService:
         Args:
             details_data: DataFrame with details data
             document_id: Google Sheets document ID
+            source_sheet_name: Optional name of the source sheet (if not provided, will search for it)
 
         Returns:
             Dictionary with sheet IDs: {'ttd_pivot': sheet_id, 'ttm_pivot': sheet_id}
@@ -400,8 +404,12 @@ class GoogleSheetsService:
                 logger.warning("No details data provided for pivot tables")
                 return {"ttd_pivot": None, "ttm_pivot": None}
 
-            # Get the source sheet ID (first sheet with details data)
-            source_sheet_id = self._get_source_sheet_id(document_id)
+            # Get the source sheet ID
+            if source_sheet_name:
+                source_sheet_id = self._get_sheet_id(source_sheet_name)
+            else:
+                source_sheet_id = self._get_source_sheet_id(document_id)
+
             if source_sheet_id is None:
                 logger.error("Could not find source sheet for pivot tables")
                 return {"ttd_pivot": None, "ttm_pivot": None}
@@ -540,15 +548,23 @@ class GoogleSheetsService:
         """
         try:
             # Base pivot table configuration
+            # startRowIndex: 0 means first row contains headers
+            # Google Sheets should recognize column headers from row 0
+            # Note: endColumnIndex is exclusive, so for 21 columns (0-20) we need endColumnIndex=21
             pivot_table = {
                 "source": {
                     "sheetId": source_sheet_id,
-                    "startRowIndex": 0,
+                    "startRowIndex": 0,  # First row contains headers
                     "startColumnIndex": 0,
                     "endRowIndex": 1000,  # Will be adjusted by Google Sheets
-                    "endColumnIndex": 20,  # Will be adjusted by Google Sheets
+                    "endColumnIndex": 21,  # 21 columns (0-20), exclusive end
                 },
                 "rows": [
+                    {
+                        "sourceColumnOffset": self._get_column_index("Разработка"),
+                        "showTotals": False,
+                        "sortOrder": "ASCENDING",
+                    },
                     {
                         "sourceColumnOffset": self._get_column_index("Команда"),
                         "showTotals": False,
@@ -686,6 +702,10 @@ class GoogleSheetsService:
             "Возвраты с Внешний тест": 14,
             "Всего возвратов": 15,
             "Квартал TTD": 16,
+            "Создана": 17,
+            "Начало работы": 18,
+            "Завершено": 19,
+            "Разработка": 20,
         }
 
         alias_mapping = {

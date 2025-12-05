@@ -561,80 +561,79 @@ class TestTTMDetailsReport:
         # Verify _collect_csv_rows was called
         generator._collect_csv_rows.assert_called_once()
 
-    def test_integration_with_real_db(self, test_reports_dir):
+    def test_integration_with_real_db(self, test_reports_dir, db_session):
         """Test integration with real test database."""
         from radiator.commands.generate_ttm_details_report import (
             TTMDetailsReportGenerator,
         )
-        from radiator.core.database import SessionLocal
 
-        # Use real database session
-        with SessionLocal() as db:
-            # Create generator with real database
-            generator = TTMDetailsReportGenerator(db=db)
+        # Use test database session from fixture
+        db = db_session
+        # Create generator with test database
+        generator = TTMDetailsReportGenerator(db=db)
 
-            # Test generating CSV with real data
-            output_path = f"{test_reports_dir}/ttm_details_integration.csv"
-            result_path = generator.generate_csv(output_path)
+        # Test generating CSV with real data
+        output_path = f"{test_reports_dir}/ttm_details_integration.csv"
+        result_path = generator.generate_csv(output_path)
 
-            # Verify file was created
-            assert Path(result_path).exists()
-            assert result_path == output_path
+        # Verify file was created
+        assert Path(result_path).exists()
+        assert result_path == output_path
 
-            # Verify CSV content has headers
-            import csv
+        # Verify CSV content has headers
+        import csv
 
-            with open(result_path, "r", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                rows = list(reader)
+        with open(result_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
 
-                # Should have at least headers
-                assert len(rows) >= 1
+            # Should have at least headers
+            assert len(rows) >= 1
 
-                # Check headers
-                headers = rows[0]
-                expected_headers = [
-                    "Ключ задачи",
-                    "Название",
-                    "Автор",
-                    "Команда",
-                    "Квартал",
-                    "TTM",
-                    "Пауза",
-                    "Tail",
-                    "DevLT",
-                    "TTD",
-                    "TTD Pause",
-                    "Discovery backlog (дни)",
-                    "Готова к разработке (дни)",
-                    "Возвраты с Testing",
-                    "Возвраты с Внешний тест",
-                    "Всего возвратов",
-                    "Квартал TTD",
-                    "Создана",
-                    "Начало работы",
-                    "Завершено",
-                    "Разработка",
-                ]
-                assert headers == expected_headers
+            # Check headers
+            headers = rows[0]
+            expected_headers = [
+                "Ключ задачи",
+                "Название",
+                "Автор",
+                "Команда",
+                "Квартал",
+                "TTM",
+                "Пауза",
+                "Tail",
+                "DevLT",
+                "TTD",
+                "TTD Pause",
+                "Discovery backlog (дни)",
+                "Готова к разработке (дни)",
+                "Возвраты с Testing",
+                "Возвраты с Внешний тест",
+                "Всего возвратов",
+                "Квартал TTD",
+                "Создана",
+                "Начало работы",
+                "Завершено",
+                "Разработка",
+            ]
+            assert headers == expected_headers
 
-                # If there are data rows, check format
-                if len(rows) > 1:
-                    # Check that data rows have correct number of columns
-                    for i, row in enumerate(rows[1:], 1):
-                        assert (
-                            len(row) == 21
-                        ), f"Row {i} has {len(row)} columns, expected 21"
+            # If there are data rows, check format
+            if len(rows) > 1:
+                # Check that data rows have correct number of columns
+                for i, row in enumerate(rows[1:], 1):
+                    assert (
+                        len(row) == 21
+                    ), f"Row {i} has {len(row)} columns, expected 21"
 
-                        # Check that TTM column is numeric or empty
-                        ttm_value = row[5]
-                        if ttm_value:  # Not empty
-                            try:
-                                int(ttm_value)
-                            except ValueError:
-                                assert (
-                                    False
-                                ), f"TTM value '{ttm_value}' in row {i} is not numeric"
+                    # Check that TTM column is numeric or empty
+                    ttm_value = row[5]
+                    if ttm_value:  # Not empty
+                        try:
+                            int(ttm_value)
+                        except ValueError:
+                            assert (
+                                False
+                            ), f"TTM value '{ttm_value}' in row {i} is not numeric"
 
         # Log the result for debugging
         print(f"Integration test generated CSV with {len(rows)-1} data rows")
@@ -1358,90 +1357,89 @@ class TestTTMDetailsReport:
         assert row_with_tail["TTM"] == 15
         assert row_with_tail["Tail"] == 5  # Valid value preserved
 
-    def test_integration_ttm_details_with_tail(self, test_reports_dir):
+    def test_integration_ttm_details_with_tail(self, test_reports_dir, db_session):
         """Test integration with real test database and Tail column generation."""
         from radiator.commands.generate_ttm_details_report import (
             TTMDetailsReportGenerator,
         )
-        from radiator.core.database import SessionLocal
 
-        # Use real database session
-        with SessionLocal() as db:
-            # Create generator with real database
-            generator = TTMDetailsReportGenerator(db=db)
+        # Use test database session from fixture
+        db = db_session
+        # Create generator with test database
+        generator = TTMDetailsReportGenerator(db=db)
 
-            # Test generating CSV with real data
-            output_path = f"{test_reports_dir}/ttm_details_integration_with_tail.csv"
-            result_path = generator.generate_csv(output_path)
+        # Test generating CSV with real data
+        output_path = f"{test_reports_dir}/ttm_details_integration_with_tail.csv"
+        result_path = generator.generate_csv(output_path)
 
-            # Verify file was created
-            assert Path(result_path).exists()
-            assert result_path == output_path
+        # Verify file was created
+        assert Path(result_path).exists()
+        assert result_path == output_path
 
-            # Verify CSV content has headers including Tail
-            import csv
+        # Verify CSV content has headers including Tail
+        import csv
 
-            with open(result_path, "r", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                rows = list(reader)
+        with open(result_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
 
-                # Should have at least headers
-                assert len(rows) >= 1
+            # Should have at least headers
+            assert len(rows) >= 1
 
-                # Check headers include Tail and DevLT after TTM
-                headers = rows[0]
-                expected_headers = [
-                    "Ключ задачи",
-                    "Название",
-                    "Автор",
-                    "Команда",
-                    "Квартал",
-                    "TTM",
-                    "Пауза",
-                    "Tail",
-                    "DevLT",
-                    "TTD",
-                    "TTD Pause",
-                    "Discovery backlog (дни)",
-                    "Готова к разработке (дни)",
-                    "Возвраты с Testing",
-                    "Возвраты с Внешний тест",
-                    "Всего возвратов",
-                    "Квартал TTD",
-                    "Создана",
-                    "Начало работы",
-                    "Завершено",
-                    "Разработка",
-                ]
-                assert headers == expected_headers
+            # Check headers include Tail and DevLT after TTM
+            headers = rows[0]
+            expected_headers = [
+                "Ключ задачи",
+                "Название",
+                "Автор",
+                "Команда",
+                "Квартал",
+                "TTM",
+                "Пауза",
+                "Tail",
+                "DevLT",
+                "TTD",
+                "TTD Pause",
+                "Discovery backlog (дни)",
+                "Готова к разработке (дни)",
+                "Возвраты с Testing",
+                "Возвраты с Внешний тест",
+                "Всего возвратов",
+                "Квартал TTD",
+                "Создана",
+                "Начало работы",
+                "Завершено",
+                "Разработка",
+            ]
+            assert headers == expected_headers
 
-                # If there are data rows, check format
-                if len(rows) > 1:
-                    # Check that data rows have correct number of columns
-                    for i, row in enumerate(rows[1:], 1):
-                        assert (
-                            len(row) == 21
-                        ), f"Row {i} has {len(row)} columns, expected 21"
+            # If there are data rows, check format
+            if len(rows) > 1:
+                # Check that data rows have correct number of columns
+                for i, row in enumerate(rows[1:], 1):
+                    assert (
+                        len(row) == 21
+                    ), f"Row {i} has {len(row)} columns, expected 21"
 
-                        # Check that TTM column is numeric or empty
-                        ttm_value = row[5]
-                        if ttm_value:  # Not empty
-                            try:
-                                int(ttm_value)
-                            except ValueError:
-                                assert (
-                                    False
-                                ), f"TTM value '{ttm_value}' in row {i} is not numeric"
+                    # Check that TTM column is numeric or empty
+                    ttm_value = row[5]
+                    if ttm_value:  # Not empty
+                        try:
+                            int(ttm_value)
+                        except ValueError:
+                            assert (
+                                False
+                            ), f"TTM value '{ttm_value}' in row {i} is not numeric"
 
-                        # Check that Tail column is numeric or empty
-                        tail_value = row[6]
-                        if tail_value:  # Not empty
-                            try:
-                                int(tail_value)
-                            except ValueError:
-                                assert (
-                                    False
-                                ), f"Tail value '{tail_value}' in row {i} is not numeric"
+                    # Check that Tail column is numeric or empty
+                    tail_value = row[6]
+                    if tail_value:  # Not empty
+                        try:
+                            int(tail_value)
+                        except ValueError:
+                            assert (
+                                False
+                            ), f"Tail value '{tail_value}' in row {i} is not numeric"
 
                         # Check that DevLT column is numeric or empty
                         devlt_value = row[7]

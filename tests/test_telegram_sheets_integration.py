@@ -133,13 +133,15 @@ class TestTelegramSheetsIntegration:
         assert "test_report.csv" in files_with_markers
 
         # Simulate Google Sheets upload
-        sheets_service.upload_csv_to_sheet = Mock(return_value=True)
+        sheets_service.upload_csv_to_sheet = Mock(return_value="test_report")
         sheets_service._get_sheet_id = Mock(return_value=123)
         sheets_service.service.spreadsheets().batchUpdate().execute.return_value = {}
 
         # Mock the upload process
-        success = sheets_service.upload_csv_to_sheet(test_file, "test_report")
-        assert success is True
+        uploaded_sheet_name = sheets_service.upload_csv_to_sheet(
+            test_file, "test_report"
+        )
+        assert uploaded_sheet_name == "test_report"
 
         # Simulate marker removal after successful upload
         monitor.remove_upload_marker("test_report.csv")

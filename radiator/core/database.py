@@ -91,3 +91,25 @@ def get_test_database_url_sync() -> str:
         return settings.DATABASE_URL_SYNC
     test_url = settings.DATABASE_URL_SYNC.replace("radiator", "radiator_test")
     return test_url
+
+
+def assert_test_database(db_url: str) -> None:
+    """
+    Assert that test database is being used in test environment.
+
+    This function raises RuntimeError if test environment is detected but
+    non-test database URL is used. This prevents accidental writes to production database.
+
+    Args:
+        db_url: Database URL to check
+
+    Raises:
+        RuntimeError: If test environment detected but non-test database URL used
+    """
+    if settings.ENVIRONMENT == "test":
+        if "radiator_test" not in db_url and "test" not in db_url.lower():
+            raise RuntimeError(
+                f"Test environment detected but non-test database URL used: {db_url}. "
+                "This may write to production database! "
+                "Make sure to use db_session fixture or pass test database session explicitly."
+            )
