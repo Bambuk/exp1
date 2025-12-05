@@ -261,7 +261,7 @@ Done;done
 
 ## 🔗 Связанные документы
 
-- [TIME_TO_MARKET_REPORT_GUIDE.md](docs/guides/TIME_TO_MARKET_REPORT_GUIDE.md) - руководство пользователя
+- [TTM_DETAILS_REPORT_GUIDE.md](docs/guides/TTM_DETAILS_REPORT_GUIDE.md) - руководство пользователя для details-отчета
 - [ANALYSIS_TTM_TTD_LOGIC_FLAWS.md](ANALYSIS_TTM_TTD_LOGIC_FLAWS.md) - технический анализ проблем
 - [CHANGELOG_TTM_TTD_FIX.md](CHANGELOG_TTM_TTD_FIX.md) - история исправлений
 

@@ -168,7 +168,7 @@ Reports are saved to the `reports/` folder:
 - `time_to_market_report_YYYYMMDD_HHMMSS.csv` - Data export
 - `time_to_market_table_YYYYMMDD_HHMMSS.png` - Visual table
 
-See [Time to Market Report Guide](docs/guides/TIME_TO_MARKET_REPORT_GUIDE.md) for detailed usage instructions.
+See [TTM Details Report Guide](docs/guides/TTM_DETAILS_REPORT_GUIDE.md) for detailed usage instructions.
 
 For detailed documentation, see [TRACKER_SYNC_README.md](TRACKER_SYNC_README.md).
 
@@ -259,7 +259,7 @@ pre-commit run --all-files
 
 ## Documentation
 
-- [Time to Market Report Guide](docs/guides/TIME_TO_MARKET_REPORT_GUIDE.md) - User guide for TTM/TTD reports
+- [TTM Details Report Guide](docs/guides/TTM_DETAILS_REPORT_GUIDE.md) - User guide for TTM Details report
 - [TTM/TTD Calculation Details](TTM_TTD_CALCULATION.md) - Technical documentation of calculation algorithms
 - [Status Change Report Guide](docs/guides/STATUS_CHANGE_REPORT_GUIDE.md) - User guide for status change reports
 - [Tracker Sync Guide](docs/guides/TRACKER_SYNC_README.md) - Yandex Tracker integration guide
