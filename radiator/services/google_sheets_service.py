@@ -550,18 +550,23 @@ class GoogleSheetsService:
             # Base pivot table configuration
             # startRowIndex: 0 means first row contains headers
             # Google Sheets should recognize column headers from row 0
-            # Note: endColumnIndex is exclusive, so for 21 columns (0-20) we need endColumnIndex=21
+            # Note: endColumnIndex is exclusive, so for 22 columns (0-21) we need endColumnIndex=22
             pivot_table = {
                 "source": {
                     "sheetId": source_sheet_id,
                     "startRowIndex": 0,  # First row contains headers
                     "startColumnIndex": 0,
                     "endRowIndex": 1000,  # Will be adjusted by Google Sheets
-                    "endColumnIndex": 21,  # 21 columns (0-20), exclusive end
+                    "endColumnIndex": 22,  # 22 columns (0-21), exclusive end
                 },
                 "rows": [
                     {
                         "sourceColumnOffset": self._get_column_index("Разработка"),
+                        "showTotals": False,
+                        "sortOrder": "ASCENDING",
+                    },
+                    {
+                        "sourceColumnOffset": self._get_column_index("Завершена"),
                         "showTotals": False,
                         "sortOrder": "ASCENDING",
                     },
@@ -706,6 +711,7 @@ class GoogleSheetsService:
             "Начало работы": 18,
             "Завершено": 19,
             "Разработка": 20,
+            "Завершена": 21,
         }
 
         alias_mapping = {

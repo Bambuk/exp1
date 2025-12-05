@@ -402,6 +402,9 @@ class TestTTMDetailsReport:
             return_value={"CPO-123": (0, 0), "CPO-456": (0, 0), "CPO-789": (0, 0)}
         )
 
+        # Mock _get_unfinished_tasks to return empty list (no unfinished tasks in this test)
+        generator._get_unfinished_tasks = Mock(return_value=[])
+
         # Test collecting CSV rows
         rows = generator._collect_csv_rows()
 
@@ -541,6 +544,7 @@ class TestTTMDetailsReport:
                 "Начало работы",
                 "Завершено",
                 "Разработка",
+                "Завершена",
             ]
             assert headers == expected_headers
 
@@ -614,6 +618,7 @@ class TestTTMDetailsReport:
                 "Начало работы",
                 "Завершено",
                 "Разработка",
+                "Завершена",
             ]
             assert headers == expected_headers
 
@@ -718,14 +723,15 @@ class TestTTMDetailsReport:
                 "Начало работы",
                 "Завершено",
                 "Разработка",
+                "Завершена",
             ]
             assert headers == expected_headers
 
             # Check first data row has Tail column
-            row1 = lines[1]
+            row1 = lines[1]  # csv.reader already returns list of lists
             assert (
-                len(row1) == 21
-            )  # 20 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
+                len(row1) == 22
+            )  # 22 columns including Пауза, Tail, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -811,14 +817,15 @@ class TestTTMDetailsReport:
                 "Начало работы",
                 "Завершено",
                 "Разработка",
+                "Завершена",
             ]
             assert headers == expected_headers
 
             # Check first data row has DevLT column
-            row1 = lines[1]
+            row1 = lines[1]  # csv.reader already returns list of lists
             assert (
-                len(row1) == 21
-            )  # 20 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, and new date columns
+                len(row1) == 22
+            )  # 22 columns including Пауза, DevLT, TTD, TTD Pause, Discovery backlog, Готова к разработке, returns, Квартал TTD, new date columns, and Завершена
             assert row1[0] == "CPO-123"
             assert row1[5] == "15"  # TTM
             assert row1[6] == ""  # Tail (empty)
@@ -1265,6 +1272,9 @@ class TestTTMDetailsReport:
             return_value={"CPO-123": (0, 0), "CPO-456": (0, 0), "CPO-789": (0, 0)}
         )
 
+        # Mock _get_unfinished_tasks to return empty list (no unfinished tasks in this test)
+        generator._get_unfinished_tasks = Mock(return_value=[])
+
         # Test collecting CSV rows
         rows = generator._collect_csv_rows()
 
@@ -1410,6 +1420,7 @@ class TestTTMDetailsReport:
                 "Начало работы",
                 "Завершено",
                 "Разработка",
+                "Завершена",
             ]
             assert headers == expected_headers
 
@@ -1600,6 +1611,7 @@ class TestTTMDetailsReport:
             "Начало работы",
             "Завершено",
             "Разработка",
+            "Завершена",
         ]
         assert headers == expected_headers
 
@@ -1867,6 +1879,7 @@ class TestTTMDetailsReport:
             "Начало работы",
             "Завершено",
             "Разработка",
+            "Завершена",
         ]
         assert headers == expected_headers
 
@@ -2111,6 +2124,7 @@ class TestTTMDetailsReport:
             "Начало работы",
             "Завершено",
             "Разработка",
+            "Завершена",
         ]
         assert headers == expected_headers
 
@@ -2398,6 +2412,7 @@ class TestTTMDetailsReport:
             "Начало работы",
             "Завершено",
             "Разработка",
+            "Завершена",
         ]
         assert headers == expected_headers
 
@@ -3131,9 +3146,9 @@ class TestTTMDetailsReport:
             reader = csv.DictReader(f)
             headers = reader.fieldnames
 
-        # Check that "Разработка" is in headers and is the last column
+        # Check that "Разработка" is in headers and "Завершена" is the last column
         assert "Разработка" in headers
-        assert headers[-1] == "Разработка"
+        assert headers[-1] == "Завершена"
 
     def test_format_task_row_with_development_flag(self, test_reports_dir):
         """Test formatting task row with development flag."""
@@ -3296,6 +3311,814 @@ class TestTTMDetailsReport:
         row2 = rows[1]
         assert row2["Ключ задачи"] == "CPO-456"
         assert row2["Разработка"] == 0
+
+    def test_unfinished_tasks_included_in_report(self, test_reports_dir):
+        """Test that unfinished tasks (with 'Готова к разработке' but no stable_done) are included in report."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock finished tasks (with stable_done)
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        mock_finished_task = TaskData(
+            id=1,
+            key="CPO-FINISHED",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Finished Task",
+        )
+
+        # Mock unfinished task (with 'Готова к разработке' but no stable_done)
+        mock_unfinished_task = TaskData(
+            id=2,
+            key="CPO-UNFINISHED",
+            group_value="Author2",
+            author="Author2",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Unfinished Task",
+        )
+
+        # Mock _get_ttm_tasks_for_date_range_corrected to return finished task
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(
+            return_value=[mock_finished_task]
+        )
+
+        # Mock _get_unfinished_tasks to return unfinished task
+        generator._get_unfinished_tasks = Mock(return_value=[mock_unfinished_task])
+
+        # Mock history for finished task (with stable_done)
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        mock_finished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=datetime(2025, 1, 15),
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 1),
+                end_date=None,
+            ),
+        ]
+
+        # Mock history for unfinished task (with 'Готова к разработке' but no done)
+        mock_unfinished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=None,  # Still in this status
+            ),
+        ]
+
+        # get_task_history вызывается для разных задач, используем функцию для возврата правильной истории
+        def get_history_side_effect(task_id):
+            if task_id == 1:  # Finished task
+                return mock_finished_history
+            elif task_id == 2:  # Unfinished task
+                return mock_unfinished_history
+            return []
+
+        generator.data_service.get_task_history = Mock(
+            side_effect=get_history_side_effect
+        )
+
+        # Mock stable_done: finished task has it, unfinished doesn't
+        mock_stable_done_finished = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 2, 1),
+            end_date=None,
+        )
+
+        # _find_stable_done вызывается для разных задач, используем функцию
+        def find_stable_done_side_effect(history, done_statuses):
+            # Проверяем наличие Done статуса в истории
+            if any(entry.status == "Done" for entry in history):
+                return mock_stable_done_finished
+            return None
+
+        generator.metrics_service._find_stable_done = Mock(
+            side_effect=find_stable_done_side_effect
+        )
+
+        # Mock all calculation methods - используем функции для поддержки повторных вызовов
+        def calculate_ttm_side_effect(task_id, done_statuses, history=None):
+            # Определяем по истории, какая задача
+            if history and any(entry.status == "Done" for entry in history):
+                return 15  # Finished task
+            return None  # Unfinished task - будет использован _calculate_ttm_unfinished
+
+        generator._calculate_ttm = Mock(side_effect=calculate_ttm_side_effect)
+
+        # Mock _calculate_ttm_unfinished for unfinished tasks
+        generator._calculate_ttm_unfinished = Mock(return_value=20)
+        generator._calculate_tail = Mock(return_value=None)
+        generator._calculate_devlt = Mock(return_value=None)
+        generator._calculate_ttd = Mock(return_value=5)
+        generator._calculate_ttd_quarter = Mock(return_value=None)
+        generator._calculate_pause = Mock(return_value=None)
+        generator._calculate_ttd_pause = Mock(return_value=None)
+        generator._calculate_discovery_backlog_days = Mock(return_value=None)
+        generator._calculate_ready_for_dev_days = Mock(return_value=None)
+        generator._get_last_discovery_backlog_exit_date = Mock(
+            return_value=datetime(2025, 1, 5)
+        )
+        generator._has_valid_work_status = Mock(return_value=False)
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-FINISHED": (0, 0), "CPO-UNFINISHED": (0, 0)}
+        )
+
+        # Test collecting CSV rows
+        rows = generator._collect_csv_rows()
+
+        # Verify both tasks are in the report
+        assert len(rows) == 2
+
+        # Find finished and unfinished tasks
+        finished_row = next(r for r in rows if r["Ключ задачи"] == "CPO-FINISHED")
+        unfinished_row = next(r for r in rows if r["Ключ задачи"] == "CPO-UNFINISHED")
+
+        # Check finished task
+        assert finished_row["Завершена"] == 1
+        assert finished_row["Квартал"] == "Q1"  # Has quarter based on stable_done
+
+        # Check unfinished task
+        assert unfinished_row["Завершена"] == 0
+        assert unfinished_row["Квартал"] == ""  # Empty quarter
+        assert unfinished_row["TTM"] == 20  # TTM calculated to today
+
+        # Test CSV generation
+        output_path = f"{test_reports_dir}/ttm_details_with_unfinished.csv"
+        result_path = generator.generate_csv(output_path)
+
+        # Verify file was created
+        assert Path(result_path).exists()
+
+        # Verify CSV has "Завершена" column
+        import csv
+
+        with open(result_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames
+            assert "Завершена" in headers
+
+            # Read rows
+            rows_list = list(reader)
+            assert len(rows_list) == 2
+
+            # Find tasks
+            finished_csv = next(
+                r for r in rows_list if r["Ключ задачи"] == "CPO-FINISHED"
+            )
+            unfinished_csv = next(
+                r for r in rows_list if r["Ключ задачи"] == "CPO-UNFINISHED"
+            )
+
+            # Verify values
+            assert finished_csv["Завершена"] == "1"
+            assert unfinished_csv["Завершена"] == "0"
+            assert unfinished_csv["Квартал"] == ""
+
+    def test_get_unfinished_tasks_returns_tasks_without_stable_done(
+        self, test_reports_dir
+    ):
+        """Test that _get_unfinished_tasks returns tasks that transitioned to 'Готова к разработке' but don't have stable_done."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock tasks that transitioned to "Готова к разработке"
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        unfinished_task = TaskData(
+            id=1,
+            key="CPO-UNFINISHED",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Unfinished Task",
+        )
+
+        finished_task = TaskData(
+            id=2,
+            key="CPO-FINISHED",
+            group_value="Author2",
+            author="Author2",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Finished Task",
+        )
+
+        # Mock get_tasks_for_period to return both tasks
+        from radiator.commands.models.time_to_market_models import GroupBy
+
+        generator.data_service.get_tasks_for_period = Mock(
+            return_value=[unfinished_task, finished_task]
+        )
+        generator.config_service.load_status_mapping = Mock()
+
+        # Mock histories
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        unfinished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=None,
+            ),
+        ]
+
+        finished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=datetime(2025, 1, 15),
+            ),
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 1),
+                end_date=None,
+            ),
+        ]
+
+        def get_history_side_effect(task_id):
+            if task_id == 1:
+                return unfinished_history
+            elif task_id == 2:
+                return finished_history
+            return []
+
+        generator.data_service.get_task_history = Mock(
+            side_effect=get_history_side_effect
+        )
+
+        # Mock stable_done: unfinished task doesn't have it, finished task has it
+        mock_stable_done_finished = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 2, 1),
+            end_date=None,
+        )
+
+        def find_stable_done_side_effect(history, done_statuses):
+            if any(entry.status == "Done" for entry in history):
+                return mock_stable_done_finished
+            return None
+
+        generator.metrics_service._find_stable_done = Mock(
+            side_effect=find_stable_done_side_effect
+        )
+
+        # Test _get_unfinished_tasks
+        result = generator._get_unfinished_tasks()
+
+        # Verify only unfinished task is returned
+        assert len(result) == 1
+        assert result[0].key == "CPO-UNFINISHED"
+
+    def test_get_unfinished_tasks_excludes_tasks_without_ready_status(
+        self, test_reports_dir
+    ):
+        """Test that _get_unfinished_tasks excludes tasks that never transitioned to 'Готова к разработке'."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock get_tasks_for_period to return empty list (no tasks with "Готова к разработке")
+        generator.data_service.get_tasks_for_period = Mock(return_value=[])
+        generator.config_service.load_status_mapping = Mock()
+
+        # Test _get_unfinished_tasks
+        result = generator._get_unfinished_tasks()
+
+        # Verify empty list is returned
+        assert len(result) == 0
+
+    def test_unfinished_tasks_returns_calculation(self, test_reports_dir):
+        """Test that returns are correctly calculated for unfinished tasks."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock unfinished task with FULLSTACK links
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        unfinished_task = TaskData(
+            id=1,
+            key="CPO-UNFINISHED",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Unfinished Task",
+        )
+
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(return_value=[])
+        generator._get_unfinished_tasks = Mock(return_value=[unfinished_task])
+
+        # Mock history
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        unfinished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=None,
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=unfinished_history)
+        generator.metrics_service._find_stable_done = Mock(return_value=None)
+
+        # Mock all calculation methods
+        generator._calculate_ttm_unfinished = Mock(return_value=20)
+        generator._calculate_tail = Mock(return_value=None)
+        generator._calculate_devlt = Mock(return_value=None)
+        generator._calculate_ttd = Mock(return_value=10)
+        generator._calculate_ttd_quarter = Mock(return_value=None)
+        generator._calculate_pause = Mock(return_value=None)
+        generator._calculate_ttd_pause = Mock(return_value=None)
+        generator._calculate_discovery_backlog_days = Mock(return_value=None)
+        generator._calculate_ready_for_dev_days = Mock(return_value=None)
+        generator._get_last_discovery_backlog_exit_date = Mock(return_value=None)
+        generator._has_valid_work_status = Mock(return_value=False)
+
+        # Mock returns calculation - незавершенная задача имеет возвраты
+        generator._calculate_all_returns_batched = Mock(
+            return_value={
+                "CPO-UNFINISHED": (5, 3)
+            }  # testing_returns=5, external_returns=3
+        )
+
+        # Test collecting CSV rows
+        rows = generator._collect_csv_rows()
+
+        # Verify unfinished task is in the report
+        assert len(rows) == 1
+        unfinished_row = rows[0]
+
+        # Verify returns are correctly included
+        assert unfinished_row["Ключ задачи"] == "CPO-UNFINISHED"
+        assert unfinished_row["Возвраты с Testing"] == 5
+        assert unfinished_row["Возвраты с Внешний тест"] == 3
+        assert unfinished_row["Всего возвратов"] == 8
+
+        # Verify _calculate_all_returns_batched was called with unfinished task key
+        generator._calculate_all_returns_batched.assert_called_once()
+        call_args = generator._calculate_all_returns_batched.call_args
+        assert "CPO-UNFINISHED" in call_args[0][0]
+
+    def test_collect_csv_rows_includes_unfinished_tasks_with_all_metrics(
+        self, test_reports_dir
+    ):
+        """Test that unfinished tasks are included in CSV rows with all metrics calculated."""
+        from datetime import datetime
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock quarters
+        from radiator.commands.models.time_to_market_models import Quarter
+
+        mock_quarters = [
+            Quarter(
+                name="Q1",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 3, 31),
+            ),
+        ]
+        generator._load_quarters = Mock(return_value=mock_quarters)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock finished task
+        from radiator.commands.models.time_to_market_models import TaskData
+
+        finished_task = TaskData(
+            id=1,
+            key="CPO-FINISHED",
+            group_value="Author1",
+            author="Author1",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Finished Task",
+        )
+
+        # Mock unfinished task
+        unfinished_task = TaskData(
+            id=2,
+            key="CPO-UNFINISHED",
+            group_value="Author2",
+            author="Author2",
+            team=None,
+            created_at=datetime(2025, 1, 1),
+            summary="Unfinished Task",
+        )
+
+        # Mock tasks
+        generator._get_ttm_tasks_for_date_range_corrected = Mock(
+            return_value=[finished_task]
+        )
+        generator._get_unfinished_tasks = Mock(return_value=[unfinished_task])
+
+        # Mock histories
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        finished_history = [
+            StatusHistoryEntry(
+                status="Done",
+                status_display="Done",
+                start_date=datetime(2025, 2, 1),
+                end_date=None,
+            ),
+        ]
+
+        unfinished_history = [
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=datetime(2025, 1, 10),
+                end_date=None,
+            ),
+        ]
+
+        def get_history_side_effect(task_id):
+            if task_id == 1:
+                return finished_history
+            elif task_id == 2:
+                return unfinished_history
+            return []
+
+        generator.data_service.get_task_history = Mock(
+            side_effect=get_history_side_effect
+        )
+
+        # Mock stable_done
+        mock_stable_done = StatusHistoryEntry(
+            status="Done",
+            status_display="Done",
+            start_date=datetime(2025, 2, 1),
+            end_date=None,
+        )
+
+        def find_stable_done_side_effect(history, done_statuses):
+            if any(entry.status == "Done" for entry in history):
+                return mock_stable_done
+            return None
+
+        generator.metrics_service._find_stable_done = Mock(
+            side_effect=find_stable_done_side_effect
+        )
+
+        # Mock all calculation methods
+        generator._calculate_ttm = Mock(return_value=15)
+        generator._calculate_ttm_unfinished = Mock(return_value=20)
+        generator._calculate_tail = Mock(return_value=5)
+        generator._calculate_devlt = Mock(return_value=8)
+        generator._calculate_ttd = Mock(return_value=10)
+        generator._calculate_ttd_quarter = Mock(return_value="Q1")
+        generator._calculate_pause = Mock(return_value=2)
+        generator._calculate_ttd_pause = Mock(return_value=1)
+        generator._calculate_discovery_backlog_days = Mock(return_value=3)
+        generator._calculate_ready_for_dev_days = Mock(return_value=4)
+        generator._get_last_discovery_backlog_exit_date = Mock(
+            return_value=datetime(2025, 1, 5)
+        )
+        generator._has_valid_work_status = Mock(return_value=True)
+
+        # Mock returns calculation
+        generator._calculate_all_returns_batched = Mock(
+            return_value={"CPO-FINISHED": (1, 2), "CPO-UNFINISHED": (3, 4)}
+        )
+
+        # Test collecting CSV rows
+        rows = generator._collect_csv_rows()
+
+        # Verify both tasks are in the report
+        assert len(rows) == 2
+
+        # Find tasks
+        finished_row = next(r for r in rows if r["Ключ задачи"] == "CPO-FINISHED")
+        unfinished_row = next(r for r in rows if r["Ключ задачи"] == "CPO-UNFINISHED")
+
+        # Check finished task
+        assert finished_row["Завершена"] == 1
+        assert finished_row["Квартал"] == "Q1"
+        assert finished_row["TTM"] == 15
+        assert finished_row["Tail"] == 5
+        assert finished_row["DevLT"] == 8
+        assert finished_row["TTD"] == 10
+        assert finished_row["Возвраты с Testing"] == 1
+        assert finished_row["Возвраты с Внешний тест"] == 2
+        assert finished_row["Всего возвратов"] == 3
+
+        # Check unfinished task - all metrics should be calculated
+        assert unfinished_row["Завершена"] == 0
+        assert unfinished_row["Квартал"] == ""  # Empty quarter
+        assert unfinished_row["TTM"] == 20  # Calculated using _calculate_ttm_unfinished
+        assert unfinished_row["Tail"] == 5
+        assert unfinished_row["DevLT"] == 8
+        assert unfinished_row["TTD"] == 10
+        assert unfinished_row["Пауза"] == 2
+        assert unfinished_row["TTD Pause"] == 1
+        assert unfinished_row["Discovery backlog (дни)"] == 3
+        assert unfinished_row["Готова к разработке (дни)"] == 4
+        assert unfinished_row["Возвраты с Testing"] == 3
+        assert unfinished_row["Возвраты с Внешний тест"] == 4
+        assert unfinished_row["Всего возвратов"] == 7
+        assert unfinished_row["Разработка"] == 1
+
+        # Verify _calculate_ttm_unfinished was called for unfinished task
+        generator._calculate_ttm_unfinished.assert_called_once()
+
+    def test_calculate_ttm_unfinished_without_pauses(self, test_reports_dir):
+        """Test calculating TTM for unfinished task without pauses."""
+        from datetime import datetime
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock history for unfinished task
+        # Task created 10 days ago, still in progress
+        from datetime import timedelta
+
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        created_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        created_date = created_date - timedelta(days=10)
+
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=created_date,
+                end_date=created_date.replace(day=created_date.day + 1),
+            ),
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=created_date.replace(day=created_date.day + 5),
+                end_date=None,  # Still in this status
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        # Mock metrics_service methods
+        generator.metrics_service.ttm_strategy.calculate_start_date = Mock(
+            return_value=created_date
+        )
+        generator.metrics_service.calculate_pause_time_up_to_date = Mock(return_value=0)
+
+        # Test _calculate_ttm_unfinished
+        with patch(
+            "radiator.commands.generate_ttm_details_report.datetime"
+        ) as mock_datetime:
+            mock_datetime.now.return_value = datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            result = generator._calculate_ttm_unfinished(
+                mock_history, mock_done_statuses
+            )
+
+        # Verify TTM is approximately 10 days (current_date - created_date)
+        assert result is not None
+        assert result >= 9  # Allow for small time differences
+        assert result <= 11
+
+    def test_calculate_ttm_unfinished_with_pauses(self, test_reports_dir):
+        """Test calculating TTM for unfinished task with pauses."""
+        from datetime import datetime, timedelta
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Mock history for unfinished task with pause
+        from radiator.commands.models.time_to_market_models import StatusHistoryEntry
+
+        created_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        created_date = created_date - timedelta(days=15)
+
+        mock_history = [
+            StatusHistoryEntry(
+                status="Открыт",
+                status_display="Открыт",
+                start_date=created_date,
+                end_date=created_date + timedelta(days=2),
+            ),
+            StatusHistoryEntry(
+                status="Приостановлено",
+                status_display="Приостановлено",
+                start_date=created_date + timedelta(days=3),
+                end_date=created_date + timedelta(days=6),
+            ),
+            StatusHistoryEntry(
+                status="Готова к разработке",
+                status_display="Готова к разработке",
+                start_date=created_date + timedelta(days=7),
+                end_date=None,  # Still in this status
+            ),
+        ]
+
+        generator.data_service.get_task_history = Mock(return_value=mock_history)
+
+        # Mock metrics_service methods
+        generator.metrics_service.ttm_strategy.calculate_start_date = Mock(
+            return_value=created_date
+        )
+        # 3 days of pause (from day 3 to day 6)
+        generator.metrics_service.calculate_pause_time_up_to_date = Mock(return_value=3)
+
+        # Test _calculate_ttm_unfinished
+        with patch(
+            "radiator.commands.generate_ttm_details_report.datetime"
+        ) as mock_datetime:
+            current_date = datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            mock_datetime.now.return_value = current_date
+            result = generator._calculate_ttm_unfinished(
+                mock_history, mock_done_statuses
+            )
+
+        # Verify TTM = (current_date - created_date) - pause_time
+        # Should be approximately 15 - 3 = 12 days
+        assert result is not None
+        assert result >= 11  # Allow for small time differences
+        assert result <= 13
+
+    def test_calculate_ttm_unfinished_empty_history(self, test_reports_dir):
+        """Test calculating TTM for unfinished task with empty history returns None."""
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock done statuses
+        mock_done_statuses = ["Done", "Закрыт"]
+        generator._load_done_statuses = Mock(return_value=mock_done_statuses)
+
+        # Test _calculate_ttm_unfinished with empty history
+        result = generator._calculate_ttm_unfinished([], mock_done_statuses)
+
+        # Verify None is returned
+        assert result is None
 
 
 if __name__ == "__main__":

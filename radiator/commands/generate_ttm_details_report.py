@@ -100,6 +100,45 @@ class TTMDetailsReportGenerator:
 
         return self.metrics_service.calculate_time_to_market(history, done_statuses)
 
+    def _calculate_ttm_unfinished(
+        self, history: List, done_statuses: List[str]
+    ) -> Optional[int]:
+        """
+        Calculate TTM metric for unfinished task (up to current date).
+
+        Args:
+            history: Task history entries
+            done_statuses: List of done status names (not used but kept for consistency with _calculate_ttm)
+
+        Returns:
+            TTM value in days or None if not found
+        """
+        if not history:
+            return None
+
+        try:
+            # Get start date using TTM strategy (same as calculate_time_to_market)
+            start_date = self.metrics_service.ttm_strategy.calculate_start_date(history)
+            if start_date is None:
+                return None
+
+            # Use current date as end date for unfinished tasks
+            current_date = datetime.now()
+
+            # Calculate pause time up to current date
+            pause_time = self.metrics_service.calculate_pause_time_up_to_date(
+                history, current_date
+            )
+
+            # Calculate total days from start to current date
+            total_days = (current_date - start_date).days
+            effective_days = total_days - pause_time
+            return max(0, effective_days)  # Ensure non-negative
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate TTM for unfinished task: {e}")
+            return None
+
     def _get_ttm_tasks_for_date_range(
         self, start_date: datetime, end_date: datetime
     ) -> List[TaskData]:
@@ -557,6 +596,108 @@ class TTMDetailsReportGenerator:
             logger.warning(f"Failed to calculate testing returns for {task_key}: {e}")
             return 0, 0
 
+    def _get_unfinished_tasks(self) -> List[TaskData]:
+        """
+        Get unfinished tasks (tasks that transitioned to 'Готова к разработке' but don't have stable_done).
+
+        Returns:
+            List of TaskData objects for unfinished tasks
+        """
+        quarters = self._load_quarters()
+        done_statuses = self._load_done_statuses()
+
+        # Берем диапазон от начала первого до конца последнего квартала
+        # Но для незавершенных задач нужно расширить до текущей даты
+        start_date = min(q.start_date for q in quarters)
+        end_date = max(q.end_date for q in quarters)
+        # Расширяем до текущей даты для незавершенных задач
+        current_date = datetime.now()
+        if current_date > end_date:
+            end_date = current_date
+
+        # Получаем все задачи, которые перешли в "Готова к разработке"
+        from radiator.commands.models.time_to_market_models import GroupBy
+
+        status_mapping = self.config_service.load_status_mapping()
+        all_ready_tasks = self.data_service.get_tasks_for_period(
+            start_date=start_date,
+            end_date=end_date,
+            group_by=GroupBy.AUTHOR,
+            status_mapping=status_mapping,
+            metric_type="ttd",  # Получаем задачи с переходом в "Готова к разработке"
+        )
+
+        # Фильтруем задачи, у которых нет stable_done
+        unfinished_tasks = []
+        for task in all_ready_tasks:
+            history = self.data_service.get_task_history(task.id)
+            stable_done = self.metrics_service._find_stable_done(history, done_statuses)
+            if not stable_done:
+                unfinished_tasks.append(task)
+
+        return unfinished_tasks
+
+    def _calculate_task_metrics(
+        self,
+        task: TaskData,
+        history: List,
+        done_statuses: List[str],
+        quarters: List[Quarter],
+        stable_done: Optional[object] = None,
+        is_finished: bool = True,
+    ) -> dict:
+        """
+        Calculate all metrics for a task (finished or unfinished).
+
+        Args:
+            task: Task data
+            history: Task history entries
+            done_statuses: List of done status names
+            quarters: List of Quarter objects
+            stable_done: Optional stable_done entry (for finished tasks)
+            is_finished: Whether task is finished
+
+        Returns:
+            Dictionary with task metrics
+        """
+        # Calculate TTM based on task status
+        if is_finished:
+            ttm = self._calculate_ttm(task.id, done_statuses, history)
+        else:
+            ttm = self._calculate_ttm_unfinished(history, done_statuses)
+
+        # Determine quarter name
+        quarter_name = ""
+        if stable_done:
+            done_date = stable_done.start_date
+            for quarter in quarters:
+                if quarter.start_date <= done_date <= quarter.end_date:
+                    quarter_name = quarter.name
+                    break
+
+        return {
+            "task": task,
+            "quarter_name": quarter_name,
+            "ttm": ttm,
+            "tail": self._calculate_tail(task.id, done_statuses, history),
+            "devlt": self._calculate_devlt(task.id, history),
+            "ttd": self._calculate_ttd(task.id, ["Готова к разработке"], history),
+            "ttd_quarter": self._calculate_ttd_quarter(history, quarters),
+            "pause": self._calculate_pause(task.id, history),
+            "ttd_pause": self._calculate_ttd_pause(task.id, history),
+            "discovery_backlog_days": self._calculate_discovery_backlog_days(
+                task.id, history
+            ),
+            "ready_for_dev_days": self._calculate_ready_for_dev_days(task.id, history),
+            "created_at": task.created_at,
+            "last_discovery_backlog_exit_date": self._get_last_discovery_backlog_exit_date(
+                history
+            ),
+            "stable_done_date": stable_done.start_date if stable_done else None,
+            "has_development": self._has_valid_work_status(task.id, history),
+            "is_finished": is_finished,
+        }
+
     def _collect_csv_rows(self) -> List[dict]:
         """
         Collect CSV rows data with optimized batch processing.
@@ -598,31 +739,30 @@ class TTMDetailsReportGenerator:
                 continue
 
             # Собираем все метрики кроме возвратов
-            # TTM уже рассчитан в _get_ttm_tasks_for_date_range_corrected
-            ttm = self._calculate_ttm(task.id, done_statuses, history)
-            task_metrics = {
-                "task": task,
-                "quarter_name": quarter_name,
-                "ttm": ttm,
-                "tail": self._calculate_tail(task.id, done_statuses, history),
-                "devlt": self._calculate_devlt(task.id, history),
-                "ttd": self._calculate_ttd(task.id, ["Готова к разработке"], history),
-                "ttd_quarter": self._calculate_ttd_quarter(history, quarters),
-                "pause": self._calculate_pause(task.id, history),
-                "ttd_pause": self._calculate_ttd_pause(task.id, history),
-                "discovery_backlog_days": self._calculate_discovery_backlog_days(
-                    task.id, history
-                ),
-                "ready_for_dev_days": self._calculate_ready_for_dev_days(
-                    task.id, history
-                ),
-                "created_at": task.created_at,
-                "last_discovery_backlog_exit_date": self._get_last_discovery_backlog_exit_date(
-                    history
-                ),
-                "stable_done_date": stable_done.start_date if stable_done else None,
-                "has_development": self._has_valid_work_status(task.id, history),
-            }
+            task_metrics = self._calculate_task_metrics(
+                task, history, done_statuses, quarters, stable_done, is_finished=True
+            )
+            tasks_data.append(task_metrics)
+
+        # Добавляем незавершенные задачи
+        unfinished_tasks = self._get_unfinished_tasks()
+        for task in unfinished_tasks:
+            history = self.data_service.get_task_history(task.id)
+
+            # Проверяем, что задача действительно незавершенная (нет stable_done)
+            stable_done = self.metrics_service._find_stable_done(history, done_statuses)
+            if stable_done:
+                continue  # Пропускаем, если есть stable_done
+
+            # Собираем все метрики для незавершенной задачи
+            task_metrics = self._calculate_task_metrics(
+                task,
+                history,
+                done_statuses,
+                quarters,
+                stable_done=None,
+                is_finished=False,
+            )
             tasks_data.append(task_metrics)
 
         # Шаг 2: Собираем все ключи CPO задач для расчета возвратов
@@ -655,6 +795,9 @@ class TTMDetailsReportGenerator:
                 task_metrics["last_discovery_backlog_exit_date"],
                 task_metrics["stable_done_date"],
                 task_metrics["has_development"],
+                task_metrics.get(
+                    "is_finished", True
+                ),  # По умолчанию True для обратной совместимости
             )
             rows.append(row)
 
@@ -680,6 +823,7 @@ class TTMDetailsReportGenerator:
         last_discovery_backlog_exit_date: Optional[datetime] = None,
         stable_done_date: Optional[datetime] = None,
         has_development: bool = False,
+        is_finished: bool = True,
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -731,6 +875,7 @@ class TTMDetailsReportGenerator:
             if stable_done_date
             else "",
             "Разработка": 1 if has_development else 0,
+            "Завершена": 1 if is_finished else 0,
         }
 
     def generate_csv(self, output_path: str) -> str:
@@ -774,6 +919,7 @@ class TTMDetailsReportGenerator:
                     "Начало работы",
                     "Завершено",
                     "Разработка",
+                    "Завершена",
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
