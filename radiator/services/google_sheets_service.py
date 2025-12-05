@@ -11,6 +11,8 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
+
 logger = logging.getLogger(__name__)
 
 
@@ -550,14 +552,14 @@ class GoogleSheetsService:
             # Base pivot table configuration
             # startRowIndex: 0 means first row contains headers
             # Google Sheets should recognize column headers from row 0
-            # Note: endColumnIndex is exclusive, so for 22 columns (0-21) we need endColumnIndex=22
+            # Note: endColumnIndex is exclusive, so we need endColumnIndex = column_count
             pivot_table = {
                 "source": {
                     "sheetId": source_sheet_id,
                     "startRowIndex": 0,  # First row contains headers
                     "startColumnIndex": 0,
                     "endRowIndex": 1000,  # Will be adjusted by Google Sheets
-                    "endColumnIndex": 22,  # 22 columns (0-21), exclusive end
+                    "endColumnIndex": TTMDetailsColumns.get_column_count(),  # Use single source of truth
                 },
                 "rows": [
                     {
@@ -688,44 +690,23 @@ class GoogleSheetsService:
         Returns:
             Column index (0-based)
         """
-        # Updated column mapping for status time report CSV
-        column_mapping = {
-            "Ключ задачи": 0,
-            "Название": 1,
-            "Автор": 2,
-            "Команда": 3,
-            "Квартал": 4,
-            "TTM": 5,
-            "Пауза": 6,
-            "Tail": 7,
-            "DevLT": 8,
-            "TTD": 9,
-            "TTD Pause": 10,
-            "Discovery backlog (дни)": 11,
-            "Готова к разработке (дни)": 12,
-            "Возвраты с Testing": 13,
-            "Возвраты с Внешний тест": 14,
-            "Всего возвратов": 15,
-            "Квартал TTD": 16,
-            "Создана": 17,
-            "Начало работы": 18,
-            "Завершено": 19,
-            "Разработка": 20,
-            "Завершена": 21,
-        }
-
+        # Use TTMDetailsColumns as single source of truth
         alias_mapping = {
             "DevLT (дни)": "DevLT",
         }
 
-        if column_name in column_mapping:
-            return column_mapping[column_name]
-
+        # Handle aliases
         if column_name in alias_mapping:
-            alias = alias_mapping[column_name]
-            return column_mapping.get(alias, 0)
+            column_name = alias_mapping[column_name]
 
-        return 0
+        try:
+            return TTMDetailsColumns.get_column_index(column_name)
+        except ValueError:
+            # Fallback to 0 for unknown columns (backward compatibility)
+            logger.warning(
+                f"Column '{column_name}' not found in TTM Details structure, using index 0"
+            )
+            return 0
 
     def _read_csv_file_from_sheet(self, sheet_id: str) -> Optional[pd.DataFrame]:
         """

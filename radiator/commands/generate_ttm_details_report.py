@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from radiator.commands.models.time_to_market_models import Quarter, TaskData
+from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
 from radiator.commands.services.author_team_mapping_service import (
     AuthorTeamMappingService,
 )
@@ -927,31 +928,7 @@ class TTMDetailsReportGenerator:
 
             # Create CSV with data
             with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-                fieldnames = [
-                    "Ключ задачи",
-                    "Название",
-                    "Автор",
-                    "Команда",
-                    "PM Lead",
-                    "Квартал",
-                    "TTM",
-                    "Пауза",
-                    "Tail",
-                    "DevLT",
-                    "TTD",
-                    "TTD Pause",
-                    "Discovery backlog (дни)",
-                    "Готова к разработке (дни)",
-                    "Возвраты с Testing",
-                    "Возвраты с Внешний тест",
-                    "Всего возвратов",
-                    "Квартал TTD",
-                    "Создана",
-                    "Начало работы",
-                    "Завершено",
-                    "Разработка",
-                    "Завершена",
-                ]
+                fieldnames = TTMDetailsColumns.COLUMN_NAMES
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)

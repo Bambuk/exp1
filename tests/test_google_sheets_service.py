@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 import pytest
 
+from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
 from radiator.services.google_sheets_service import GoogleSheetsService
 
 
@@ -183,12 +184,14 @@ class TestGoogleSheetsService:
     def test_get_column_index_development(self, mock_service):
         """Test that _get_column_index returns correct index for 'Разработка' column."""
         result = mock_service._get_column_index("Разработка")
-        assert result == 20
+        expected = TTMDetailsColumns.get_column_index("Разработка")
+        assert result == expected
 
     def test_get_column_index_finished(self, mock_service):
         """Test that _get_column_index returns correct index for 'Завершена' column."""
         result = mock_service._get_column_index("Завершена")
-        assert result == 21
+        expected = TTMDetailsColumns.get_column_index("Завершена")
+        assert result == expected
 
     def test_build_pivot_table_request_ttd_has_development_first(self, mock_service):
         """Test that TTD pivot table has 'Разработка' as first row grouping."""
@@ -206,17 +209,25 @@ class TestGoogleSheetsService:
         rows = pivot_table["rows"]
         assert len(rows) == 4
 
-        # First row should be "Разработка" (index 20)
-        assert rows[0]["sourceColumnOffset"] == 20
+        # First row should be "Разработка"
+        assert rows[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Разработка"
+        )
 
-        # Second row should be "Завершена" (index 21)
-        assert rows[1]["sourceColumnOffset"] == 21
+        # Second row should be "Завершена"
+        assert rows[1]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Завершена"
+        )
 
-        # Third row should be "Команда" (index 3)
-        assert rows[2]["sourceColumnOffset"] == 3
+        # Third row should be "Команда"
+        assert rows[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
 
-        # Fourth row should be "Квартал" (index 4)
-        assert rows[3]["sourceColumnOffset"] == 4
+        # Fourth row should be "Квартал"
+        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Квартал"
+        )
 
     def test_build_pivot_table_request_ttm_has_development_first(self, mock_service):
         """Test that TTM pivot table has 'Разработка' as first row grouping."""
@@ -234,20 +245,28 @@ class TestGoogleSheetsService:
         rows = pivot_table["rows"]
         assert len(rows) == 4
 
-        # First row should be "Разработка" (index 20)
-        assert rows[0]["sourceColumnOffset"] == 20
+        # First row should be "Разработка"
+        assert rows[0]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Разработка"
+        )
 
-        # Second row should be "Завершена" (index 21)
-        assert rows[1]["sourceColumnOffset"] == 21
+        # Second row should be "Завершена"
+        assert rows[1]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Завершена"
+        )
 
-        # Third row should be "Команда" (index 3)
-        assert rows[2]["sourceColumnOffset"] == 3
+        # Third row should be "Команда"
+        assert rows[2]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Команда"
+        )
 
-        # Fourth row should be "Квартал" (index 4)
-        assert rows[3]["sourceColumnOffset"] == 4
+        # Fourth row should be "Квартал"
+        assert rows[3]["sourceColumnOffset"] == TTMDetailsColumns.get_column_index(
+            "Квартал"
+        )
 
     def test_build_pivot_table_request_end_column_index(self, mock_service):
-        """Test that endColumnIndex is updated to 22."""
+        """Test that endColumnIndex matches TTMDetailsColumns.get_column_count()."""
         source_sheet_id = 100
         target_sheet_id = 200
 
@@ -258,5 +277,8 @@ class TestGoogleSheetsService:
         assert request is not None
         pivot_table = request["updateCells"]["rows"][0]["values"][0]["pivotTable"]
 
-        # Check endColumnIndex
-        assert pivot_table["source"]["endColumnIndex"] == 22
+        # Check endColumnIndex matches single source of truth
+        expected_count = TTMDetailsColumns.get_column_count()
+        assert (
+            pivot_table["source"]["endColumnIndex"] == expected_count
+        ), f"endColumnIndex should equal TTMDetailsColumns.get_column_count(). Expected {expected_count}, got {pivot_table['source']['endColumnIndex']}"

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
 from radiator.services.google_sheets_service import GoogleSheetsService
 
 
@@ -26,7 +27,10 @@ class TestGoogleSheetsColumnMapping:
         )
 
         devlt_index = service._get_column_index("DevLT")
-        assert devlt_index == 8, f"DevLT should be at index 8, got {devlt_index}"
+        expected_devlt_index = TTMDetailsColumns.get_column_index("DevLT")
+        assert (
+            devlt_index == expected_devlt_index
+        ), f"DevLT should be at index {expected_devlt_index}, got {devlt_index}"
 
         # Legacy alias still supported
         devlt_alias_index = service._get_column_index("DevLT (дни)")
@@ -35,7 +39,10 @@ class TestGoogleSheetsColumnMapping:
         ), "Alias 'DevLT (дни)' should map to DevLT column"
 
         quarter_index = service._get_column_index("Квартал")
-        assert quarter_index == 4, f"Quarter should be at index 4, got {quarter_index}"
+        expected_quarter_index = TTMDetailsColumns.get_column_index("Квартал")
+        assert (
+            quarter_index == expected_quarter_index
+        ), f"Quarter should be at index {expected_quarter_index}, got {quarter_index}"
 
     @patch(
         "radiator.services.google_sheets_service.service_account.Credentials.from_service_account_file"
@@ -51,17 +58,40 @@ class TestGoogleSheetsColumnMapping:
             credentials_path="dummy_path", document_id="dummy_id", sheet_prefix="Test_"
         )
 
-        # Test key columns based on current CSV structure
-        assert service._get_column_index("Ключ задачи") == 0
-        assert service._get_column_index("Название") == 1
-        assert service._get_column_index("Автор") == 2
-        assert service._get_column_index("Команда") == 3
-        assert service._get_column_index("Квартал") == 4
-        assert service._get_column_index("TTM") == 5
-        assert service._get_column_index("Пауза") == 6
-        assert service._get_column_index("Tail") == 7
-        assert service._get_column_index("DevLT") == 8
-        assert service._get_column_index("TTD") == 9
+        # Test key columns based on current CSV structure (using TTMDetailsColumns)
+        assert service._get_column_index(
+            "Ключ задачи"
+        ) == TTMDetailsColumns.get_column_index("Ключ задачи")
+        assert service._get_column_index(
+            "Название"
+        ) == TTMDetailsColumns.get_column_index("Название")
+        assert service._get_column_index("Автор") == TTMDetailsColumns.get_column_index(
+            "Автор"
+        )
+        assert service._get_column_index(
+            "Команда"
+        ) == TTMDetailsColumns.get_column_index("Команда")
+        assert service._get_column_index(
+            "PM Lead"
+        ) == TTMDetailsColumns.get_column_index("PM Lead")
+        assert service._get_column_index(
+            "Квартал"
+        ) == TTMDetailsColumns.get_column_index("Квартал")
+        assert service._get_column_index("TTM") == TTMDetailsColumns.get_column_index(
+            "TTM"
+        )
+        assert service._get_column_index("Пауза") == TTMDetailsColumns.get_column_index(
+            "Пауза"
+        )
+        assert service._get_column_index("Tail") == TTMDetailsColumns.get_column_index(
+            "Tail"
+        )
+        assert service._get_column_index("DevLT") == TTMDetailsColumns.get_column_index(
+            "DevLT"
+        )
+        assert service._get_column_index("TTD") == TTMDetailsColumns.get_column_index(
+            "TTD"
+        )
 
     @patch(
         "radiator.services.google_sheets_service.service_account.Credentials.from_service_account_file"
