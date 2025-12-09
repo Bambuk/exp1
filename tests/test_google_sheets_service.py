@@ -831,7 +831,7 @@ class TestGoogleSheetsService:
         # Check that column 2 (threshold column) is formatted
         for req in orange_requests:
             assert (
-                req["repeatCell"]["range"]["startColumnIndex"] == 15 + 2
+                req["repeatCell"]["range"]["startColumnIndex"] == 17 + 2
             )  # start_column_index + 2 (third column)
 
     def test_apply_percentile_statistics_formatting_ttd_headers_bold(
@@ -901,7 +901,7 @@ class TestGoogleSheetsService:
 
         # Check that column 2 (threshold column) is formatted
         assert (
-            orange_requests[0]["repeatCell"]["range"]["startColumnIndex"] == 11 + 2
+            orange_requests[0]["repeatCell"]["range"]["startColumnIndex"] == 13 + 2
         )  # start_column_index + 2
 
     def test_apply_percentile_statistics_formatting_api_calls(self, mock_service):
@@ -1400,3 +1400,324 @@ class TestGoogleSheetsService:
         ]
 
         assert len(note_calls) > 0, "Column notes were not added"
+
+    def test_apply_conditional_formatting_to_pivot_ttm_mean(self, mock_service):
+        """Test conditional formatting for TTM Mean column in TTM Pivot (> 180)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None, "batchUpdate() was not called"
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTM Mean rule (column index 5)
+        ttm_mean_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 5
+        ]
+
+        assert len(ttm_mean_rules) == 1
+        rule = ttm_mean_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert (
+            rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "180"
+        )
+        bg_color = rule["booleanRule"]["format"]["backgroundColor"]
+        assert bg_color["red"] == 1.0
+        assert bg_color["green"] == 0.647
+        assert bg_color["blue"] == 0.0
+
+    def test_apply_conditional_formatting_to_pivot_ttm_max(self, mock_service):
+        """Test conditional formatting for TTM Max column in TTM Pivot (> 180)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTM Max rule (column index 6)
+        ttm_max_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 6
+        ]
+
+        assert len(ttm_max_rules) == 1
+        rule = ttm_max_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert (
+            rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "180"
+        )
+
+    def test_apply_conditional_formatting_to_pivot_tail_mean(self, mock_service):
+        """Test conditional formatting for Tail Mean column in TTM Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find Tail Mean rule (column index 9)
+        tail_mean_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 9
+        ]
+
+        assert len(tail_mean_rules) == 1
+        rule = tail_mean_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_tail_max(self, mock_service):
+        """Test conditional formatting for Tail Max column in TTM Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find Tail Max rule (column index 10)
+        tail_max_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 10
+        ]
+
+        assert len(tail_max_rules) == 1
+        rule = tail_max_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_devlt_mean(self, mock_service):
+        """Test conditional formatting for DevLT Mean column in TTM Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find DevLT Mean rule (column index 11)
+        devlt_mean_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 11
+        ]
+
+        assert len(devlt_mean_rules) == 1
+        rule = devlt_mean_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_devlt_max(self, mock_service):
+        """Test conditional formatting for DevLT Max column in TTM Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find DevLT Max rule (column index 12)
+        devlt_max_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 12
+        ]
+
+        assert len(devlt_max_rules) == 1
+        rule = devlt_max_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_ttm_all_columns(self, mock_service):
+        """Test that conditional formatting is applied to all required columns in TTM Pivot."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTM Pivot", pivot_type="ttm", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Should have 6 rules (TTM Mean, TTM Max, Tail Mean, Tail Max, DevLT Mean, DevLT Max)
+        conditional_rules = [
+            req for req in requests if "addConditionalFormatRule" in req
+        ]
+        assert len(conditional_rules) == 6
+
+        # Check that all required columns are covered
+        column_indices = [
+            req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            for req in conditional_rules
+        ]
+        assert 5 in column_indices  # TTM Mean
+        assert 6 in column_indices  # TTM Max
+        assert 9 in column_indices  # Tail Mean
+        assert 10 in column_indices  # Tail Max
+        assert 11 in column_indices  # DevLT Mean
+        assert 12 in column_indices  # DevLT Max
+
+        # Check that formatting excludes header row (startRowIndex = 1)
+        for req in conditional_rules:
+            range_obj = req["addConditionalFormatRule"]["rule"]["ranges"][0]
+            assert range_obj["startRowIndex"] == 1  # Skip header
+
+    def test_apply_conditional_formatting_to_pivot_ttd_mean(self, mock_service):
+        """Test conditional formatting for TTD Mean column in TTD Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTD Pivot", pivot_type="ttd", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTD Mean rule (column index 5)
+        ttd_mean_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 5
+        ]
+
+        assert len(ttd_mean_rules) == 1
+        rule = ttd_mean_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_ttd_max(self, mock_service):
+        """Test conditional formatting for TTD Max column in TTD Pivot (> 60)."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTD Pivot", pivot_type="ttd", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Find TTD Max rule (column index 6)
+        ttd_max_rules = [
+            req
+            for req in requests
+            if "addConditionalFormatRule" in req
+            and req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            == 6
+        ]
+
+        assert len(ttd_max_rules) == 1
+        rule = ttd_max_rules[0]["addConditionalFormatRule"]["rule"]
+        assert rule["booleanRule"]["condition"]["type"] == "NUMBER_GREATER"
+        assert rule["booleanRule"]["condition"]["values"][0]["userEnteredValue"] == "60"
+
+    def test_apply_conditional_formatting_to_pivot_ttd_all_columns(self, mock_service):
+        """Test that conditional formatting is applied to all required columns in TTD Pivot."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {}
+
+        mock_service._apply_conditional_formatting_to_pivot(
+            sheet_id=200, sheet_name="TTD Pivot", pivot_type="ttd", num_rows=100
+        )
+
+        call_args = mock_service.service.spreadsheets().batchUpdate.call_args
+        assert call_args is not None
+
+        requests = call_args[1]["body"]["requests"]
+
+        # Should have 2 rules (TTD Mean, TTD Max)
+        conditional_rules = [
+            req for req in requests if "addConditionalFormatRule" in req
+        ]
+        assert len(conditional_rules) == 2
+
+        # Check that all required columns are covered
+        column_indices = [
+            req["addConditionalFormatRule"]["rule"]["ranges"][0]["startColumnIndex"]
+            for req in conditional_rules
+        ]
+        assert 5 in column_indices  # TTD Mean
+        assert 6 in column_indices  # TTD Max
+
+        # Check that formatting excludes header row (startRowIndex = 1)
+        for req in conditional_rules:
+            range_obj = req["addConditionalFormatRule"]["rule"]["ranges"][0]
+            assert range_obj["startRowIndex"] == 1  # Skip header
+
+    def test_create_pivot_table_includes_conditional_formatting(self, mock_service):
+        """Test that conditional formatting is applied when creating pivot table."""
+        mock_service.service.spreadsheets().batchUpdate().execute.return_value = {
+            "replies": [{"addSheet": {"properties": {"sheetId": 200}}}]
+        }
+        mock_service._get_sheet_name_by_id = Mock(return_value="Details")
+        mock_service._calculate_pivot_table_width = Mock(return_value=15)
+
+        mock_service._create_google_pivot_table(
+            document_id="test_doc_id",
+            source_sheet_id=100,
+            sheet_name="TTM Pivot",
+            pivot_type="ttm",
+            source_sheet_name="Details",
+        )
+
+        # Verify conditional formatting was called
+        calls = mock_service.service.spreadsheets().batchUpdate.call_args_list
+        conditional_formatting_calls = [
+            call
+            for call in calls
+            if call[1]
+            and "requests" in call[1]["body"]
+            and any(
+                "addConditionalFormatRule" in req for req in call[1]["body"]["requests"]
+            )
+        ]
+        assert len(conditional_formatting_calls) > 0

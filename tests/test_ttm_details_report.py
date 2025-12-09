@@ -4066,12 +4066,12 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=created_date,
-                end_date=created_date.replace(day=created_date.day + 1),
+                end_date=created_date + timedelta(days=1),
             ),
             StatusHistoryEntry(
                 status="Готова к разработке",
                 status_display="Готова к разработке",
-                start_date=created_date.replace(day=created_date.day + 5),
+                start_date=created_date + timedelta(days=5),
                 end_date=None,  # Still in this status
             ),
         ]

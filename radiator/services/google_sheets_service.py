@@ -24,8 +24,8 @@ COLUMN_NOTES = {
     "PM Lead": "PM Lead команды (определяется через TeamLeadMappingService)",
     "TTM": "Количество дней от создания задачи до завершения (для завершенных задач) или до текущей даты (для незавершенных)",
     "TTD": "Количество дней от создания задачи до перехода в статус Готова к разработке",
-    "Tail": "Время от перехода в done-статус до стабильного завершения",
-    "DevLT": "Время в статусе МП / В работе (только для валидных записей >= 5 минут)",
+    "Tail": "Время от начала статуса МП / Внешний тест до первого done-статуса после него (с исключением пауз)",
+    "DevLT": "Время от первого валидного МП / В работе до последнего валидного МП / Внешний тест (календарное время, без исключения пауз)",
     "Пауза": "Общее время пауз в задаче",
     "TTD Pause": "Время пауз до достижения статуса Готова к разработке",
     "Discovery backlog (дни)": "Время, проведенное в статусе Discovery backlog",
@@ -633,6 +633,15 @@ class GoogleSheetsService:
                     f"Could not determine source sheet name for percentile statistics"
                 )
 
+            # Apply conditional formatting to highlight threshold values
+            # Use large number for rows since pivot tables can have dynamic row count
+            self._apply_conditional_formatting_to_pivot(
+                sheet_id=new_sheet_id,
+                sheet_name=sheet_name,
+                pivot_type=pivot_type,
+                num_rows=1000,
+            )
+
             logger.info(f"Successfully created Google Sheets pivot table: {sheet_name}")
             return new_sheet_id
 
@@ -1225,6 +1234,110 @@ class GoogleSheetsService:
 
                 logger.info(
                     f"Successfully applied conditional formatting to {sheet_name}"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to apply conditional formatting to {sheet_name}: {e}")
+            return False
+
+    def _apply_conditional_formatting_to_pivot(
+        self, sheet_id: int, sheet_name: str, pivot_type: str, num_rows: int
+    ) -> bool:
+        """
+        Apply conditional formatting to Pivot sheet to highlight cells exceeding thresholds.
+
+        Args:
+            sheet_id: ID of the sheet
+            sheet_name: Name of the sheet
+            pivot_type: Type of pivot ("ttd" or "ttm")
+            num_rows: Number of data rows (excluding header)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            requests = []
+
+            # Define columns and thresholds based on pivot type
+            if pivot_type == "ttm":
+                # TTM Pivot columns:
+                # Column 5: TTM Mean (threshold: > 180)
+                # Column 6: TTM Max (threshold: > 180)
+                # Column 9: Tail Mean (threshold: > 60)
+                # Column 10: Tail Max (threshold: > 60)
+                # Column 11: DevLT Mean (threshold: > 60)
+                # Column 12: DevLT Max (threshold: > 60)
+                formatting_rules = [
+                    {"column_index": 5, "threshold": 180},  # TTM Mean
+                    {"column_index": 6, "threshold": 180},  # TTM Max
+                    {"column_index": 9, "threshold": 60},  # Tail Mean
+                    {"column_index": 10, "threshold": 60},  # Tail Max
+                    {"column_index": 11, "threshold": 60},  # DevLT Mean
+                    {"column_index": 12, "threshold": 60},  # DevLT Max
+                ]
+            elif pivot_type == "ttd":
+                # TTD Pivot columns:
+                # Column 5: TTD Mean (threshold: > 60)
+                # Column 6: TTD Max (threshold: > 60)
+                formatting_rules = [
+                    {"column_index": 5, "threshold": 60},  # TTD Mean
+                    {"column_index": 6, "threshold": 60},  # TTD Max
+                ]
+            else:
+                logger.error(f"Unknown pivot type: {pivot_type}")
+                return False
+
+            # Create conditional formatting rule for each column
+            for rule_index, rule_config in enumerate(formatting_rules):
+                requests.append(
+                    {
+                        "addConditionalFormatRule": {
+                            "rule": {
+                                "ranges": [
+                                    {
+                                        "sheetId": sheet_id,
+                                        "startRowIndex": 1,  # Skip header row
+                                        "endRowIndex": num_rows + 1,
+                                        "startColumnIndex": rule_config["column_index"],
+                                        "endColumnIndex": rule_config["column_index"]
+                                        + 1,
+                                    }
+                                ],
+                                "booleanRule": {
+                                    "condition": {
+                                        "type": "NUMBER_GREATER",
+                                        "values": [
+                                            {
+                                                "userEnteredValue": str(
+                                                    rule_config["threshold"]
+                                                )
+                                            }
+                                        ],
+                                    },
+                                    "format": {
+                                        "backgroundColor": {
+                                            "red": 1.0,
+                                            "green": 0.647,
+                                            "blue": 0.0,
+                                        }
+                                    },
+                                },
+                            },
+                            "index": rule_index,
+                        }
+                    }
+                )
+
+            # Apply conditional formatting via batchUpdate
+            if requests:
+                self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=self.document_id, body={"requests": requests}
+                ).execute()
+
+                logger.info(
+                    f"Successfully applied conditional formatting to {sheet_name} (pivot_type={pivot_type})"
                 )
 
             return True
