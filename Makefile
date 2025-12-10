@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-ttm-details-report db-snapshot db-snapshot-prod db-snapshot-test db-restore db-list-snapshots
+.PHONY: help install dev test lint format clean deploy migrate migrate-create migrate-status migrate-history migrate-downgrade migrate-reset db-init test-db-create test-db-drop test-db-reset test-env generate-status-report generate-status-report-teams sync-and-report generate-ttm-details-report generate-fullstack-subepic-returns-report db-snapshot db-snapshot-prod db-snapshot-test db-restore db-list-snapshots
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'
@@ -27,6 +27,7 @@ help:  ## Show this help message
 	@echo ''
 	@echo 'Time To Market Commands:'
 	@echo '  generate-ttm-details-report - Generate TTM Details CSV report with timestamp'
+	@echo '  generate-fullstack-subepic-returns-report - Generate FULLSTACK sub-epic returns CSV report'
 	@echo ''
 	@echo 'Google Sheets Commands:'
 	@echo '  google-sheets-monitor - Start Google Sheets CSV uploader monitoring (handles both regular and pivot uploads)'
@@ -246,6 +247,14 @@ generate-ttm-details-report:  ## Generate TTM Details CSV report with timestamp
 	. venv/bin/activate && python -m radiator.commands.generate_ttm_details_report --output "data/reports/new_ttm_details_$$TIMESTAMP.csv"
 	@echo ""
 	@echo "✅ TTM Details report generated successfully!"
+
+generate-fullstack-subepic-returns-report: ## Generate FULLSTACK sub-epic returns CSV report
+	@echo "📊 Generating FULLSTACK Sub-epic Returns report..."
+	@mkdir -p data/reports
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	. venv/bin/activate && python -m radiator.commands.generate_fullstack_subepic_returns_report --output "data/reports/fullstack_subepic_returns_$$TIMESTAMP.csv" $(if $(START_DATE),--start-date "$(START_DATE)",)
+	@echo ""
+	@echo "✅ FULLSTACK Sub-epic Returns report generated successfully!"
 
 generate-status-time-report: ## Generate status time report for queue with optional created-since
 	@echo "📊 Generating Status Time report..."

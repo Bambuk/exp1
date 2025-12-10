@@ -257,6 +257,12 @@ class TrackerSyncCommand:
                 # Update existing task
                 for key, value in task_data.items():
                     if hasattr(existing_task, key):
+                        # Не затираем продкоманду пустой строкой
+                        if key == "prodteam":
+                            if (value is None or str(value).strip() == "") and getattr(
+                                existing_task, "prodteam"
+                            ):
+                                continue
                         setattr(existing_task, key, value)
                 existing_task.last_sync_at = datetime.now(timezone.utc)
                 updated += 1

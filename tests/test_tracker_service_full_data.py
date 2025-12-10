@@ -6,6 +6,9 @@ import pytest
 
 from radiator.services.tracker_service import TrackerAPIService
 
+FULLSTACK_PRODTEAM_FIELD = "6361307d94f52e42ae308615--prodteam"
+LEGACY_PRODTEAM_FIELD = "63515d47fe387b7ce7b9fc55--prodteam"
+
 
 class TestTrackerAPIServiceFullDataSupport:
     """Tests for TrackerAPIService with full_data and customer field support."""
@@ -52,6 +55,31 @@ class TestTrackerAPIServiceFullDataSupport:
         assert result["tracker_id"] == "12345"
         assert result["key"] == "TEST-123"
         assert result["summary"] == "Test Task"
+
+    def test_extract_task_data_uses_fullstack_prodteam_field(self, service):
+        task_data = {
+            "id": "12345",
+            "key": "FS-1",
+            "summary": "FS",
+            FULLSTACK_PRODTEAM_FIELD: "FS Team",
+            LEGACY_PRODTEAM_FIELD: "Legacy Team",
+        }
+
+        result = service.extract_task_data(task_data)
+        assert result["prodteam"] == "FS Team"
+        assert result["full_data"][FULLSTACK_PRODTEAM_FIELD] == "FS Team"
+
+    def test_extract_task_data_falls_back_to_legacy_prodteam(self, service):
+        task_data = {
+            "id": "12345",
+            "key": "FS-2",
+            "summary": "FS",
+            FULLSTACK_PRODTEAM_FIELD: "",
+            LEGACY_PRODTEAM_FIELD: "Legacy Team",
+        }
+
+        result = service.extract_task_data(task_data)
+        assert result["prodteam"] == "Legacy Team"
 
     def test_extract_task_data_handles_missing_customer_field(self, service):
         """Test that extract_task_data handles missing customer field gracefully."""

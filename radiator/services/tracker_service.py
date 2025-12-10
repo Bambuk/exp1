@@ -13,6 +13,8 @@ from radiator.core.logging import logger
 
 # Constants for status field handling
 STATUS_FIELD_ID = "status"
+LEGACY_PRODTEAM_FIELD = "63515d47fe387b7ce7b9fc55--prodteam"
+FULLSTACK_PRODTEAM_FIELD = "6361307d94f52e42ae308615--prodteam"
 
 
 class TrackerAPIService:
@@ -446,6 +448,25 @@ class TrackerAPIService:
                     f"Failed to parse createdAt '{task.get('createdAt')}': {e}"
                 )
 
+        def _choose_prodteam(task_obj: Dict[str, Any]) -> str:
+            def norm(val: Any) -> str:
+                if val is None:
+                    return ""
+                try:
+                    return str(val).strip()
+                except Exception:
+                    return ""
+
+            new_val = norm(task_obj.get(FULLSTACK_PRODTEAM_FIELD, ""))
+            old_val = norm(task_obj.get(LEGACY_PRODTEAM_FIELD, ""))
+            if new_val:
+                return new_val
+            if old_val:
+                return old_val
+            return ""
+
+        prodteam_value = _choose_prodteam(task)
+
         return {
             "tracker_id": str(task.get("id", "")),
             "key": task.get("key", ""),  # Task code like TEST-123
@@ -465,7 +486,7 @@ class TrackerAPIService:
                 task.get("businessClient")
             ),  # Customer field
             "team": str(task.get("63515d47fe387b7ce7b9fc55--team", "")),
-            "prodteam": str(task.get("63515d47fe387b7ce7b9fc55--prodteam", "")),
+            "prodteam": prodteam_value,
             "profit_forecast": str(
                 task.get("63515d47fe387b7ce7b9fc55--profitForecast", "")
             ),
