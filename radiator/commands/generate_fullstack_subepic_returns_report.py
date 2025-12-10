@@ -23,6 +23,7 @@ class SubepicInfo:
     prodteam: Optional[str]
     epic_key: str
     epic_summary: str
+    created_at: Optional[datetime] = None
 
 
 class FullstackSubepicReturnsReportGenerator:
@@ -35,6 +36,7 @@ class FullstackSubepicReturnsReportGenerator:
         "Команда",
         "Ключ эпика",
         "Название эпика",
+        "Месяц эпика",
         "Возвраты InProgress",
         "Возвраты Ревью",
         "Возвраты Testing",
@@ -73,6 +75,7 @@ class FullstackSubepicReturnsReportGenerator:
                 TrackerTask.prodteam,
                 TrackerTask.full_data,
                 TrackerTask.links,
+                TrackerTask.created_at,
             )
             .filter(
                 TrackerTask.key.like("FULLSTACK-%"),
@@ -119,6 +122,7 @@ class FullstackSubepicReturnsReportGenerator:
             return None
 
         prodteam = self._get_prodteam(task)
+        created_at = getattr(task, "created_at", None)
 
         return SubepicInfo(
             key=getattr(task, "key", ""),
@@ -127,9 +131,9 @@ class FullstackSubepicReturnsReportGenerator:
             prodteam=prodteam,
             epic_key=epic_key,
             epic_summary=epic_summary or "",
+            created_at=created_at,
         )
 
-    @staticmethod
     @staticmethod
     def _extract_prodteam(prodteam_value, full_data) -> Optional[str]:
         """Извлечь продуктовую команду из колонки или full_data."""
@@ -201,7 +205,29 @@ class FullstackSubepicReturnsReportGenerator:
             counts[status] = self.returns_service.count_status_returns(history, status)
         return counts
 
-    def _format_row(self, info: SubepicInfo, counts: dict[str, int]) -> dict:
+    @staticmethod
+    def _compute_epic_months(subepics: List[SubepicInfo]) -> dict[str, str]:
+        """Вычислить базовый месяц для каждого эпика (min created_at подэпиков)."""
+        epic_to_dates: dict[str, List[datetime]] = {}
+        for info in subepics:
+            if info.created_at:
+                if info.epic_key not in epic_to_dates:
+                    epic_to_dates[info.epic_key] = []
+                epic_to_dates[info.epic_key].append(info.created_at)
+
+        result: dict[str, str] = {}
+        for epic_key, dates in epic_to_dates.items():
+            if dates:
+                min_date = min(dates)
+                result[epic_key] = min_date.strftime("%Y-%m")
+        return result
+
+    def _format_row(
+        self,
+        info: SubepicInfo,
+        counts: dict[str, int],
+        epic_month: Optional[str] = None,
+    ) -> dict:
         """Сформировать строку CSV."""
         return {
             "Ключ задачи": info.key,
@@ -210,6 +236,7 @@ class FullstackSubepicReturnsReportGenerator:
             "Команда": info.prodteam or "",
             "Ключ эпика": info.epic_key,
             "Название эпика": info.epic_summary,
+            "Месяц эпика": epic_month or "",
             "Возвраты InProgress": counts.get("InProgress", 0),
             "Возвраты Ревью": counts.get("Ревью", 0),
             "Возвраты Testing": counts.get("Testing", 0),
@@ -224,6 +251,7 @@ class FullstackSubepicReturnsReportGenerator:
         subepics = self._load_subepics()
         epic_keys = list({s.epic_key for s in subepics})
         epic_prodteams = self._fetch_epic_prodteams(epic_keys)
+        epic_months = self._compute_epic_months(subepics)
         histories = self._load_histories([s.key for s in subepics])
 
         rows = []
@@ -231,6 +259,7 @@ class FullstackSubepicReturnsReportGenerator:
             prodteam = info.prodteam or epic_prodteams.get(info.epic_key)
             history = histories.get(info.key, [])
             counts = self._count_returns_by_status(history)
+            epic_month = epic_months.get(info.epic_key)
             # Подставляем продкоманду (сначала из задачи, потом из эпика)
             info_with_team = SubepicInfo(
                 key=info.key,
@@ -239,8 +268,9 @@ class FullstackSubepicReturnsReportGenerator:
                 prodteam=prodteam,
                 epic_key=info.epic_key,
                 epic_summary=info.epic_summary,
+                created_at=info.created_at,
             )
-            rows.append(self._format_row(info_with_team, counts))
+            rows.append(self._format_row(info_with_team, counts, epic_month))
 
         return rows
 

@@ -30,11 +30,13 @@ def test_tracer_creates_csv_header(tmp_path: Path):
 
 
 def test_parse_subepic_by_epic_link():
+    created_at = datetime(2025, 2, 10, tzinfo=timezone.utc)
     task = SimpleNamespace(
         key="FULLSTACK-1",
         summary="Subepic",
         author="alice",
         prodteam="team-a",
+        created_at=created_at,
         links=[
             {
                 "id": "202872",
@@ -55,15 +57,18 @@ def test_parse_subepic_by_epic_link():
         prodteam="team-a",
         epic_key="FULLSTACK-10",
         epic_summary="Epic name",
+        created_at=created_at,
     )
 
 
 def test_parse_subepic_prodteam_from_full_data():
+    created_at = datetime(2025, 7, 5, tzinfo=timezone.utc)
     task = SimpleNamespace(
         key="FULLSTACK-11",
         summary="Subepic FD",
         author="dave",
         prodteam=None,
+        created_at=created_at,
         full_data={"63515d47fe387b7ce7b9fc55--prodteam": "team-fd"},
         links=[
             {
@@ -78,6 +83,7 @@ def test_parse_subepic_prodteam_from_full_data():
     info = generator._parse_subepic_task(task)
 
     assert info and info.prodteam == "team-fd"
+    assert info.created_at == created_at
 
 
 def test_parse_subepic_ignores_non_epic_link():
@@ -121,6 +127,7 @@ def test_collect_rows_with_stubbed_data(tmp_path: Path):
 
     generator = FullstackSubepicReturnsReportGenerator(db=None)
 
+    created_at = datetime(2025, 3, 15, tzinfo=timezone.utc)
     generator._load_subepics = lambda: [
         SubepicInfo(
             key="FULLSTACK-3",
@@ -129,6 +136,7 @@ def test_collect_rows_with_stubbed_data(tmp_path: Path):
             prodteam="team-c",
             epic_key="FULLSTACK-30",
             epic_summary="Epic 30",
+            created_at=created_at,
         )
     ]
     generator._load_histories = lambda keys: {"FULLSTACK-3": history}
@@ -143,6 +151,7 @@ def test_collect_rows_with_stubbed_data(tmp_path: Path):
             "Команда": "team-c",
             "Ключ эпика": "FULLSTACK-30",
             "Название эпика": "Epic 30",
+            "Месяц эпика": "2025-03",
             "Возвраты InProgress": 0,
             "Возвраты Ревью": 0,
             "Возвраты Testing": 0,  # одно вхождение -> 0 возвратов (второе подряд не считается)
@@ -157,6 +166,7 @@ def test_collect_rows_with_stubbed_data(tmp_path: Path):
 def test_collect_rows_fills_prodteam_from_epic():
     history = []
     generator = FullstackSubepicReturnsReportGenerator(db=None)
+    created_at = datetime(2025, 4, 10, tzinfo=timezone.utc)
 
     generator._load_subepics = lambda: [
         SubepicInfo(
@@ -166,6 +176,7 @@ def test_collect_rows_fills_prodteam_from_epic():
             prodteam=None,
             epic_key="FULLSTACK-40",
             epic_summary="Epic 40",
+            created_at=created_at,
         )
     ]
     generator._load_histories = lambda keys: {"FULLSTACK-4": history}
@@ -174,3 +185,34 @@ def test_collect_rows_fills_prodteam_from_epic():
     rows = generator._collect_rows()
 
     assert rows[0]["Команда"] == "team-from-epic"
+    assert rows[0]["Месяц эпика"] == "2025-04"
+
+
+def test_compute_epic_month_from_first_subepic():
+    """Тест: месяц эпика = min(created_at) среди подэпиков."""
+    generator = FullstackSubepicReturnsReportGenerator(db=None)
+
+    subepics = [
+        SubepicInfo(
+            key="FULLSTACK-5",
+            summary="Subepic 5 (later)",
+            author="frank",
+            prodteam="team-f",
+            epic_key="FULLSTACK-50",
+            epic_summary="Epic 50",
+            created_at=datetime(2025, 6, 20, tzinfo=timezone.utc),
+        ),
+        SubepicInfo(
+            key="FULLSTACK-6",
+            summary="Subepic 6 (earlier)",
+            author="grace",
+            prodteam="team-g",
+            epic_key="FULLSTACK-50",
+            epic_summary="Epic 50",
+            created_at=datetime(2025, 5, 15, tzinfo=timezone.utc),
+        ),
+    ]
+
+    months = generator._compute_epic_months(subepics)
+
+    assert months["FULLSTACK-50"] == "2025-05"  # min дата среди подэпиков
