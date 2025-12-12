@@ -140,6 +140,11 @@ def test_collect_rows_with_stubbed_data(tmp_path: Path):
         )
     ]
     generator._load_histories = lambda keys: {"FULLSTACK-3": history}
+    # Мокаем новые функции поиска команды
+    generator._fetch_epic_teams = lambda keys: {}
+    generator._find_team_from_subepics = lambda subepics, epic_teams: {}
+    generator._fetch_epic_prodteams_fullstack = lambda keys: {"FULLSTACK-30": "team-c"}
+    generator._find_prodteam_from_subepics = lambda subepics, epic_prodteams: {}
 
     rows = generator._collect_rows()
 
@@ -180,7 +185,13 @@ def test_collect_rows_fills_prodteam_from_epic():
         )
     ]
     generator._load_histories = lambda keys: {"FULLSTACK-4": history}
-    generator._fetch_epic_prodteams = lambda keys: {"FULLSTACK-40": "team-from-epic"}
+    # Мокаем новые функции поиска команды
+    generator._fetch_epic_teams = lambda keys: {}
+    generator._find_team_from_subepics = lambda subepics, epic_teams: {}
+    generator._fetch_epic_prodteams_fullstack = lambda keys: {
+        "FULLSTACK-40": "team-from-epic"
+    }
+    generator._find_prodteam_from_subepics = lambda subepics, epic_prodteams: {}
 
     rows = generator._collect_rows()
 
@@ -216,3 +227,253 @@ def test_compute_epic_month_from_first_subepic():
     months = generator._compute_epic_months(subepics)
 
     assert months["FULLSTACK-50"] == "2025-05"  # min дата среди подэпиков
+
+
+def test_extract_team_from_full_data():
+    """Тест: helper извлекает team из full_data."""
+    generator = FullstackSubepicReturnsReportGenerator(db=None)
+
+    # С новым ключом FULLSTACK
+    full_data_with_team = {"6361307d94f52e42ae308615--team": "team-fullstack"}
+    assert (
+        generator._extract_team_from_full_data(full_data_with_team) == "team-fullstack"
+    )
+
+    # Без ключа
+    full_data_empty = {}
+    assert generator._extract_team_from_full_data(full_data_empty) is None
+
+    # С None
+    assert generator._extract_team_from_full_data(None) is None
+
+
+def test_fetch_epic_teams(db_session):
+    """Тест: поиск team у эпика через full_data."""
+    generator = FullstackSubepicReturnsReportGenerator(db=db_session)
+
+    from radiator.models.tracker import TrackerTask
+
+    # Создаём эпик с team в full_data
+    epic = TrackerTask(
+        tracker_id="epic-1",
+        key="FULLSTACK-100",
+        summary="Epic with team",
+        full_data={"6361307d94f52e42ae308615--team": "epic-team"},
+    )
+    db_session.add(epic)
+
+    # Эпик без team
+    epic_no_team = TrackerTask(
+        tracker_id="epic-2",
+        key="FULLSTACK-200",
+        summary="Epic without team",
+        full_data={},
+    )
+    db_session.add(epic_no_team)
+    db_session.commit()
+
+    teams = generator._fetch_epic_teams(["FULLSTACK-100", "FULLSTACK-200"])
+
+    assert teams["FULLSTACK-100"] == "epic-team"
+    assert teams["FULLSTACK-200"] is None
+
+
+def test_find_team_from_subepics(db_session):
+    """Тест: поиск team у подэпиков, если нет у эпика."""
+    generator = FullstackSubepicReturnsReportGenerator(db=db_session)
+
+    from radiator.models.tracker import TrackerTask
+
+    # Создаём подэпики с team в full_data
+    subepic1 = TrackerTask(
+        tracker_id="subepic-1",
+        key="FULLSTACK-7",
+        summary="Subepic 7",
+        full_data={"6361307d94f52e42ae308615--team": "subepic-team"},
+    )
+    db_session.add(subepic1)
+
+    subepic2 = TrackerTask(
+        tracker_id="subepic-2",
+        key="FULLSTACK-8",
+        summary="Subepic 8",
+        full_data={},
+    )
+    db_session.add(subepic2)
+    db_session.commit()
+
+    # Эпик без team, подэпик с team
+    subepics = [
+        SubepicInfo(
+            key="FULLSTACK-7",
+            summary="Subepic 7",
+            author="alice",
+            prodteam=None,
+            epic_key="FULLSTACK-70",
+            epic_summary="Epic 70",
+            created_at=datetime(2025, 8, 1, tzinfo=timezone.utc),
+        ),
+        SubepicInfo(
+            key="FULLSTACK-8",
+            summary="Subepic 8",
+            author="bob",
+            prodteam=None,
+            epic_key="FULLSTACK-70",
+            epic_summary="Epic 70",
+            created_at=datetime(2025, 8, 2, tzinfo=timezone.utc),
+        ),
+    ]
+
+    epic_teams = {"FULLSTACK-70": None}  # Эпик без team
+    subepic_teams = generator._find_team_from_subepics(subepics, epic_teams)
+
+    assert subepic_teams["FULLSTACK-70"] == "subepic-team"  # Берём из первого подэпика
+
+    # Все без team
+    epic_teams_empty = {"FULLSTACK-70": None}
+    subepics_no_team = [
+        SubepicInfo(
+            key="FULLSTACK-9",
+            summary="Subepic 9",
+            author="charlie",
+            prodteam=None,
+            epic_key="FULLSTACK-70",
+            epic_summary="Epic 70",
+            created_at=datetime(2025, 8, 3, tzinfo=timezone.utc),
+        )
+    ]
+
+    subepic_teams_empty = generator._find_team_from_subepics(
+        subepics_no_team, epic_teams_empty
+    )
+
+    assert subepic_teams_empty["FULLSTACK-70"] is None
+
+
+def test_fetch_epic_prodteams_fullstack(db_session):
+    """Тест: поиск prodteam у эпика через full_data (FULLSTACK поле)."""
+    generator = FullstackSubepicReturnsReportGenerator(db=db_session)
+
+    from radiator.models.tracker import TrackerTask
+
+    # Создаём эпик с prodteam в full_data
+    epic = TrackerTask(
+        tracker_id="epic-3",
+        key="FULLSTACK-300",
+        summary="Epic with prodteam",
+        full_data={"6361307d94f52e42ae308615--prodteam": "epic-prodteam"},
+    )
+    db_session.add(epic)
+
+    # Эпик без prodteam
+    epic_no_prodteam = TrackerTask(
+        tracker_id="epic-4",
+        key="FULLSTACK-400",
+        summary="Epic without prodteam",
+        full_data={},
+    )
+    db_session.add(epic_no_prodteam)
+    db_session.commit()
+
+    prodteams = generator._fetch_epic_prodteams_fullstack(
+        ["FULLSTACK-300", "FULLSTACK-400"]
+    )
+
+    assert prodteams["FULLSTACK-300"] == "epic-prodteam"
+    assert prodteams["FULLSTACK-400"] is None
+
+
+def test_find_prodteam_from_subepics(db_session):
+    """Тест: поиск prodteam у подэпиков, если нет у эпика."""
+    generator = FullstackSubepicReturnsReportGenerator(db=db_session)
+
+    from radiator.models.tracker import TrackerTask
+
+    # Создаём подэпики с prodteam в full_data
+    subepic1 = TrackerTask(
+        tracker_id="subepic-3",
+        key="FULLSTACK-10",
+        summary="Subepic 10",
+        full_data={"6361307d94f52e42ae308615--prodteam": "subepic-prodteam"},
+    )
+    db_session.add(subepic1)
+
+    subepic2 = TrackerTask(
+        tracker_id="subepic-4",
+        key="FULLSTACK-11",
+        summary="Subepic 11",
+        full_data={},
+    )
+    db_session.add(subepic2)
+    db_session.commit()
+
+    subepics = [
+        SubepicInfo(
+            key="FULLSTACK-10",
+            summary="Subepic 10",
+            author="dave",
+            prodteam=None,
+            epic_key="FULLSTACK-80",
+            epic_summary="Epic 80",
+            created_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
+        ),
+        SubepicInfo(
+            key="FULLSTACK-11",
+            summary="Subepic 11",
+            author="eve",
+            prodteam=None,
+            epic_key="FULLSTACK-80",
+            epic_summary="Epic 80",
+            created_at=datetime(2025, 9, 2, tzinfo=timezone.utc),
+        ),
+    ]
+
+    epic_prodteams = {"FULLSTACK-80": None}  # Эпик без prodteam
+    subepic_prodteams = generator._find_prodteam_from_subepics(subepics, epic_prodteams)
+
+    assert (
+        subepic_prodteams["FULLSTACK-80"] == "subepic-prodteam"
+    )  # Берём из первого подэпика
+
+
+def test_collect_rows_with_team_from_epic(db_session):
+    """Тест: команда заполняется из team эпика."""
+    generator = FullstackSubepicReturnsReportGenerator(db=db_session)
+
+    from radiator.models.tracker import TrackerTask
+
+    # Создаём эпик с team в full_data
+    epic = TrackerTask(
+        tracker_id="epic-5",
+        key="FULLSTACK-500",
+        summary="Epic 500",
+        full_data={"6361307d94f52e42ae308615--team": "epic-team-value"},
+    )
+    db_session.add(epic)
+
+    # Создаём подэпик без prodteam
+    subepic = TrackerTask(
+        tracker_id="subepic-5",
+        key="FULLSTACK-12",
+        summary="Subepic 12",
+        author="frank",
+        prodteam=None,
+        links=[
+            {
+                "type": {"id": "epic"},
+                "direction": "outward",
+                "object": {"key": "FULLSTACK-500", "display": "Epic 500"},
+            }
+        ],
+        created_at=datetime(2025, 10, 1, tzinfo=timezone.utc),
+        full_data={},
+    )
+    db_session.add(subepic)
+    db_session.commit()
+
+    rows = generator._collect_rows()
+
+    # Должна быть одна строка с командой из эпика
+    assert len(rows) == 1
+    assert rows[0]["Команда"] == "epic-team-value"
+    assert rows[0]["Ключ задачи"] == "FULLSTACK-12"

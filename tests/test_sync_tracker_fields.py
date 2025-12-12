@@ -9,14 +9,16 @@ from radiator.models.tracker import TrackerTask
 from radiator.utils.fields_loader import load_fields_list
 
 FULLSTACK_PRODTEAM_FIELD = "6361307d94f52e42ae308615--prodteam"
+FULLSTACK_TEAM_FIELD = "6361307d94f52e42ae308615--team"
 
 
 class TestSyncTrackerFieldsUsage:
     """Test cases for sync_tracker using fields parameter."""
 
-    def test_default_fields_include_fullstack_prodteam(self):
+    def test_default_fields_include_fullstack_prodteam_and_team(self):
         fields = load_fields_list()
         assert FULLSTACK_PRODTEAM_FIELD in fields
+        assert FULLSTACK_TEAM_FIELD in fields
 
     def test_sync_tracker_loads_fields_from_file(self):
         """Test that sync_tracker loads fields from fields.txt file."""
@@ -245,3 +247,39 @@ class TestSyncTrackerFieldsUsage:
         assert saved is not None
         assert saved.key == "FULLSTACK-777"
         assert saved.prodteam == "team-fullstack"
+
+    def test_sync_run_saves_fullstack_team_field_in_full_data(self, db_session):
+        """E2E sync: full_data сохраняет поле FULLSTACK team."""
+        cmd = TrackerSyncCommand(db=db_session)
+
+        task_data = {
+            "id": "778",
+            "key": "FULLSTACK-778",
+            "summary": "FS task team",
+            "createdAt": "2025-02-02T00:00:00Z",
+            "updatedAt": "2025-02-03T00:00:00Z",
+            "links": [],
+            "status": {"display": "Open"},
+            "createdBy": {"display": "author"},
+            "assignee": {"display": "assignee"},
+            FULLSTACK_TEAM_FIELD: "Team-Field",
+        }
+
+        with patch(
+            "radiator.commands.sync_tracker.tracker_service.get_tasks_by_filter_with_data",
+            return_value=[task_data],
+        ), patch(
+            "radiator.commands.sync_tracker.tracker_service.get_changelogs_batch",
+            return_value=[],
+        ), patch(
+            "radiator.commands.sync_tracker.tracker_service.extract_status_history_with_initial_status",
+            return_value=[],
+        ):
+            result = cmd.run(
+                filters={"query": "Queue: FULLSTACK"}, limit=1, skip_history=True
+            )
+            assert result is True
+
+        saved = db_session.query(TrackerTask).filter_by(tracker_id="778").first()
+        assert saved is not None
+        assert saved.full_data.get(FULLSTACK_TEAM_FIELD) == "Team-Field"

@@ -13,6 +13,8 @@ from radiator.models.tracker import TrackerTask
 
 DEFAULT_START_DATE = datetime(2025, 1, 1)
 PRODTEAM_FIELD_KEY = "63515d47fe387b7ce7b9fc55--prodteam"
+FULLSTACK_TEAM_FIELD_KEY = "6361307d94f52e42ae308615--team"
+FULLSTACK_PRODTEAM_FIELD_KEY = "6361307d94f52e42ae308615--prodteam"
 
 
 @dataclass
@@ -145,6 +147,26 @@ class FullstackSubepicReturnsReportGenerator:
 
         return None
 
+    @staticmethod
+    def _extract_team_from_full_data(full_data) -> Optional[str]:
+        """Извлечь команду из full_data по ключу FULLSTACK team."""
+        if not isinstance(full_data, dict):
+            return None
+        value = full_data.get(FULLSTACK_TEAM_FIELD_KEY)
+        if value:
+            return str(value).strip() if str(value).strip() else None
+        return None
+
+    @staticmethod
+    def _extract_prodteam_from_full_data(full_data) -> Optional[str]:
+        """Извлечь prodteam из full_data по ключу FULLSTACK prodteam."""
+        if not isinstance(full_data, dict):
+            return None
+        value = full_data.get(FULLSTACK_PRODTEAM_FIELD_KEY)
+        if value:
+            return str(value).strip() if str(value).strip() else None
+        return None
+
     def _get_prodteam(self, task) -> Optional[str]:
         """Получить продуктовую команду: колонка prodteam или full_data custom."""
         if getattr(task, "prodteam", None):
@@ -171,6 +193,142 @@ class FullstackSubepicReturnsReportGenerator:
         result: dict[str, Optional[str]] = {}
         for key, prodteam, full_data in rows:
             result[key] = self._extract_prodteam(prodteam, full_data)
+
+        return result
+
+    def _fetch_epic_teams(self, epic_keys: List[str]) -> dict[str, Optional[str]]:
+        """Загрузить team для эпиков батчем из full_data."""
+        if not self.db or not epic_keys:
+            return {}
+
+        rows = (
+            self.db.query(
+                TrackerTask.key,
+                TrackerTask.full_data,
+            )
+            .filter(TrackerTask.key.in_(epic_keys))
+            .all()
+        )
+
+        result: dict[str, Optional[str]] = {}
+        for key, full_data in rows:
+            result[key] = self._extract_team_from_full_data(full_data)
+
+        return result
+
+    def _find_team_from_subepics(
+        self, subepics: List[SubepicInfo], epic_teams: dict[str, Optional[str]]
+    ) -> dict[str, Optional[str]]:
+        """Найти team у подэпиков для эпиков, у которых нет team."""
+        result: dict[str, Optional[str]] = {}
+
+        # Группируем подэпики по epic_key
+        epic_to_subepics: dict[str, List[SubepicInfo]] = {}
+        for info in subepics:
+            if info.epic_key not in epic_to_subepics:
+                epic_to_subepics[info.epic_key] = []
+            epic_to_subepics[info.epic_key].append(info)
+
+        # Для каждого эпика без team ищем team у подэпиков
+        for epic_key, subepic_list in epic_to_subepics.items():
+            if epic_teams.get(epic_key):
+                # У эпика уже есть team, пропускаем
+                result[epic_key] = epic_teams[epic_key]
+                continue
+
+            # Ищем team у подэпиков
+            if not self.db:
+                result[epic_key] = None
+                continue
+
+            subepic_keys = [s.key for s in subepic_list]
+            rows = (
+                self.db.query(
+                    TrackerTask.key,
+                    TrackerTask.full_data,
+                )
+                .filter(TrackerTask.key.in_(subepic_keys))
+                .all()
+            )
+
+            # Берём первый найденный team
+            team_found = None
+            for key, full_data in rows:
+                team = self._extract_team_from_full_data(full_data)
+                if team:
+                    team_found = team
+                    break
+
+            result[epic_key] = team_found
+
+        return result
+
+    def _fetch_epic_prodteams_fullstack(
+        self, epic_keys: List[str]
+    ) -> dict[str, Optional[str]]:
+        """Загрузить prodteam для эпиков батчем из full_data (FULLSTACK поле)."""
+        if not self.db or not epic_keys:
+            return {}
+
+        rows = (
+            self.db.query(
+                TrackerTask.key,
+                TrackerTask.full_data,
+            )
+            .filter(TrackerTask.key.in_(epic_keys))
+            .all()
+        )
+
+        result: dict[str, Optional[str]] = {}
+        for key, full_data in rows:
+            result[key] = self._extract_prodteam_from_full_data(full_data)
+
+        return result
+
+    def _find_prodteam_from_subepics(
+        self, subepics: List[SubepicInfo], epic_prodteams: dict[str, Optional[str]]
+    ) -> dict[str, Optional[str]]:
+        """Найти prodteam у подэпиков для эпиков, у которых нет prodteam."""
+        result: dict[str, Optional[str]] = {}
+
+        # Группируем подэпики по epic_key
+        epic_to_subepics: dict[str, List[SubepicInfo]] = {}
+        for info in subepics:
+            if info.epic_key not in epic_to_subepics:
+                epic_to_subepics[info.epic_key] = []
+            epic_to_subepics[info.epic_key].append(info)
+
+        # Для каждого эпика без prodteam ищем prodteam у подэпиков
+        for epic_key, subepic_list in epic_to_subepics.items():
+            if epic_prodteams.get(epic_key):
+                # У эпика уже есть prodteam, пропускаем
+                result[epic_key] = epic_prodteams[epic_key]
+                continue
+
+            # Ищем prodteam у подэпиков
+            if not self.db:
+                result[epic_key] = None
+                continue
+
+            subepic_keys = [s.key for s in subepic_list]
+            rows = (
+                self.db.query(
+                    TrackerTask.key,
+                    TrackerTask.full_data,
+                )
+                .filter(TrackerTask.key.in_(subepic_keys))
+                .all()
+            )
+
+            # Берём первый найденный prodteam
+            prodteam_found = None
+            for key, full_data in rows:
+                prodteam = self._extract_prodteam_from_full_data(full_data)
+                if prodteam:
+                    prodteam_found = prodteam
+                    break
+
+            result[epic_key] = prodteam_found
 
         return result
 
@@ -250,22 +408,46 @@ class FullstackSubepicReturnsReportGenerator:
         """Собрать строки отчёта."""
         subepics = self._load_subepics()
         epic_keys = list({s.epic_key for s in subepics})
-        epic_prodteams = self._fetch_epic_prodteams(epic_keys)
         epic_months = self._compute_epic_months(subepics)
         histories = self._load_histories([s.key for s in subepics])
 
+        # Поиск команды: сначала team (эпик → подэпики), затем prodteam (эпик → подэпики)
+        epic_teams = self._fetch_epic_teams(epic_keys)
+        subepic_teams = self._find_team_from_subepics(subepics, epic_teams)
+
+        # Если team не найден, используем prodteam
+        epic_prodteams_fullstack = self._fetch_epic_prodteams_fullstack(epic_keys)
+        subepic_prodteams_fullstack = self._find_prodteam_from_subepics(
+            subepics, epic_prodteams_fullstack
+        )
+
+        # Формируем финальный словарь команд для каждого эпика
+        epic_teams_final: dict[str, Optional[str]] = {}
+        for epic_key in epic_keys:
+            # Сначала team
+            team_value = epic_teams.get(epic_key) or subepic_teams.get(epic_key)
+            if team_value:
+                epic_teams_final[epic_key] = team_value
+            else:
+                # Fallback на prodteam
+                prodteam_value = epic_prodteams_fullstack.get(
+                    epic_key
+                ) or subepic_prodteams_fullstack.get(epic_key)
+                epic_teams_final[epic_key] = prodteam_value
+
         rows = []
         for info in subepics:
-            prodteam = info.prodteam or epic_prodteams.get(info.epic_key)
+            # Используем найденную команду для эпика
+            team = epic_teams_final.get(info.epic_key)
             history = histories.get(info.key, [])
             counts = self._count_returns_by_status(history)
             epic_month = epic_months.get(info.epic_key)
-            # Подставляем продкоманду (сначала из задачи, потом из эпика)
+            # Подставляем команду
             info_with_team = SubepicInfo(
                 key=info.key,
                 summary=info.summary,
                 author=info.author,
-                prodteam=prodteam,
+                prodteam=team,  # Используем найденную команду
                 epic_key=info.epic_key,
                 epic_summary=info.epic_summary,
                 created_at=info.created_at,

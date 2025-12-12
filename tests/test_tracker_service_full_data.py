@@ -8,6 +8,7 @@ from radiator.services.tracker_service import TrackerAPIService
 
 FULLSTACK_PRODTEAM_FIELD = "6361307d94f52e42ae308615--prodteam"
 LEGACY_PRODTEAM_FIELD = "63515d47fe387b7ce7b9fc55--prodteam"
+FULLSTACK_TEAM_FIELD = "6361307d94f52e42ae308615--team"
 
 
 class TestTrackerAPIServiceFullDataSupport:
@@ -80,6 +81,17 @@ class TestTrackerAPIServiceFullDataSupport:
 
         result = service.extract_task_data(task_data)
         assert result["prodteam"] == "Legacy Team"
+
+    def test_extract_task_data_keeps_fullstack_team_field(self, service):
+        task_data = {
+            "id": "12345",
+            "key": "FS-3",
+            "summary": "FS",
+            FULLSTACK_TEAM_FIELD: "Fullstack Team",
+        }
+
+        result = service.extract_task_data(task_data)
+        assert result["full_data"][FULLSTACK_TEAM_FIELD] == "Fullstack Team"
 
     def test_extract_task_data_handles_missing_customer_field(self, service):
         """Test that extract_task_data handles missing customer field gracefully."""
