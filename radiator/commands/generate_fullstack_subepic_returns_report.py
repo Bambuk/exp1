@@ -15,6 +15,7 @@ DEFAULT_START_DATE = datetime(2025, 1, 1)
 PRODTEAM_FIELD_KEY = "63515d47fe387b7ce7b9fc55--prodteam"
 FULLSTACK_TEAM_FIELD_KEY = "6361307d94f52e42ae308615--team"
 FULLSTACK_PRODTEAM_FIELD_KEY = "6361307d94f52e42ae308615--prodteam"
+FULLSTACK_QUARTER_FIELD_KEY = "6361307d94f52e42ae308615--quarter"
 
 
 @dataclass
@@ -39,6 +40,7 @@ class FullstackSubepicReturnsReportGenerator:
         "Ключ эпика",
         "Название эпика",
         "Месяц эпика",
+        "Квартал эпика",
         "Возвраты InProgress",
         "Возвраты Ревью",
         "Возвраты Testing",
@@ -65,7 +67,7 @@ class FullstackSubepicReturnsReportGenerator:
         self.returns_service = TestingReturnsService(db)
 
     def _fetch_candidate_tasks(self):
-        """Загрузить кандидатов из БД (FULLSTACK, с links, от стартовой даты)."""
+        """Загрузить кандидатов из БД (FULLSTACK, от стартовой даты)."""
         if not self.db:
             return []
 
@@ -81,7 +83,6 @@ class FullstackSubepicReturnsReportGenerator:
             )
             .filter(
                 TrackerTask.key.like("FULLSTACK-%"),
-                TrackerTask.links.isnot(None),
                 TrackerTask.created_at >= self.start_date,
             )
             .all()
@@ -105,23 +106,19 @@ class FullstackSubepicReturnsReportGenerator:
             return None
         return epic_key, epic_display
 
-    def _parse_subepic_task(self, task) -> Optional[SubepicInfo]:
-        """Преобразовать задачу в SubepicInfo, если она подэпик."""
+    def _parse_task(self, task) -> Optional[SubepicInfo]:
+        """Преобразовать задачу в SubepicInfo."""
         links = getattr(task, "links", None)
-        if not links:
-            return None
 
-        epic_key = None
+        epic_key = ""
         epic_summary = ""
 
-        for link in links:
-            res = self._extract_epic_from_link(link)
-            if res:
-                epic_key, epic_summary = res
-                break
-
-        if not epic_key:
-            return None
+        if links:
+            for link in links:
+                res = self._extract_epic_from_link(link)
+                if res:
+                    epic_key, epic_summary = res
+                    break
 
         prodteam = self._get_prodteam(task)
         created_at = getattr(task, "created_at", None)
@@ -166,6 +163,55 @@ class FullstackSubepicReturnsReportGenerator:
         if value:
             return str(value).strip() if str(value).strip() else None
         return None
+
+    @staticmethod
+    def _extract_quarter_from_full_data(full_data) -> Optional[str]:
+        """Извлечь квартал из full_data."""
+        if not isinstance(full_data, dict):
+            return None
+        value = full_data.get(FULLSTACK_QUARTER_FIELD_KEY)
+        if value:
+            return str(value).strip() if str(value).strip() else None
+        return None
+
+    def _get_team_for_task_without_epic(self, task_key: str) -> Optional[str]:
+        """Получить команду для задачи без эпика из её full_data (сначала team, затем prodteam)."""
+        if not self.db:
+            return None
+
+        task = (
+            self.db.query(TrackerTask.full_data)
+            .filter(TrackerTask.key == task_key)
+            .first()
+        )
+
+        if not task or not task.full_data:
+            return None
+
+        # Сначала пробуем team
+        team = self._extract_team_from_full_data(task.full_data)
+        if team:
+            return team
+
+        # Затем prodteam
+        prodteam = self._extract_prodteam_from_full_data(task.full_data)
+        return prodteam
+
+    def _get_quarter_for_task_without_epic(self, task_key: str) -> Optional[str]:
+        """Получить квартал для задачи без эпика из её full_data."""
+        if not self.db:
+            return None
+
+        task = (
+            self.db.query(TrackerTask.full_data)
+            .filter(TrackerTask.key == task_key)
+            .first()
+        )
+
+        if not task or not task.full_data:
+            return None
+
+        return self._extract_quarter_from_full_data(task.full_data)
 
     def _get_prodteam(self, task) -> Optional[str]:
         """Получить продуктовую команду: колонка prodteam или full_data custom."""
@@ -285,6 +331,26 @@ class FullstackSubepicReturnsReportGenerator:
 
         return result
 
+    def _fetch_epic_quarters(self, epic_keys: List[str]) -> dict[str, Optional[str]]:
+        """Загрузить кварталы для эпиков батчем из full_data."""
+        if not self.db or not epic_keys:
+            return {}
+
+        rows = (
+            self.db.query(
+                TrackerTask.key,
+                TrackerTask.full_data,
+            )
+            .filter(TrackerTask.key.in_(epic_keys))
+            .all()
+        )
+
+        result: dict[str, Optional[str]] = {}
+        for key, full_data in rows:
+            result[key] = self._extract_quarter_from_full_data(full_data)
+
+        return result
+
     def _find_prodteam_from_subepics(
         self, subepics: List[SubepicInfo], epic_prodteams: dict[str, Optional[str]]
     ) -> dict[str, Optional[str]]:
@@ -332,13 +398,13 @@ class FullstackSubepicReturnsReportGenerator:
 
         return result
 
-    def _load_subepics(self) -> List[SubepicInfo]:
-        """Выбрать подэпики FULLSTACK с эпиком."""
+    def _load_tasks(self) -> List[SubepicInfo]:
+        """Выбрать задачи FULLSTACK (подэпики и обычные задачи)."""
         tasks = self._fetch_candidate_tasks()
         result: List[SubepicInfo] = []
 
         for task in tasks:
-            parsed = self._parse_subepic_task(task)
+            parsed = self._parse_task(task)
             if parsed:
                 result.append(parsed)
 
@@ -385,6 +451,7 @@ class FullstackSubepicReturnsReportGenerator:
         info: SubepicInfo,
         counts: dict[str, int],
         epic_month: Optional[str] = None,
+        epic_quarter: Optional[str] = None,
     ) -> dict:
         """Сформировать строку CSV."""
         return {
@@ -395,6 +462,7 @@ class FullstackSubepicReturnsReportGenerator:
             "Ключ эпика": info.epic_key,
             "Название эпика": info.epic_summary,
             "Месяц эпика": epic_month or "",
+            "Квартал эпика": epic_quarter or "",
             "Возвраты InProgress": counts.get("InProgress", 0),
             "Возвраты Ревью": counts.get("Ревью", 0),
             "Возвраты Testing": counts.get("Testing", 0),
@@ -406,17 +474,25 @@ class FullstackSubepicReturnsReportGenerator:
 
     def _collect_rows(self) -> List[dict]:
         """Собрать строки отчёта."""
-        subepics = self._load_subepics()
-        epic_keys = list({s.epic_key for s in subepics})
+        subepics = self._load_tasks()
+        # Исключаем пустую строку из epic_keys (задачи без эпика обрабатываются отдельно)
+        epic_keys = [s.epic_key for s in subepics if s.epic_key]
+        epic_keys = list(set(epic_keys))  # Убираем дубликаты
         epic_months = self._compute_epic_months(subepics)
         histories = self._load_histories([s.key for s in subepics])
 
         # Поиск команды: сначала team (эпик → подэпики), затем prodteam (эпик → подэпики)
-        epic_teams = self._fetch_epic_teams(epic_keys)
+        # Только для эпиков (не для задач без эпика)
+        epic_teams = self._fetch_epic_teams(epic_keys) if epic_keys else {}
         subepic_teams = self._find_team_from_subepics(subepics, epic_teams)
 
+        # Загружаем кварталы эпиков
+        epic_quarters = self._fetch_epic_quarters(epic_keys) if epic_keys else {}
+
         # Если team не найден, используем prodteam
-        epic_prodteams_fullstack = self._fetch_epic_prodteams_fullstack(epic_keys)
+        epic_prodteams_fullstack = (
+            self._fetch_epic_prodteams_fullstack(epic_keys) if epic_keys else {}
+        )
         subepic_prodteams_fullstack = self._find_prodteam_from_subepics(
             subepics, epic_prodteams_fullstack
         )
@@ -437,11 +513,25 @@ class FullstackSubepicReturnsReportGenerator:
 
         rows = []
         for info in subepics:
-            # Используем найденную команду для эпика
-            team = epic_teams_final.get(info.epic_key)
+            # Для задач без эпика команда определяется из самой задачи
+            if info.epic_key == "":
+                team = self._get_team_for_task_without_epic(info.key)
+                # Для задач без эпика месяц вычисляется из created_at самой задачи
+                if info.created_at:
+                    epic_month = info.created_at.strftime("%Y-%m")
+                else:
+                    epic_month = None
+                # Для задач без эпика квартал определяется из самой задачи
+                quarter = self._get_quarter_for_task_without_epic(info.key)
+            else:
+                # Для подэпиков используем найденную команду для эпика
+                team = epic_teams_final.get(info.epic_key)
+                epic_month = epic_months.get(info.epic_key)
+                # Для подэпиков используем квартал эпика
+                quarter = epic_quarters.get(info.epic_key)
+
             history = histories.get(info.key, [])
             counts = self._count_returns_by_status(history)
-            epic_month = epic_months.get(info.epic_key)
             # Подставляем команду
             info_with_team = SubepicInfo(
                 key=info.key,
@@ -452,7 +542,7 @@ class FullstackSubepicReturnsReportGenerator:
                 epic_summary=info.epic_summary,
                 created_at=info.created_at,
             )
-            rows.append(self._format_row(info_with_team, counts, epic_month))
+            rows.append(self._format_row(info_with_team, counts, epic_month, quarter))
 
         return rows
 
