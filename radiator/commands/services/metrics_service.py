@@ -674,7 +674,35 @@ class MetricsService:
                     if duration >= self.min_status_duration_seconds:
                         valid_external_test_entries.append(entry)
 
+            # If no valid closed "МП / В работе" entries, check for open intervals (fallback)
             if not valid_work_entries:
+                # Fallback: if task is still in "МП / В работе" (open interval)
+                # and standard algorithm couldn't calculate DevLT, use current date
+                open_work_entries = [
+                    e
+                    for e in work_entries
+                    if e.end_date is None and e.status == "МП / В работе"
+                ]
+
+                if open_work_entries:
+                    # Find first open "МП / В работе" entry
+                    first_open_work_entry = min(
+                        open_work_entries, key=lambda x: x.start_date
+                    )
+
+                    # Calculate days to current date (UTC)
+                    from datetime import timezone
+
+                    current_date = datetime.now(timezone.utc)
+
+                    # Normalize start_date to UTC if needed
+                    work_start = first_open_work_entry.start_date
+                    if work_start.tzinfo is None:
+                        work_start = work_start.replace(tzinfo=timezone.utc)
+
+                    total_days = (current_date - work_start).days
+                    return max(0, total_days)  # Ensure non-negative
+
                 return None
 
             # Find first valid "МП / В работе" (by start_date)
@@ -726,6 +754,33 @@ class MetricsService:
                             - first_work_entry.start_date
                         ).days
                         return max(0, total_days)  # Ensure non-negative
+
+            # Fallback: if standard algorithm couldn't calculate DevLT and task is still
+            # in "МП / В работе" (open interval), use current date
+            open_work_entries = [
+                e
+                for e in work_entries
+                if e.end_date is None and e.status == "МП / В работе"
+            ]
+
+            if open_work_entries:
+                # Find first open "МП / В работе" entry
+                first_open_work_entry = min(
+                    open_work_entries, key=lambda x: x.start_date
+                )
+
+                # Calculate days to current date (UTC)
+                from datetime import timezone
+
+                current_date = datetime.now(timezone.utc)
+
+                # Normalize start_date to UTC if needed
+                work_start = first_open_work_entry.start_date
+                if work_start.tzinfo is None:
+                    work_start = work_start.replace(tzinfo=timezone.utc)
+
+                total_days = (current_date - work_start).days
+                return max(0, total_days)  # Ensure non-negative
 
             # No valid "МП / Внешний тест" and no valid subsequent statuses
             return None

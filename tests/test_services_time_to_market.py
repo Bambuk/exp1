@@ -354,18 +354,44 @@ class TestMetricsServiceWithStrategies:
         assert result is None
 
     def test_calculate_dev_lead_time_missing_end(self):
-        """Test DevLT calculation when 'МП / Внешний тест' status is missing."""
-        history = [
-            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
-            StatusHistoryEntry(
-                "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
-            ),
-            StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
-        ]
+        """Test DevLT calculation with fallback when 'МП / Внешний тест' status is missing.
+        With fallback logic, should calculate from open 'МП / В работе' to current date.
+        """
+        from datetime import timezone
 
-        result = self.service.calculate_dev_lead_time(history)
+        from radiator.commands.services import metrics_service
 
-        assert result is None
+        # Mock current date to make test predictable
+        mock_current_date = datetime(2024, 1, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Patch datetime.now in the metrics_service module
+        original_datetime = metrics_service.datetime
+        with patch.object(metrics_service, "datetime") as mock_datetime:
+            # Keep original datetime class functionality for construction
+            mock_datetime.side_effect = (
+                lambda *args, **kw: original_datetime(*args, **kw)
+                if args
+                else original_datetime
+            )
+            # Mock now() method
+            mock_datetime.now = lambda tz=None: mock_current_date
+            # Copy other datetime attributes
+            for attr in dir(original_datetime):
+                if not attr.startswith("_") and attr != "now":
+                    setattr(mock_datetime, attr, getattr(original_datetime, attr))
+
+            history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе", "МП / В работе", datetime(2024, 1, 5), None
+                ),
+                StatusHistoryEntry("Testing", "Testing", datetime(2024, 1, 10), None),
+            ]
+
+            result = self.service.calculate_dev_lead_time(history)
+
+            # Should use fallback: calculate from open "МП / В работе" (1/5) to current date (1/20) = 15 days
+            assert result == 15
 
     def test_calculate_dev_lead_time_multiple_entries(self):
         """Test DevLT calculation with multiple entries - should use first work to last test."""
@@ -399,24 +425,53 @@ class TestMetricsServiceWithStrategies:
         assert result == 10
 
     def test_calculate_dev_lead_time_returns_none_when_no_valid_work(self):
-        """Test DevLT returns None when no 'МП / В работе' with end_date found."""
-        history = [
-            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
-            StatusHistoryEntry(
-                "МП / В работе",
-                "МП / В работе",
-                datetime(2024, 1, 5),
-                None,  # No end_date
-            ),
-            StatusHistoryEntry(
-                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 10), None
-            ),
-        ]
+        """Test DevLT with fallback when no 'МП / В работе' with end_date found.
+        With fallback logic, should calculate from open 'МП / В работе' to current date.
+        """
+        from datetime import timezone
 
-        result = self.service.calculate_dev_lead_time(history)
+        from radiator.commands.services import metrics_service
 
-        # Should return None because "МП / В работе" has no end_date (open interval)
-        assert result is None
+        # Mock current date to make test predictable
+        mock_current_date = datetime(2024, 1, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Patch datetime.now in the metrics_service module
+        original_datetime = metrics_service.datetime
+        with patch.object(metrics_service, "datetime") as mock_datetime:
+            # Keep original datetime class functionality for construction
+            mock_datetime.side_effect = (
+                lambda *args, **kw: original_datetime(*args, **kw)
+                if args
+                else original_datetime
+            )
+            # Mock now() method
+            mock_datetime.now = lambda tz=None: mock_current_date
+            # Copy other datetime attributes
+            for attr in dir(original_datetime):
+                if not attr.startswith("_") and attr != "now":
+                    setattr(mock_datetime, attr, getattr(original_datetime, attr))
+
+            history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),
+                    None,  # No end_date - open interval
+                ),
+                StatusHistoryEntry(
+                    "МП / Внешний тест",
+                    "МП / Внешний тест",
+                    datetime(2024, 1, 10),
+                    None,
+                ),
+            ]
+
+            result = self.service.calculate_dev_lead_time(history)
+
+            # Should use fallback: calculate from open "МП / В работе" (1/5) to current date (1/20) = 15 days
+            # Note: fallback uses open "МП / В работе" entry, not "МП / Внешний тест"
+            assert result == 15
 
     def test_calculate_dev_lead_time_with_pauses(self):
         """Test DevLT calculation with pauses - pauses should NOT be excluded."""
@@ -702,6 +757,207 @@ class TestMetricsServiceWithStrategies:
 
         result_valid = service.calculate_dev_lead_time(history_valid)
         assert result_valid == 10  # 1/5 to 1/15
+
+    def test_calculate_dev_lead_time_fallback_for_open_work_status(self):
+        """Test DevLT fallback for task still in 'МП / В работе' with open interval."""
+        from datetime import timezone
+
+        from radiator.commands.services import metrics_service
+
+        # Mock current date to make test predictable
+        mock_current_date = datetime(2024, 1, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Patch datetime.now in the metrics_service module
+        original_datetime = metrics_service.datetime
+        with patch.object(metrics_service, "datetime") as mock_datetime:
+            # Keep original datetime class functionality for construction
+            mock_datetime.side_effect = (
+                lambda *args, **kw: original_datetime(*args, **kw)
+                if args
+                else original_datetime
+            )
+            # Mock now() method
+            mock_datetime.now = lambda tz=None: mock_current_date
+            # Copy other datetime attributes
+            for attr in dir(original_datetime):
+                if not attr.startswith("_") and attr != "now":
+                    setattr(mock_datetime, attr, getattr(original_datetime, attr))
+
+            service = MetricsService()
+
+            history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),
+                    None,  # Open interval - task still in work
+                ),
+                # No valid "МП / Внешний тест" status
+            ]
+
+            result = service.calculate_dev_lead_time(history)
+
+            # Should calculate from first open "МП / В работе" (1/5) to current date (1/20)
+            assert result == 15  # 15 days
+
+    def test_calculate_dev_lead_time_fallback_not_applied_when_valid_entries_exist(
+        self,
+    ):
+        """Test that fallback is not applied when standard algorithm finds valid entries."""
+        service = MetricsService()
+
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 8),  # Valid closed entry
+            ),
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 15),
+                None,  # Valid external test entry
+            ),
+            # Also has open "МП / В работе" entry
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 16),
+                None,  # Open interval
+            ),
+        ]
+
+        result = service.calculate_dev_lead_time(history)
+
+        # Should use standard algorithm: first valid work (1/5) to external test (1/15) = 10 days
+        # Fallback should NOT be applied
+        assert result == 10
+
+    def test_calculate_dev_lead_time_fallback_uses_first_open_entry(self):
+        """Test that fallback uses the first open 'МП / В работе' entry by start_date."""
+        from datetime import timezone
+
+        from radiator.commands.services import metrics_service
+
+        # Mock current date
+        mock_current_date = datetime(2024, 1, 25, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Patch datetime.now in the metrics_service module
+        original_datetime = metrics_service.datetime
+        with patch.object(metrics_service, "datetime") as mock_datetime:
+            # Keep original datetime class functionality for construction
+            mock_datetime.side_effect = (
+                lambda *args, **kw: original_datetime(*args, **kw)
+                if args
+                else original_datetime
+            )
+            # Mock now() method
+            mock_datetime.now = lambda tz=None: mock_current_date
+            # Copy other datetime attributes
+            for attr in dir(original_datetime):
+                if not attr.startswith("_") and attr != "now":
+                    setattr(mock_datetime, attr, getattr(original_datetime, attr))
+
+            service = MetricsService()
+
+            history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),
+                    datetime(2024, 1, 7),  # Closed entry
+                ),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 10),
+                    None,  # First open entry
+                ),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 15),
+                    None,  # Later open entry - should not be used
+                ),
+            ]
+
+            result = service.calculate_dev_lead_time(history)
+
+            # Should use first open entry (1/10) to current date (1/25) = 15 days
+            assert result == 15
+
+    def test_calculate_dev_lead_time_fallback_not_applied_when_no_open_intervals(self):
+        """Test that fallback is not applied when all 'МП / В работе' entries are closed."""
+        service = MetricsService()
+
+        history = [
+            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 7),  # Closed entry
+            ),
+            StatusHistoryEntry(
+                "МП / В работе",
+                "МП / В работе",
+                datetime(2024, 1, 10),
+                datetime(2024, 1, 12),  # Closed entry
+            ),
+            # No valid "МП / Внешний тест" status
+        ]
+
+        result = service.calculate_dev_lead_time(history)
+
+        # Should return None - no open intervals, no valid external test
+        assert result is None
+
+    def test_calculate_dev_lead_time_fallback_uses_utc_timezone(self):
+        """Test that fallback uses UTC timezone for current date calculation."""
+        from datetime import timezone
+
+        from radiator.commands.services import metrics_service
+
+        # Mock current date in UTC
+        mock_current_date_utc = datetime(2024, 1, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Patch datetime.now in the metrics_service module
+        original_datetime = metrics_service.datetime
+        with patch.object(metrics_service, "datetime") as mock_datetime:
+            # Keep original datetime class functionality for construction
+            mock_datetime.side_effect = (
+                lambda *args, **kw: original_datetime(*args, **kw)
+                if args
+                else original_datetime
+            )
+            # Mock now() method
+            mock_datetime.now = lambda tz=None: mock_current_date_utc
+            # Copy other datetime attributes
+            for attr in dir(original_datetime):
+                if not attr.startswith("_") and attr != "now":
+                    setattr(mock_datetime, attr, getattr(original_datetime, attr))
+
+            service = MetricsService()
+
+            # History with naive datetime (should be normalized to UTC)
+            history = [
+                StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+                StatusHistoryEntry(
+                    "МП / В работе",
+                    "МП / В работе",
+                    datetime(2024, 1, 5),  # Naive datetime
+                    None,
+                ),
+            ]
+
+            result = service.calculate_dev_lead_time(history)
+
+            # Should calculate correctly: (1/20 UTC - 1/5 normalized to UTC) = 15 days
+            assert result == 15
 
 
 class TestDataService:
