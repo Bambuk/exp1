@@ -76,7 +76,11 @@ def load_fields_from_file(file_path: Path) -> List[str]:
         return []
 
     with open(file_path, "r", encoding="utf-8") as f:
-        fields = [line.strip() for line in f if line.strip()]
+        fields = []
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                fields.append(stripped)
 
     logger.info(f"Загружено {len(fields)} полей из {file_path}")
     return fields

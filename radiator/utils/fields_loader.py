@@ -24,6 +24,10 @@ def load_fields_list(fields_file: Path = None) -> List[str]:
         )
 
     with open(fields_file, "r") as f:
-        fields = [line.strip() for line in f if line.strip()]
+        fields = []
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                fields.append(stripped)
 
     return fields

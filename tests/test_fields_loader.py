@@ -120,3 +120,22 @@ class TestFieldsLoader:
             assert fields == []
         finally:
             temp_file.unlink()
+
+    def test_load_fields_list_ignores_comments(self):
+        """Test that lines starting with # are ignored."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            f.write("field1\n")
+            f.write("# This is a comment\n")
+            f.write("field2\n")
+            f.write("# Another comment\n")
+            f.write("  # Comment with leading whitespace\n")
+            f.write("field3\n")
+            temp_file = Path(f.name)
+
+        try:
+            fields = load_fields_list(temp_file)
+
+            # Should return only fields, ignoring comments
+            assert fields == ["field1", "field2", "field3"]
+        finally:
+            temp_file.unlink()
