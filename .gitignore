@@ -172,3 +172,4 @@ backup_radiator_*.backup
 
 # Utility scripts
 check_work_status_distribution.py
+scripts/debug/
