@@ -79,7 +79,10 @@ def split_into_batches(keys: List[str], batch_size: int) -> List[List[str]]:
 
 
 def build_sync_command(
-    keys: List[str], skip_history: bool, limit: Optional[int]
+    keys: List[str],
+    skip_history: bool,
+    limit: Optional[int],
+    force_full_history: bool = True,
 ) -> List[str]:
     """Формирует команду для subprocess."""
     # Создаем фильтр с ключами
@@ -90,15 +93,23 @@ def build_sync_command(
     if skip_history:
         cmd.append("--skip-history")
 
+    if force_full_history:
+        cmd.append("--force-full-history")
+
     if limit is not None:
         cmd.extend(["--limit", str(limit)])
 
     return cmd
 
 
-def sync_batch(keys: List[str], skip_history: bool, limit: Optional[int]) -> None:
+def sync_batch(
+    keys: List[str],
+    skip_history: bool,
+    limit: Optional[int],
+    force_full_history: bool = True,
+) -> None:
     """Синхронизирует один батч, выбрасывает исключение при ошибке."""
-    cmd = build_sync_command(keys, skip_history, limit)
+    cmd = build_sync_command(keys, skip_history, limit, force_full_history)
 
     # Запускаем без capture_output, чтобы вывод sync-tracker показывался в консоли
     result = subprocess.run(cmd)
@@ -124,6 +135,18 @@ def main():
     )
     parser.add_argument(
         "--skip-history", action="store_true", help="Skip history when syncing"
+    )
+    parser.add_argument(
+        "--force-full-history",
+        action="store_true",
+        default=True,
+        help="Force full history sync for all tasks (ignore last_changelog_id) [default: True]",
+    )
+    parser.add_argument(
+        "--no-force-full-history",
+        dest="force_full_history",
+        action="store_false",
+        help="Disable force full history sync (use incremental updates if last_changelog_id exists)",
     )
     parser.add_argument("--limit", type=int, help="Limit number of tasks to sync")
     parser.add_argument(
@@ -192,7 +215,9 @@ def main():
             )
 
             try:
-                sync_batch(batch, args.skip_history, args.limit)
+                sync_batch(
+                    batch, args.skip_history, args.limit, args.force_full_history
+                )
                 # Сохраняем прогресс после успешного батча
                 save_progress(args.file, i + 1, len(batches))
                 print(f"✅ Batch {batch_num} completed successfully")

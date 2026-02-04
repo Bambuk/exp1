@@ -133,6 +133,7 @@ class TestBuildSyncCommand:
             "radiator.commands.sync_tracker",
             "--filter",
             "Key: A-1, A-2, A-3",
+            "--force-full-history",
         ]
         assert cmd == expected
 
@@ -148,6 +149,7 @@ class TestBuildSyncCommand:
             "--filter",
             "Key: A-1, A-2",
             "--skip-history",
+            "--force-full-history",
         ]
         assert cmd == expected
 
@@ -162,6 +164,7 @@ class TestBuildSyncCommand:
             "radiator.commands.sync_tracker",
             "--filter",
             "Key: A-1, A-2",
+            "--force-full-history",
             "--limit",
             "100",
         ]
@@ -179,6 +182,7 @@ class TestBuildSyncCommand:
             "--filter",
             "Key: A-1, A-2",
             "--skip-history",
+            "--force-full-history",
             "--limit",
             "50",
         ]
@@ -207,6 +211,7 @@ class TestSyncBatch:
         assert "radiator.commands.sync_tracker" in args
         assert "--filter" in args
         assert "Key: A-1, A-2" in args
+        assert "--force-full-history" in args
 
     @patch("subprocess.run")
     def test_sync_batch_failure(self, mock_run):
@@ -253,7 +258,7 @@ class TestMainLogic:
         mock_split.return_value = [["A-1", "A-2"], ["A-3", "A-4"]]
 
         # First batch succeeds, second fails
-        def sync_side_effect(keys, skip_history, limit):
+        def sync_side_effect(keys, skip_history, limit, force_full_history):
             if keys == ["A-1", "A-2"]:
                 return  # success
             else:
@@ -264,19 +269,22 @@ class TestMainLogic:
         # Import and test main function
         from scripts.sync_by_keys import main
 
-        # Mock sys.argv
-        with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
+        # Mock sys.argv and clear progress
+        with patch("scripts.sync_by_keys.load_progress") as mock_load:
+            mock_load.return_value = None  # no saved progress
+            with patch("sys.argv", ["sync_by_keys.py", "--file", "test.txt"]):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
 
-            # Should exit with code 1
-            assert exc_info.value.code == 1
+                # Should exit with code 1
+                assert exc_info.value.code == 1
 
-        # Verify both batches were called (tqdm calls the function for each batch)
-        # but the second one should have failed
-        assert mock_sync.call_count == 2
-        mock_sync.assert_any_call(["A-1", "A-2"], False, None)
-        mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            # Verify both batches were called (tqdm calls the function for each batch)
+            # but the second one should have failed
+            assert mock_sync.call_count == 2
+            # Note: force_full_history defaults to True
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None, True)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None, True)
 
     @patch("scripts.sync_by_keys.sync_batch")
     @patch("scripts.sync_by_keys.split_into_batches")
@@ -301,8 +309,9 @@ class TestMainLogic:
 
             # Verify both batches were processed
             assert mock_sync.call_count == 2
-            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
-            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            # Note: force_full_history defaults to True
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None, True)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None, True)
 
 
 class TestProgressFunctions:
@@ -395,8 +404,9 @@ class TestMainWithProgress:
 
             # Should start from batch 2 (index 1)
             assert mock_sync.call_count == 2  # batches 2 and 3
-            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
-            mock_sync.assert_any_call(["A-5", "A-6"], False, None)
+            # Note: force_full_history defaults to True
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None, True)
+            mock_sync.assert_any_call(["A-5", "A-6"], False, None, True)
 
     @patch("scripts.sync_by_keys.sync_batch")
     @patch("scripts.sync_by_keys.split_into_batches")
@@ -428,8 +438,9 @@ class TestMainWithProgress:
             assert mock_clear.call_count == 2
             mock_clear.assert_any_call("test.txt")
             assert mock_sync.call_count == 2  # both batches
-            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
-            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
+            # Note: force_full_history defaults to True
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None, True)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None, True)
 
     @patch("scripts.sync_by_keys.sync_batch")
     @patch("scripts.sync_by_keys.split_into_batches")
@@ -480,6 +491,7 @@ class TestMainWithProgress:
 
             # Should start from beginning due to batch count mismatch
             assert mock_sync.call_count == 3  # all 3 batches
-            mock_sync.assert_any_call(["A-1", "A-2"], False, None)
-            mock_sync.assert_any_call(["A-3", "A-4"], False, None)
-            mock_sync.assert_any_call(["A-5", "A-6"], False, None)
+            # Note: force_full_history defaults to True
+            mock_sync.assert_any_call(["A-1", "A-2"], False, None, True)
+            mock_sync.assert_any_call(["A-3", "A-4"], False, None, True)
+            mock_sync.assert_any_call(["A-5", "A-6"], False, None, True)

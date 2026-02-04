@@ -282,7 +282,7 @@ class TrackerSyncCommand:
         self,
         task_data: List[Any],
         tasks_data: List[tuple[str, Optional[Dict[str, Any]]]],
-        force_full_history: bool = False,
+        force_full_history: bool = True,
     ) -> tuple[int, int, int]:
         """Sync task history data."""
         # Extract task IDs from task_data
@@ -375,7 +375,7 @@ class TrackerSyncCommand:
         task_id: str,
         changelog: List[Dict[str, Any]],
         tasks_dict: Dict[str, Any],
-        force_full_history: bool = False,
+        force_full_history: bool = True,
     ) -> tuple[int, bool]:
         """Process history for a single task. Returns (history_entries_count, has_history)."""
         # Get task from database
@@ -634,7 +634,7 @@ class TrackerSyncCommand:
         filters: Dict[str, Any] = None,
         limit: int = None,
         skip_history: bool = False,
-        force_full_history: bool = False,
+        force_full_history: bool = True,
     ):
         """Run the sync command."""
         try:

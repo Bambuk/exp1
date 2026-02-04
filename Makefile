@@ -14,7 +14,7 @@ help:  ## Show this help message
 	@echo '  db-list-snapshots  - List all available snapshots'
 	@echo ''
 	@echo 'Tracker Sync Commands:'
-	@echo '  sync-tracker       - Sync tracker tasks with custom filter, optional skip-history and limit'
+	@echo '  sync-tracker       - Sync tracker tasks with custom filter, optional skip-history, full-history and limit'
 	@echo '  sync-tracker-*     - Various sync modes (active, recent, filter, file)'
 	@echo ''
 	@echo 'Tracker Test Commands:'
@@ -117,36 +117,44 @@ test-env:  ## Verify test environment configuration
 
 # Tracker sync commands
 
-sync-tracker:  ## Sync tracker tasks with custom filter and optional skip-history
+sync-tracker:  ## Sync tracker tasks with custom filter, optional skip-history, full-history and limit
 	@if [ -n "$(FILTER)" ]; then \
+		SYNC_CMD=". venv/bin/activate && python -m radiator.commands.sync_tracker --filter \"$(FILTER)\""; \
 		if [ "$(SKIP_HISTORY)" = "true" ]; then \
-			if [ -n "$(LIMIT)" ]; then \
-				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history --limit $(LIMIT); \
-			else \
-				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --skip-history; \
-			fi; \
-		else \
-			if [ -n "$(LIMIT)" ]; then \
-				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)" --limit $(LIMIT); \
-			else \
-				. venv/bin/activate && python -m radiator.commands.sync_tracker --filter "$(FILTER)"; \
-			fi; \
+			SYNC_CMD="$$SYNC_CMD --skip-history"; \
 		fi; \
+		if [ "$(FULL_HISTORY)" = "true" ]; then \
+			SYNC_CMD="$$SYNC_CMD --force-full-history"; \
+		fi; \
+		if [ -n "$(LIMIT)" ]; then \
+			SYNC_CMD="$$SYNC_CMD --limit $(LIMIT)"; \
+		fi; \
+		eval $$SYNC_CMD; \
 	else \
-		echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true] [LIMIT=N]"; \
+		echo "Usage: make sync-tracker FILTER='<filter_string>' [SKIP_HISTORY=true] [FULL_HISTORY=true] [LIMIT=N]"; \
 		echo "Example: make sync-tracker FILTER='Queue: CPO Status: In Progress' LIMIT=50"; \
 		echo "Example: make sync-tracker FILTER='key:CPO-*' SKIP_HISTORY=true LIMIT=100"; \
+		echo "Example: make sync-tracker FILTER='key:CPO-*' FULL_HISTORY=true LIMIT=100"; \
 		echo "Please specify FILTER parameter"; \
 		exit 1; \
 	fi
 
 sync-tracker-by-keys:  ## Sync tracker tasks by keys from file in batches
 	@if [ -n "$(FILE)" ]; then \
-		. venv/bin/activate && python scripts/sync_by_keys.py --file "$(FILE)" $(EXTRA_ARGS); \
+		SYNC_CMD=". venv/bin/activate && python scripts/sync_by_keys.py --file \"$(FILE)\""; \
+		if [ "$(FULL_HISTORY)" = "true" ]; then \
+			SYNC_CMD="$$SYNC_CMD --force-full-history"; \
+		fi; \
+		if [ -n "$(EXTRA_ARGS)" ]; then \
+			SYNC_CMD="$$SYNC_CMD $(EXTRA_ARGS)"; \
+		fi; \
+		eval $$SYNC_CMD; \
 	else \
-		echo "Usage: make sync-tracker-by-keys FILE=path/to/keys.txt [EXTRA_ARGS='--batch-size 200']"; \
+		echo "Usage: make sync-tracker-by-keys FILE=path/to/keys.txt [FULL_HISTORY=true] [EXTRA_ARGS='--batch-size 200']"; \
 		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt"; \
+		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt FULL_HISTORY=true"; \
 		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt EXTRA_ARGS='--batch-size 100 --skip-history'"; \
+		echo "Example: make sync-tracker-by-keys FILE=data/input/my_keys.txt FULL_HISTORY=true EXTRA_ARGS='--batch-size 100'"; \
 		echo "Please specify FILE parameter"; \
 		exit 1; \
 	fi

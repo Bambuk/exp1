@@ -10,6 +10,7 @@
 63515d47fe387b7ce7b9fc55--riceScore
 63515d47fe387b7ce7b9fc55--capitalization
 63515d47fe387b7ce7b9fc55--devTask
+6361307d94f52e42ae308615--quarter
 assignee
 boards
 commentWithExternalMessageCount

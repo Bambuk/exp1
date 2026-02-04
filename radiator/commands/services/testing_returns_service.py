@@ -151,6 +151,7 @@ class TestingReturnsService:
                 FROM tracker_tasks
                 WHERE key LIKE 'FULLSTACK%'
                 AND links IS NOT NULL
+                AND jsonb_typeof(links) = 'array'
                 AND EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements(links) AS link
