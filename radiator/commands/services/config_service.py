@@ -46,11 +46,19 @@ class ConfigService:
                     line = line.strip()
                     if line and ";" in line:
                         try:
+                            from radiator.commands.services.datetime_utils import (
+                                normalize_to_utc,
+                            )
+
                             name, start_str, end_str = line.split(";", 2)
                             start_date = datetime.strptime(
                                 start_str.strip(), "%Y-%m-%d"
                             )
                             end_date = datetime.strptime(end_str.strip(), "%Y-%m-%d")
+
+                            # Normalize dates to UTC timezone-aware
+                            start_date = normalize_to_utc(start_date)
+                            end_date = normalize_to_utc(end_date)
 
                             quarters.append(
                                 Quarter(

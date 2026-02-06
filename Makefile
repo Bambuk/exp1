@@ -26,8 +26,12 @@ help:  ## Show this help message
 	@echo '  sync-and-report - Complete CPO workflow: sync tasks + generate report'
 	@echo ''
 	@echo 'Time To Market Commands:'
-	@echo '  generate-ttm-details-report - Generate TTM Details CSV report with timestamp'
+	@echo '  generate-ttm-details-report - Generate TTM Details CSV report (optional: AOD=YYYY-MM-DD)'
 	@echo '  generate-fullstack-subepic-returns-report - Generate FULLSTACK sub-epic returns CSV report'
+	@echo ''
+	@echo 'Examples:'
+	@echo '  make generate-ttm-details-report              # Current date'
+	@echo '  make generate-ttm-details-report AOD=2025-01-15  # Historical report'
 	@echo ''
 	@echo 'Google Sheets Commands:'
 	@echo '  google-sheets-monitor - Start Google Sheets CSV uploader monitoring (handles both regular and pivot uploads)'
@@ -248,11 +252,22 @@ sync-and-report:  ## Sync CPO tasks and generate status report (complete workflo
 
 # Time To Market Report Commands
 
-generate-ttm-details-report:  ## Generate TTM Details CSV report with timestamp
+generate-ttm-details-report:  ## Generate TTM Details CSV report with timestamp (optional: AOD=YYYY-MM-DD)
 	@echo "📊 Generating TTM Details report..."
 	@mkdir -p data/reports
 	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
-	. venv/bin/activate && python -m radiator.commands.generate_ttm_details_report --output "data/reports/new_ttm_details_$$TIMESTAMP.csv"
+	if [ -n "$(AOD)" ]; then \
+		echo "📅 Using as-of-date: $(AOD)"; \
+		AOD_SUFFIX="_aod_$$(echo $(AOD) | tr -d -)"; \
+		OUTPUT_FILE="data/reports/new_ttm_details_$$TIMESTAMP$$AOD_SUFFIX.csv"; \
+	else \
+		OUTPUT_FILE="data/reports/new_ttm_details_$$TIMESTAMP.csv"; \
+	fi; \
+	CMD=". venv/bin/activate && python -m radiator.commands.generate_ttm_details_report --output \"$$OUTPUT_FILE\""; \
+	if [ -n "$(AOD)" ]; then \
+		CMD="$$CMD --as-of-date \"$(AOD)\""; \
+	fi; \
+	eval $$CMD
 	@echo ""
 	@echo "✅ TTM Details report generated successfully!"
 
@@ -364,3 +379,18 @@ db-restore:  ## Restore database from snapshot (interactive selection)
 db-list-snapshots:  ## List all available snapshots
 	@echo "📸 Available snapshots:"
 	@ls -lht .snapshots/*.tar.gz 2>/dev/null | awk '{print $$9, "(" $$5 ")", $$6, $$7, $$8}' || echo "No snapshots found"
+
+compare-ttm-month:  ## Compare TTM Details reports month-to-month (requires PREV and CURR params)
+	@if [ -z "$(PREV)" ] || [ -z "$(CURR)" ]; then \
+		echo "❌ Error: PREV and CURR parameters are required"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make compare-ttm-month PREV=<prev_month_csv> CURR=<current_month_csv>"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make compare-ttm-month \\"; \
+		echo "    PREV=data/reports/new_ttm_details_20260206_123124_aod_20260118.csv \\"; \
+		echo "    CURR=data/reports/new_ttm_details_20260206_123133.csv"; \
+		exit 1; \
+	fi
+	@. venv/bin/activate && python radiator/commands/compare_ttm_month_to_month.py "$(PREV)" "$(CURR)"

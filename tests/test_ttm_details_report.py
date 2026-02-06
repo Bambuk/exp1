@@ -1,6 +1,6 @@
 """Tests for TTM Details Report generator."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -89,13 +89,13 @@ class TestTTMDetailsReport:
             mock_quarters = [
                 Quarter(
                     name="Q1",
-                    start_date=datetime(2025, 1, 1),
-                    end_date=datetime(2025, 3, 31),
+                    start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
                 ),
                 Quarter(
                     name="Q2",
-                    start_date=datetime(2025, 4, 1),
-                    end_date=datetime(2025, 6, 30),
+                    start_date=datetime(2025, 4, 1, tzinfo=timezone.utc),
+                    end_date=datetime(2025, 6, 30, tzinfo=timezone.utc),
                 ),
             ]
             mock_load_quarters.return_value = mock_quarters
@@ -188,7 +188,9 @@ class TestTTMDetailsReport:
         from radiator.commands.models.time_to_market_models import Quarter
 
         quarter = Quarter(
-            name="Q1", start_date=datetime(2025, 1, 1), end_date=datetime(2025, 3, 31)
+            name="Q1",
+            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
         )
 
         # Test getting TTM tasks
@@ -283,13 +285,13 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
             Quarter(
                 name="Q2",
-                start_date=datetime(2025, 4, 1),
-                end_date=datetime(2025, 6, 30),
+                start_date=datetime(2025, 4, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 6, 30, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -1189,13 +1191,13 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
             Quarter(
                 name="Q2",
-                start_date=datetime(2025, 4, 1),
-                end_date=datetime(2025, 6, 30),
+                start_date=datetime(2025, 4, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 6, 30, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -1711,7 +1713,7 @@ class TestTTMDetailsReport:
 
         # Verify metrics service was called correctly
         generator.metrics_service.calculate_time_to_delivery.assert_called_once_with(
-            mock_history, discovery_statuses
+            mock_history, discovery_statuses, as_of_date=None
         )
         assert result == 10
 
@@ -1750,13 +1752,13 @@ class TestTTMDetailsReport:
         quarters = [
             Quarter(
                 name="2025.Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
             Quarter(
                 name="2025.Q2",
-                start_date=datetime(2025, 4, 1),
-                end_date=datetime(2025, 6, 30),
+                start_date=datetime(2025, 4, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 6, 30, tzinfo=timezone.utc),
             ),
         ]
 
@@ -1783,8 +1785,8 @@ class TestTTMDetailsReport:
         quarters = [
             Quarter(
                 name="2025.Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             )
         ]
         tasks = [
@@ -2017,8 +2019,8 @@ class TestTTMDetailsReport:
         quarters = [
             Quarter(
                 name="2025.Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             )
         ]
         tasks = [
@@ -2302,8 +2304,8 @@ class TestTTMDetailsReport:
         quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         tasks = [
@@ -2539,8 +2541,8 @@ class TestTTMDetailsReport:
         quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         tasks = [
@@ -2942,25 +2944,27 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Discovery backlog",
                 status_display="Discovery backlog",
                 start_date=datetime(2025, 1, 5),
-                end_date=datetime(2025, 1, 10),  # First exit
+                end_date=datetime(2025, 1, 10, tzinfo=timezone.utc),  # First exit
             ),
             StatusHistoryEntry(
                 status="В работе",
                 status_display="В работе",
                 start_date=datetime(2025, 1, 10),
-                end_date=datetime(2025, 1, 15),
+                end_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Discovery backlog",
                 status_display="Discovery backlog",
                 start_date=datetime(2025, 1, 15),
-                end_date=datetime(2025, 1, 20),  # Last exit - should return this
+                end_date=datetime(
+                    2025, 1, 20, tzinfo=timezone.utc
+                ),  # Last exit - should return this
             ),
             StatusHistoryEntry(
                 status="В работе",
@@ -2972,8 +2976,8 @@ class TestTTMDetailsReport:
 
         result = generator._get_last_discovery_backlog_exit_date(mock_history)
 
-        # Should return end_date of last Discovery backlog entry
-        assert result == datetime(2025, 1, 20)
+        # Should return end_date of last Discovery backlog entry (timezone-aware)
+        assert result == datetime(2025, 1, 20, tzinfo=timezone.utc)
 
     def test_get_last_discovery_backlog_exit_date_no_discovery_backlog(
         self, test_reports_dir
@@ -2996,7 +3000,7 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="В работе",
@@ -3030,7 +3034,7 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Discovery backlog",
@@ -3083,13 +3087,15 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="МП / В работе",
                 status_display="МП / В работе",
                 start_date=datetime(2025, 1, 5),
-                end_date=datetime(2025, 1, 6),  # 1 day - valid (> 5 minutes)
+                end_date=datetime(
+                    2025, 1, 6, tzinfo=timezone.utc
+                ),  # 1 day - valid (> 5 minutes)
             ),
         ]
 
@@ -3118,7 +3124,7 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Done",
@@ -3190,7 +3196,7 @@ class TestTTMDetailsReport:
                 status="Открыт",
                 status_display="Открыт",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 1, 5),
+                end_date=datetime(2025, 1, 5, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="МП / В работе",
@@ -3285,8 +3291,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             )
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3345,7 +3351,7 @@ class TestTTMDetailsReport:
         ]
 
         # Mock get_task_history to return different histories for different tasks
-        def get_history_side_effect(task_id):
+        def get_history_side_effect(task_id, as_of_date=None):
             if task_id == 1:
                 return mock_history_with_work
             elif task_id == 2:
@@ -3410,8 +3416,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3460,7 +3466,7 @@ class TestTTMDetailsReport:
                 status="Готова к разработке",
                 status_display="Готова к разработке",
                 start_date=datetime(2025, 1, 10),
-                end_date=datetime(2025, 1, 15),
+                end_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Done",
@@ -3481,7 +3487,7 @@ class TestTTMDetailsReport:
         ]
 
         # get_task_history вызывается для разных задач, используем функцию для возврата правильной истории
-        def get_history_side_effect(task_id):
+        def get_history_side_effect(task_id, as_of_date=None):
             if task_id == 1:  # Finished task
                 return mock_finished_history
             elif task_id == 2:  # Unfinished task
@@ -3614,8 +3620,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3672,7 +3678,7 @@ class TestTTMDetailsReport:
                 status="Готова к разработке",
                 status_display="Готова к разработке",
                 start_date=datetime(2025, 1, 10),
-                end_date=datetime(2025, 1, 15),
+                end_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
             ),
             StatusHistoryEntry(
                 status="Done",
@@ -3682,7 +3688,7 @@ class TestTTMDetailsReport:
             ),
         ]
 
-        def get_history_side_effect(task_id):
+        def get_history_side_effect(task_id, as_of_date=None):
             if task_id == 1:
                 return unfinished_history
             elif task_id == 2:
@@ -3740,8 +3746,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3781,8 +3787,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3883,8 +3889,8 @@ class TestTTMDetailsReport:
         mock_quarters = [
             Quarter(
                 name="Q1",
-                start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 3, 31),
+                start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2025, 3, 31, tzinfo=timezone.utc),
             ),
         ]
         generator._load_quarters = Mock(return_value=mock_quarters)
@@ -3944,7 +3950,7 @@ class TestTTMDetailsReport:
             ),
         ]
 
-        def get_history_side_effect(task_id):
+        def get_history_side_effect(task_id, as_of_date=None):
             if task_id == 1:
                 return finished_history
             elif task_id == 2:
@@ -4228,6 +4234,133 @@ class TestTTMDetailsReport:
 
         # Verify None is returned
         assert result is None
+
+    def test_generate_csv_accepts_as_of_date_parameter(self, test_reports_dir):
+        """Test that generate_csv accepts as_of_date parameter."""
+        from datetime import datetime, timezone
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock all necessary services
+        with patch.object(
+            generator, "_collect_csv_rows", return_value=[]
+        ) as mock_collect:
+            as_of_date = datetime(2025, 2, 10, tzinfo=timezone.utc)
+            output_path = f"{test_reports_dir}/test_as_of_date.csv"
+
+            # Should not raise an error
+            generator.generate_csv(output_path, as_of_date=as_of_date)
+
+            # Verify _collect_csv_rows was called with as_of_date
+            mock_collect.assert_called_once_with(as_of_date)
+
+    def test_generate_csv_uses_current_date_when_as_of_date_is_none(
+        self, test_reports_dir
+    ):
+        """Test that None as_of_date uses current date (backward compatible)."""
+        from unittest.mock import Mock, patch
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Mock all necessary services
+        with patch.object(
+            generator, "_collect_csv_rows", return_value=[]
+        ) as mock_collect:
+            output_path = f"{test_reports_dir}/test_no_as_of_date.csv"
+
+            # Call without as_of_date (default None)
+            generator.generate_csv(output_path)
+
+            # Verify _collect_csv_rows was called with None
+            mock_collect.assert_called_once_with(None)
+
+    def test_get_effective_as_of_date_returns_current_when_none(self, test_reports_dir):
+        """Test _get_effective_as_of_date returns current date when None."""
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Call with None
+        result = generator._get_effective_as_of_date(None)
+
+        # Should return a datetime close to now
+        now = datetime.now(timezone.utc)
+        assert result.tzinfo == timezone.utc
+        assert (now - result).total_seconds() < 5  # Within 5 seconds
+
+    def test_get_effective_as_of_date_normalizes_naive_datetime(self, test_reports_dir):
+        """Test _get_effective_as_of_date normalizes naive datetime to UTC."""
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Call with naive datetime
+        naive_date = datetime(2025, 2, 10)
+        result = generator._get_effective_as_of_date(naive_date)
+
+        # Should return timezone-aware UTC datetime
+        assert result.tzinfo == timezone.utc
+        assert result.year == 2025
+        assert result.month == 2
+        assert result.day == 10
+
+    def test_get_effective_as_of_date_preserves_timezone_aware(self, test_reports_dir):
+        """Test _get_effective_as_of_date preserves timezone-aware datetime."""
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        from radiator.commands.generate_ttm_details_report import (
+            TTMDetailsReportGenerator,
+        )
+
+        # Mock database session
+        mock_db = Mock()
+
+        # Create generator
+        generator = TTMDetailsReportGenerator(db=mock_db)
+
+        # Call with timezone-aware datetime
+        aware_date = datetime(2025, 2, 10, 12, 30, tzinfo=timezone.utc)
+        result = generator._get_effective_as_of_date(aware_date)
+
+        # Should return the same datetime
+        assert result == aware_date
+        assert result.tzinfo == timezone.utc
 
 
 if __name__ == "__main__":

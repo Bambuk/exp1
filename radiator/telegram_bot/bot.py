@@ -1,11 +1,12 @@
 """Telegram bot for sending new report files."""
 
 import asyncio
+import hashlib
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
@@ -32,6 +33,8 @@ class ReportsTelegramBot:
         self.user_id = TelegramBotConfig.USER_ID
         self.reports_dir = TelegramBotConfig.get_reports_dir()
         self.command_executor = CommandExecutor()
+        # Map short hash to filename for callback data (Telegram limit: 64 bytes)
+        self.file_hash_map: Dict[str, str] = {}
 
     async def send_file(self, file_path: Path, caption: str = None) -> bool:
         """
@@ -85,6 +88,25 @@ class ReportsTelegramBot:
             )
             return False
 
+    def _get_file_hash(self, filename: str) -> str:
+        """
+        Get short hash for filename to use in callback_data (max 64 bytes).
+
+        Args:
+            filename: File name to hash
+
+        Returns:
+            Short hash string (8 chars)
+        """
+        # Use MD5 hash and take first 8 chars (good enough for uniqueness)
+        hash_obj = hashlib.md5(filename.encode("utf-8"))
+        short_hash = hash_obj.hexdigest()[:8]
+
+        # Store mapping
+        self.file_hash_map[short_hash] = filename
+
+        return short_hash
+
     async def send_file_with_upload_button(
         self, file_path: Path, caption: str = None
     ) -> bool:
@@ -111,18 +133,21 @@ class ReportsTelegramBot:
             # Create keyboard for CSV files
             keyboard = None
             if file_path.suffix.lower() == ".csv":
+                # Use short hash to avoid Telegram's 64-byte callback_data limit
+                file_hash = self._get_file_hash(file_path.name)
+
                 keyboard = InlineKeyboardMarkup(
                     [
                         [
                             InlineKeyboardButton(
                                 "📊 Загрузить в Google Sheets",
-                                callback_data=f"upload_csv:{file_path.name}",
+                                callback_data=f"upload:{file_hash}",
                             )
                         ],
                         [
                             InlineKeyboardButton(
                                 "📈 Загрузить с сводными",
-                                callback_data=f"upload_csv_with_pivots:{file_path.name}",
+                                callback_data=f"pivot:{file_hash}",
                             )
                         ],
                     ]
@@ -198,12 +223,24 @@ class ReportsTelegramBot:
 
             logger.info(f"Received callback query: {query_data} (ID: {query_id})")
 
-            if query_data.startswith("upload_csv:"):
-                filename = query_data.split(":", 1)[1]
+            if query_data.startswith("upload:"):
+                file_hash = query_data.split(":", 1)[1]
+                filename = self.file_hash_map.get(file_hash)
+                if not filename:
+                    await self.bot.answer_callback_query(
+                        query_id, text="❌ Файл не найден в кеше"
+                    )
+                    return
                 logger.info(f"Processing upload request for file: {filename}")
                 await self._handle_upload_csv_request(query_id, filename)
-            elif query_data.startswith("upload_csv_with_pivots:"):
-                filename = query_data.split(":", 1)[1]
+            elif query_data.startswith("pivot:"):
+                file_hash = query_data.split(":", 1)[1]
+                filename = self.file_hash_map.get(file_hash)
+                if not filename:
+                    await self.bot.answer_callback_query(
+                        query_id, text="❌ Файл не найден в кеше"
+                    )
+                    return
                 logger.info(
                     f"Processing upload with pivots request for file: {filename}"
                 )

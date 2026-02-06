@@ -102,11 +102,18 @@ class TestTailMetric:
     def test_calculate_tail_metric_no_done_status(self):
         """Test Tail metric calculation when no done status found after MP/External Test."""
         history = [
-            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
             StatusHistoryEntry(
-                "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 3), None
+                "New", "New", datetime(2024, 1, 1), datetime(2024, 1, 3)
             ),
-            StatusHistoryEntry("Review", "Review", datetime(2024, 1, 5), None),
+            StatusHistoryEntry(
+                "МП / Внешний тест",
+                "МП / Внешний тест",
+                datetime(2024, 1, 3),
+                datetime(2024, 1, 5),
+            ),
+            StatusHistoryEntry(
+                "Review", "Review", datetime(2024, 1, 5), datetime(2024, 1, 7)
+            ),
             StatusHistoryEntry(
                 "In Progress", "In Progress", datetime(2024, 1, 7), None
             ),
@@ -116,16 +123,24 @@ class TestTailMetric:
         assert result is None
 
     def test_calculate_tail_metric_ends_in_mp_external_test(self):
-        """Test Tail metric calculation when task ends in MP/External Test status."""
+        """Test Tail metric calculation when task ends in MP/External Test status (open interval).
+
+        When task is still in MP/External Test (open interval) and not done,
+        Tail should be calculated from entry into external test to current date.
+        """
         history = [
-            StatusHistoryEntry("New", "New", datetime(2024, 1, 1), None),
+            StatusHistoryEntry(
+                "New", "New", datetime(2024, 1, 1), datetime(2024, 1, 3)
+            ),
             StatusHistoryEntry(
                 "МП / Внешний тест", "МП / Внешний тест", datetime(2024, 1, 3), None
             ),
         ]
 
         result = self.service.calculate_tail_metric(history, ["Done"])
-        assert result is None
+        # Task is in open external test interval, should calculate to current date
+        assert result is not None
+        assert result > 0  # Should be positive number of days from 2024-01-03 to now
 
     def test_calculate_tail_metric_empty_history(self):
         """Test Tail metric calculation with empty history."""

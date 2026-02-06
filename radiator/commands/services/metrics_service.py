@@ -240,18 +240,17 @@ class MetricsService:
         try:
             from datetime import timezone
 
-            # Нормализуем end_date к timezone-aware (UTC) если он naive
-            if end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=timezone.utc)
+            from radiator.commands.services.datetime_utils import normalize_to_utc
+
+            # Нормализуем end_date к timezone-aware (UTC)
+            end_date = normalize_to_utc(end_date)
 
             total_pause_time = 0
             sorted_history = sorted(history_data, key=lambda x: x.start_date)
 
             for i, entry in enumerate(sorted_history):
-                # Нормализуем entry.start_date к timezone-aware (UTC) если он naive
-                entry_start = entry.start_date
-                if entry_start.tzinfo is None:
-                    entry_start = entry_start.replace(tzinfo=timezone.utc)
+                # Нормализуем entry.start_date к timezone-aware (UTC)
+                entry_start = normalize_to_utc(entry.start_date)
 
                 if entry.status == self.pause_status and entry_start < end_date:
                     # Find the next status change to calculate pause duration
@@ -262,10 +261,8 @@ class MetricsService:
                             break
 
                     if next_entry:
-                        # Нормализуем next_entry.start_date к timezone-aware (UTC) если он naive
-                        next_start = next_entry.start_date
-                        if next_start.tzinfo is None:
-                            next_start = next_start.replace(tzinfo=timezone.utc)
+                        # Нормализуем next_entry.start_date к timezone-aware (UTC)
+                        next_start = normalize_to_utc(next_entry.start_date)
 
                         if next_start <= end_date:
                             pause_duration = (next_start - entry_start).days
@@ -341,7 +338,10 @@ class MetricsService:
             return 0
 
     def calculate_time_to_delivery(
-        self, history_data: List[StatusHistoryEntry], target_statuses: List[str]
+        self,
+        history_data: List[StatusHistoryEntry],
+        target_statuses: List[str],
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate Time To Delivery using configured strategy, excluding pause time.
@@ -350,6 +350,7 @@ class MetricsService:
         Args:
             history_data: List of status history entries
             target_statuses: List of discovery status names (ignored, we look for 'Готова к разработке')
+            as_of_date: Optional date to calculate up to (for tasks still in ready status)
 
         Returns:
             Number of days or None if not found
@@ -374,11 +375,25 @@ class MetricsService:
             if not target_entry:
                 return None
 
-            # Calculate pause time only up to the target status
-            pause_time = self.calculate_pause_time_up_to_date(
-                history_data, target_entry.start_date
-            )
-            total_days = (target_entry.start_date - start_date).days
+            # Determine end date for TTD calculation
+            # If task still in "Готова к разработке" (open interval) and as_of_date provided
+            if target_entry.end_date is None and as_of_date is not None:
+                from radiator.commands.services.datetime_utils import normalize_to_utc
+
+                end_date = normalize_to_utc(as_of_date)
+            else:
+                # Use start_date of "Готова к разработке" (when task entered this status)
+                end_date = target_entry.start_date
+
+            # Calculate pause time only up to the end date
+            pause_time = self.calculate_pause_time_up_to_date(history_data, end_date)
+
+            from radiator.commands.services.datetime_utils import normalize_to_utc
+
+            normalized_start = normalize_to_utc(start_date)
+            normalized_end = normalize_to_utc(end_date)
+
+            total_days = (normalized_end - normalized_start).days
             effective_days = total_days - pause_time
             return max(0, effective_days)  # Ensure non-negative
 
@@ -499,7 +514,10 @@ class MetricsService:
             return done_entries[0] if done_entries else None
 
     def calculate_tail_metric(
-        self, history_data: List[StatusHistoryEntry], done_statuses: List[str]
+        self,
+        history_data: List[StatusHistoryEntry],
+        done_statuses: List[str],
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate Tail metric: days from exiting 'МП / Внешний тест' status to any done status.
@@ -508,6 +526,7 @@ class MetricsService:
         Args:
             history_data: List of status history entries
             done_statuses: List of done status names
+            as_of_date: Optional date to calculate up to (for unfinished tasks)
 
         Returns:
             Number of days or None if not found
@@ -556,7 +575,33 @@ class MetricsService:
                     done_entry = entry
                     break
 
+            # If task is not done, use as_of_date or current date
             if not done_entry:
+                # If task still in external test (open interval)
+                if last_mp_entry.end_date is None:
+                    from datetime import timezone
+
+                    from radiator.commands.services.datetime_utils import (
+                        normalize_to_utc,
+                    )
+
+                    # Use as_of_date if provided, otherwise use current date
+                    if as_of_date is not None:
+                        effective_date = normalize_to_utc(as_of_date)
+                    else:
+                        effective_date = datetime.now(timezone.utc)
+
+                    mp_start = normalize_to_utc(last_mp_entry.start_date)
+
+                    # Calculate pause time from MP start to effective date
+                    pause_time = self.calculate_pause_time_between_dates(
+                        filtered_history, last_mp_entry.start_date, effective_date
+                    )
+
+                    total_days = (effective_date - mp_start).days
+                    effective_days = total_days - pause_time
+                    return max(0, effective_days)
+
                 return None
 
             # Calculate pause time between MP/External Test start and done status
@@ -573,7 +618,10 @@ class MetricsService:
             return None
 
     def calculate_status_duration(
-        self, history_data: List[StatusHistoryEntry], target_status: str
+        self,
+        history_data: List[StatusHistoryEntry],
+        target_status: str,
+        as_of_date: Optional[datetime] = None,
     ) -> int:
         """
         Calculate total time spent in a specific status.
@@ -582,6 +630,7 @@ class MetricsService:
         Args:
             history_data: List of status history entries
             target_status: Status name to calculate duration for
+            as_of_date: Optional date to calculate up to (for open intervals)
 
         Returns:
             Total days spent in the target status
@@ -610,7 +659,18 @@ class MetricsService:
                     if next_entry:
                         duration = (next_entry.start_date - entry.start_date).days
                         total_duration += max(0, duration)  # Ensure non-negative
-                    # If no next entry, this is the last status - no duration to calculate
+                    elif as_of_date is not None:
+                        # Open interval - use as_of_date to calculate duration
+                        from radiator.commands.services.datetime_utils import (
+                            normalize_to_utc,
+                        )
+
+                        entry_start = normalize_to_utc(entry.start_date)
+                        effective_date = normalize_to_utc(as_of_date)
+
+                        duration = (effective_date - entry_start).days
+                        total_duration += max(0, duration)
+                    # If no next entry and no as_of_date, this is open interval - no duration
 
             return total_duration
 
@@ -621,7 +681,9 @@ class MetricsService:
             return 0
 
     def calculate_dev_lead_time(
-        self, history_data: List[StatusHistoryEntry]
+        self,
+        history_data: List[StatusHistoryEntry],
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate Development Lead Time: time from first "МП / В работе" with duration > 5 min
@@ -633,6 +695,7 @@ class MetricsService:
 
         Args:
             history_data: List of status history entries
+            as_of_date: Optional date to calculate up to (for unfinished tasks)
 
         Returns:
             Number of days or None if start status not found or no valid end status found
@@ -677,7 +740,7 @@ class MetricsService:
             # If no valid closed "МП / В работе" entries, check for open intervals (fallback)
             if not valid_work_entries:
                 # Fallback: if task is still in "МП / В работе" (open interval)
-                # and standard algorithm couldn't calculate DevLT, use current date
+                # and standard algorithm couldn't calculate DevLT, use as_of_date or current date
                 open_work_entries = [
                     e
                     for e in work_entries
@@ -690,17 +753,22 @@ class MetricsService:
                         open_work_entries, key=lambda x: x.start_date
                     )
 
-                    # Calculate days to current date (UTC)
+                    # Calculate days to as_of_date or current date (UTC)
                     from datetime import timezone
 
-                    current_date = datetime.now(timezone.utc)
+                    from radiator.commands.services.datetime_utils import (
+                        normalize_to_utc,
+                    )
 
-                    # Normalize start_date to UTC if needed
-                    work_start = first_open_work_entry.start_date
-                    if work_start.tzinfo is None:
-                        work_start = work_start.replace(tzinfo=timezone.utc)
+                    if as_of_date is not None:
+                        effective_date = normalize_to_utc(as_of_date)
+                    else:
+                        effective_date = datetime.now(timezone.utc)
 
-                    total_days = (current_date - work_start).days
+                    # Normalize start_date to UTC
+                    work_start = normalize_to_utc(first_open_work_entry.start_date)
+
+                    total_days = (effective_date - work_start).days
                     return max(0, total_days)  # Ensure non-negative
 
                 return None
@@ -756,7 +824,7 @@ class MetricsService:
                         return max(0, total_days)  # Ensure non-negative
 
             # Fallback: if standard algorithm couldn't calculate DevLT and task is still
-            # in "МП / В работе" (open interval), use current date
+            # in "МП / В работе" (open interval), use as_of_date or current date
             open_work_entries = [
                 e
                 for e in work_entries
@@ -769,17 +837,20 @@ class MetricsService:
                     open_work_entries, key=lambda x: x.start_date
                 )
 
-                # Calculate days to current date (UTC)
+                # Calculate days to as_of_date or current date (UTC)
                 from datetime import timezone
 
-                current_date = datetime.now(timezone.utc)
+                from radiator.commands.services.datetime_utils import normalize_to_utc
 
-                # Normalize start_date to UTC if needed
-                work_start = first_open_work_entry.start_date
-                if work_start.tzinfo is None:
-                    work_start = work_start.replace(tzinfo=timezone.utc)
+                if as_of_date is not None:
+                    effective_date = normalize_to_utc(as_of_date)
+                else:
+                    effective_date = datetime.now(timezone.utc)
 
-                total_days = (current_date - work_start).days
+                # Normalize start_date to UTC
+                work_start = normalize_to_utc(first_open_work_entry.start_date)
+
+                total_days = (effective_date - work_start).days
                 return max(0, total_days)  # Ensure non-negative
 
             # No valid "МП / Внешний тест" and no valid subsequent statuses

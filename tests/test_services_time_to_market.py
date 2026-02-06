@@ -47,11 +47,17 @@ class TestConfigService:
 
     def test_load_quarters_file_not_found(self):
         """Test handling of missing quarters file."""
+        # Clear cache to ensure test isolation
+        ConfigService._quarters_cache = None
+
         service = ConfigService("test_config")
 
         with patch("pathlib.Path.exists", return_value=False):
             result = service.load_quarters()
             assert result == []
+
+        # Clear cache again after test
+        ConfigService._quarters_cache = None
 
     def test_load_quarters_parsing_error(self):
         """Test handling of malformed quarters file."""
@@ -1274,6 +1280,131 @@ class TestStableDoneLogic:
         result = metrics_service._find_stable_done(history, done_statuses)
 
         assert result is None
+
+
+class TestDataServiceAsOfDate:
+    """Tests for DataService with as_of_date filtering."""
+
+    def test_get_task_history_filters_by_as_of_date(self, db_session):
+        """Test that get_task_history filters entries by as_of_date."""
+        from datetime import datetime, timedelta, timezone
+
+        from radiator.commands.services.data_service import DataService
+        from radiator.models.tracker import TrackerTask, TrackerTaskHistory
+
+        # Create test task
+        task = TrackerTask(
+            tracker_id="1001",
+            key="TEST-1001",
+            summary="Test Task",
+            status="В работе",
+            author="Test Author",
+        )
+        db_session.add(task)
+        db_session.flush()
+
+        base_date = datetime(2025, 2, 1, tzinfo=timezone.utc)
+
+        # Create history
+        history_entries = [
+            TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id=task.tracker_id,
+                status="Открыт",
+                status_display="Открыт",
+                start_date=base_date,
+                end_date=base_date + timedelta(days=5),
+            ),
+            TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id=task.tracker_id,
+                status="В работе",
+                status_display="В работе",
+                start_date=base_date + timedelta(days=5),
+                end_date=base_date + timedelta(days=15),
+            ),
+            TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id=task.tracker_id,
+                status="Done",
+                status_display="Done",
+                start_date=base_date + timedelta(days=15),
+                end_date=None,
+            ),
+        ]
+
+        for entry in history_entries:
+            db_session.add(entry)
+        db_session.commit()
+
+        # Test with as_of_date = base_date + 10 days
+        data_service = DataService(db_session)
+        as_of_date = base_date + timedelta(days=10)
+
+        filtered_history = data_service.get_task_history(task.id, as_of_date=as_of_date)
+
+        # Should have 2 entries (Открыт and В работе)
+        # Done entry should be dropped (starts after as_of_date)
+        assert len(filtered_history) == 2
+        assert filtered_history[0].status == "Открыт"
+        assert filtered_history[1].status == "В работе"
+
+        # В работе end_date should be None (truncated)
+        assert filtered_history[1].end_date is None
+
+    def test_get_task_history_without_as_of_date_returns_all(self, db_session):
+        """Test that get_task_history without as_of_date returns all entries."""
+        from datetime import datetime, timedelta, timezone
+
+        from radiator.commands.services.data_service import DataService
+        from radiator.models.tracker import TrackerTask, TrackerTaskHistory
+
+        # Create test task
+        task = TrackerTask(
+            tracker_id="1002",
+            key="TEST-1002",
+            summary="Test Task 2",
+            status="Done",
+            author="Test Author",
+        )
+        db_session.add(task)
+        db_session.flush()
+
+        base_date = datetime(2025, 2, 1, tzinfo=timezone.utc)
+
+        # Create history
+        history_entries = [
+            TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id=task.tracker_id,
+                status="Открыт",
+                status_display="Открыт",
+                start_date=base_date,
+                end_date=base_date + timedelta(days=5),
+            ),
+            TrackerTaskHistory(
+                task_id=task.id,
+                tracker_id=task.tracker_id,
+                status="Done",
+                status_display="Done",
+                start_date=base_date + timedelta(days=5),
+                end_date=None,
+            ),
+        ]
+
+        for entry in history_entries:
+            db_session.add(entry)
+        db_session.commit()
+
+        # Test without as_of_date
+        data_service = DataService(db_session)
+
+        full_history = data_service.get_task_history(task.id)
+
+        # Should have all entries
+        assert len(full_history) == 2
+        assert full_history[0].status == "Открыт"
+        assert full_history[1].status == "Done"
 
 
 if __name__ == "__main__":

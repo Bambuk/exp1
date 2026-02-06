@@ -231,12 +231,15 @@ class DataService:
             self.db.rollback()
             return []
 
-    def get_task_history(self, task_id: int) -> List[StatusHistoryEntry]:
+    def get_task_history(
+        self, task_id: int, as_of_date: Optional[datetime] = None
+    ) -> List[StatusHistoryEntry]:
         """
         Get status history for a specific task.
 
         Args:
             task_id: Task ID
+            as_of_date: Optional date to filter history by
 
         Returns:
             List of StatusHistoryEntry objects
@@ -268,6 +271,15 @@ class DataService:
 
             # Apply filtering for short status transitions
             filtered_result = self._filter_short_transitions(result)
+
+            # Apply as_of_date filtering if provided
+            if as_of_date is not None:
+                from radiator.commands.services.history_filter import HistoryFilter
+
+                filtered_result = HistoryFilter.filter_by_as_of_date(
+                    filtered_result, as_of_date
+                )
+
             return filtered_result
 
         except Exception as e:
@@ -275,12 +287,15 @@ class DataService:
             self.db.rollback()
             return []
 
-    def get_task_history_by_key(self, task_key: str) -> List[StatusHistoryEntry]:
+    def get_task_history_by_key(
+        self, task_key: str, as_of_date: Optional[datetime] = None
+    ) -> List[StatusHistoryEntry]:
         """
         Get status history for a specific task by key.
 
         Args:
             task_key: Task key (e.g., 'FULLSTACK-123')
+            as_of_date: Optional date to filter history by
 
         Returns:
             List of StatusHistoryEntry objects
@@ -295,7 +310,7 @@ class DataService:
                 logger.warning(f"Task not found: {task_key}")
                 return []
 
-            return self.get_task_history(task.id)
+            return self.get_task_history(task.id, as_of_date=as_of_date)
 
         except Exception as e:
             logger.error(f"Failed to get task history for task_key {task_key}: {e}")

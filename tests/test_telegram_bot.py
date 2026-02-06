@@ -26,7 +26,8 @@ class TestReportsTelegramBot:
     def mock_callback_query(self):
         """Create a mock callback query."""
         query = Mock()
-        query.data = "upload_csv:test_file.csv"
+        # Use new hash-based format
+        query.data = "upload:testhash"
         query.id = "test_query_123"
         query.from_user = Mock()
         query.from_user.username = "test_user"
@@ -37,6 +38,8 @@ class TestReportsTelegramBot:
         self, mock_bot, mock_callback_query
     ):
         """Test handling upload CSV callback query."""
+        # Add file to hash map
+        mock_bot.file_hash_map["testhash"] = "test_file.csv"
         mock_bot._handle_upload_csv_request = AsyncMock()
 
         await mock_bot.handle_callback_query(mock_callback_query)
@@ -49,11 +52,14 @@ class TestReportsTelegramBot:
     async def test_handle_callback_query_upload_csv_with_pivots(self, mock_bot):
         """Test handling upload CSV with pivots callback query."""
         query = Mock()
-        query.data = "upload_csv_with_pivots:test_file.csv"
+        # Use new hash-based format
+        query.data = "pivot:testhash2"
         query.id = "test_query_456"
         query.from_user = Mock()
         query.from_user.username = "test_user"
 
+        # Add file to hash map
+        mock_bot.file_hash_map["testhash2"] = "test_file.csv"
         mock_bot._handle_upload_csv_with_pivots_request = AsyncMock()
 
         await mock_bot.handle_callback_query(query)
@@ -83,10 +89,14 @@ class TestReportsTelegramBot:
     async def test_handle_callback_query_error(self, mock_bot):
         """Test handling callback query with error."""
         query = Mock()
-        query.data = "upload_csv:test_file.csv"
+        # Use new hash-based format
+        query.data = "upload:testhash3"
         query.id = "test_query_123"
         query.from_user = Mock()
         query.from_user.username = "test_user"
+
+        # Add file to hash map
+        mock_bot.file_hash_map["testhash3"] = "test_file.csv"
 
         # Make _handle_upload_csv_request raise an exception
         mock_bot._handle_upload_csv_request = AsyncMock(
@@ -308,3 +318,51 @@ class TestReportsTelegramBot:
             mock_bot.bot.answer_callback_query.assert_called_once_with(
                 "test_query_123", text="❌ Ошибка создания маркера для test_file.csv"
             )
+
+    def test_get_file_hash(self, mock_bot):
+        """Test file hash generation and mapping."""
+        filename = "new_ttm_details_20260206_133012_aod_20260118.csv"
+
+        # Generate hash
+        file_hash = mock_bot._get_file_hash(filename)
+
+        # Check hash is short enough
+        assert len(file_hash) == 8
+        assert isinstance(file_hash, str)
+
+        # Check callback_data lengths are within Telegram's limit (64 bytes)
+        callback_upload = f"upload:{file_hash}"
+        callback_pivot = f"pivot:{file_hash}"
+
+        assert (
+            len(callback_upload) <= 64
+        ), f"Upload callback too long: {len(callback_upload)} bytes"
+        assert (
+            len(callback_pivot) <= 64
+        ), f"Pivot callback too long: {len(callback_pivot)} bytes"
+
+        # Check mapping works
+        assert mock_bot.file_hash_map[file_hash] == filename
+
+        # Check hash is consistent
+        file_hash2 = mock_bot._get_file_hash(filename)
+        assert file_hash == file_hash2
+
+    def test_get_file_hash_multiple_files(self, mock_bot):
+        """Test file hash generation for multiple files with unique hashes."""
+        filenames = [
+            "new_ttm_details_20260206_133012.csv",
+            "new_ttm_details_20260206_133012_aod_20260118.csv",
+            "time_to_market_teams_wide_20260206_133045.csv",
+        ]
+
+        hashes = []
+        for filename in filenames:
+            file_hash = mock_bot._get_file_hash(filename)
+            hashes.append(file_hash)
+
+            # Check each hash maps back to correct filename
+            assert mock_bot.file_hash_map[file_hash] == filename
+
+        # Check all hashes are unique
+        assert len(set(hashes)) == len(hashes), "Hash collision detected!"

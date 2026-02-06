@@ -106,14 +106,18 @@ class TTMDetailsReportGenerator:
         return self.metrics_service.calculate_time_to_market(history, done_statuses)
 
     def _calculate_ttm_unfinished(
-        self, history: List, done_statuses: List[str]
+        self,
+        history: List,
+        done_statuses: List[str],
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
-        Calculate TTM metric for unfinished task (up to current date).
+        Calculate TTM metric for unfinished task (up to specified date).
 
         Args:
             history: Task history entries
             done_statuses: List of done status names (not used but kept for consistency with _calculate_ttm)
+            as_of_date: Optional date to calculate up to (defaults to current date)
 
         Returns:
             TTM value in days or None if not found
@@ -127,20 +131,21 @@ class TTMDetailsReportGenerator:
             if start_date is None:
                 return None
 
-            # Нормализуем start_date к timezone-aware (UTC) если он naive
-            if start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=timezone.utc)
+            # Нормализуем start_date к timezone-aware (UTC)
+            from radiator.commands.services.datetime_utils import normalize_to_utc
 
-            # Use current date as end date for unfinished tasks
-            current_date = datetime.now(timezone.utc)
+            start_date = normalize_to_utc(start_date)
 
-            # Calculate pause time up to current date
+            # Use as_of_date or current date as end date for unfinished tasks
+            end_date = self._get_effective_as_of_date(as_of_date)
+
+            # Calculate pause time up to end date
             pause_time = self.metrics_service.calculate_pause_time_up_to_date(
-                history, current_date
+                history, end_date
             )
 
-            # Calculate total days from start to current date
-            total_days = (current_date - start_date).days
+            # Calculate total days from start to end date
+            total_days = (end_date - start_date).days
             effective_days = total_days - pause_time
             return max(0, effective_days)  # Ensure non-negative
 
@@ -206,7 +211,9 @@ class TTMDetailsReportGenerator:
         if not stable_done:
             return None
 
-        done_date = stable_done.start_date
+        from radiator.commands.services.datetime_utils import normalize_to_utc
+
+        done_date = normalize_to_utc(stable_done.start_date)
 
         # Find matching quarter
         for quarter in quarters:
@@ -304,6 +311,7 @@ class TTMDetailsReportGenerator:
         task_id: int,
         discovery_statuses: List[str],
         history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate TTD metric for a task.
@@ -312,6 +320,7 @@ class TTMDetailsReportGenerator:
             task_id: Task ID
             discovery_statuses: List of discovery status names
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for tasks still in ready status)
 
         Returns:
             TTD value in days or None if not found
@@ -322,7 +331,7 @@ class TTMDetailsReportGenerator:
             return None
 
         return self.metrics_service.calculate_time_to_delivery(
-            history, discovery_statuses
+            history, discovery_statuses, as_of_date=as_of_date
         )
 
     def _get_ttd_target_date(self, history: List) -> Optional[datetime]:
@@ -361,13 +370,21 @@ class TTMDetailsReportGenerator:
         Returns:
             Quarter name or None if date doesn't fall into any quarter
         """
+        from radiator.commands.services.datetime_utils import normalize_to_utc
+
+        date = normalize_to_utc(date)
+
         for quarter in quarters:
             if quarter.start_date <= date <= quarter.end_date:
                 return quarter.name
         return None
 
     def _calculate_tail(
-        self, task_id: int, done_statuses: List[str], history: Optional[List] = None
+        self,
+        task_id: int,
+        done_statuses: List[str],
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate Tail metric for a task.
@@ -376,6 +393,7 @@ class TTMDetailsReportGenerator:
             task_id: Task ID
             done_statuses: List of done status names
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for unfinished tasks)
 
         Returns:
             Tail value in days or None if not found
@@ -385,10 +403,15 @@ class TTMDetailsReportGenerator:
         if not history:
             return None
 
-        return self.metrics_service.calculate_tail_metric(history, done_statuses)
+        return self.metrics_service.calculate_tail_metric(
+            history, done_statuses, as_of_date=as_of_date
+        )
 
     def _calculate_devlt(
-        self, task_id: int, history: Optional[List] = None
+        self,
+        task_id: int,
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate DevLT metric for a task.
@@ -396,6 +419,7 @@ class TTMDetailsReportGenerator:
         Args:
             task_id: Task ID
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for unfinished tasks)
 
         Returns:
             DevLT value in days or None if not found
@@ -405,7 +429,9 @@ class TTMDetailsReportGenerator:
         if not history:
             return None
 
-        return self.metrics_service.calculate_dev_lead_time(history)
+        return self.metrics_service.calculate_dev_lead_time(
+            history, as_of_date=as_of_date
+        )
 
     def _calculate_pause(
         self, task_id: int, history: Optional[List] = None
@@ -428,7 +454,10 @@ class TTMDetailsReportGenerator:
         return self.metrics_service.calculate_pause_time(history)
 
     def _calculate_ttd_pause(
-        self, task_id: int, history: Optional[List] = None
+        self,
+        task_id: int,
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate TTD pause time (pause time up to 'Готова к разработке' status).
@@ -436,6 +465,7 @@ class TTMDetailsReportGenerator:
         Args:
             task_id: Task ID
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for tasks not yet ready)
 
         Returns:
             TTD pause time in days or None if not found
@@ -447,13 +477,22 @@ class TTMDetailsReportGenerator:
 
         # Find 'Готова к разработке' status
         ready_date = self._get_ttd_target_date(history)
+
+        # If task hasn't reached "Готова к разработке" yet, use as_of_date
         if not ready_date:
+            if as_of_date is not None:
+                return self.metrics_service.calculate_pause_time_up_to_date(
+                    history, as_of_date
+                )
             return None
 
         return self.metrics_service.calculate_pause_time_up_to_date(history, ready_date)
 
     def _calculate_discovery_backlog_days(
-        self, task_id: int, history: Optional[List] = None
+        self,
+        task_id: int,
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate time spent in 'Discovery backlog' status.
@@ -461,6 +500,7 @@ class TTMDetailsReportGenerator:
         Args:
             task_id: Task ID
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for open intervals)
 
         Returns:
             Time in days spent in Discovery backlog or None if not found
@@ -471,11 +511,14 @@ class TTMDetailsReportGenerator:
             return None
 
         return self.metrics_service.calculate_status_duration(
-            history, "Discovery backlog"
+            history, "Discovery backlog", as_of_date=as_of_date
         )
 
     def _calculate_ready_for_dev_days(
-        self, task_id: int, history: Optional[List] = None
+        self,
+        task_id: int,
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> Optional[int]:
         """
         Calculate time spent in 'Готова к разработке' status.
@@ -483,6 +526,7 @@ class TTMDetailsReportGenerator:
         Args:
             task_id: Task ID
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate up to (for open intervals)
 
         Returns:
             Time in days spent in Готова к разработке or None if not found
@@ -493,7 +537,7 @@ class TTMDetailsReportGenerator:
             return None
 
         return self.metrics_service.calculate_status_duration(
-            history, "Готова к разработке"
+            history, "Готова к разработке", as_of_date=as_of_date
         )
 
     def _get_last_discovery_backlog_exit_date(
@@ -591,11 +635,15 @@ class TTMDetailsReportGenerator:
 
         # Filter "МП / В работе" entries: must have end_date and duration > 5 minutes
         # Same validation logic as in calculate_dev_lead_time
+        from radiator.commands.services.datetime_utils import normalize_to_utc
+
         for entry in work_entries:
             if entry.end_date is None:
                 continue  # Skip open intervals (work not completed)
 
-            duration = (entry.end_date - entry.start_date).total_seconds()
+            start = normalize_to_utc(entry.start_date)
+            end = normalize_to_utc(entry.end_date)
+            duration = (end - start).total_seconds()
             if duration >= self.metrics_service.min_status_duration_seconds:
                 return True  # Found at least one valid entry
 
@@ -619,9 +667,14 @@ class TTMDetailsReportGenerator:
             logger.warning(f"Failed to calculate testing returns for {task_key}: {e}")
             return 0, 0
 
-    def _get_unfinished_tasks(self) -> List[TaskData]:
+    def _get_unfinished_tasks(
+        self, as_of_date: Optional[datetime] = None
+    ) -> List[TaskData]:
         """
         Get unfinished tasks (tasks that transitioned to 'Готова к разработке' but don't have stable_done).
+
+        Args:
+            as_of_date: Optional date to check unfinished tasks as-of
 
         Returns:
             List of TaskData objects for unfinished tasks
@@ -630,18 +683,15 @@ class TTMDetailsReportGenerator:
         done_statuses = self._load_done_statuses()
 
         # Берем диапазон от начала первого до конца последнего квартала
-        # Но для незавершенных задач нужно расширить до текущей даты
-        start_date = min(q.start_date for q in quarters)
-        end_date = max(q.end_date for q in quarters)
-        # Нормализуем даты к timezone-aware (UTC) если они naive
-        if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=timezone.utc)
-        if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
-        # Расширяем до текущей даты для незавершенных задач
-        current_date = datetime.now(timezone.utc)
-        if current_date > end_date:
-            end_date = current_date
+        # Но для незавершенных задач нужно расширить до as_of_date
+        from radiator.commands.services.datetime_utils import normalize_to_utc
+
+        start_date = normalize_to_utc(min(q.start_date for q in quarters))
+        end_date = normalize_to_utc(max(q.end_date for q in quarters))
+        # Расширяем до as_of_date (или текущей даты) для незавершенных задач
+        effective_date = self._get_effective_as_of_date(as_of_date)
+        if effective_date > end_date:
+            end_date = effective_date
 
         # Получаем все задачи, которые перешли в "Готова к разработке"
         from radiator.commands.models.time_to_market_models import GroupBy
@@ -673,6 +723,7 @@ class TTMDetailsReportGenerator:
         quarters: List[Quarter],
         stable_done: Optional[object] = None,
         is_finished: bool = True,
+        as_of_date: Optional[datetime] = None,
     ) -> dict:
         """
         Calculate all metrics for a task (finished or unfinished).
@@ -684,6 +735,7 @@ class TTMDetailsReportGenerator:
             quarters: List of Quarter objects
             stable_done: Optional stable_done entry (for finished tasks)
             is_finished: Whether task is finished
+            as_of_date: Optional date to calculate metrics as-of
 
         Returns:
             Dictionary with task metrics
@@ -692,12 +744,14 @@ class TTMDetailsReportGenerator:
         if is_finished:
             ttm = self._calculate_ttm(task.id, done_statuses, history)
         else:
-            ttm = self._calculate_ttm_unfinished(history, done_statuses)
+            ttm = self._calculate_ttm_unfinished(history, done_statuses, as_of_date)
 
         # Determine quarter name
         quarter_name = ""
         if stable_done:
-            done_date = stable_done.start_date
+            from radiator.commands.services.datetime_utils import normalize_to_utc
+
+            done_date = normalize_to_utc(stable_done.start_date)
             for quarter in quarters:
                 if quarter.start_date <= done_date <= quarter.end_date:
                     quarter_name = quarter.name
@@ -707,16 +761,20 @@ class TTMDetailsReportGenerator:
             "task": task,
             "quarter_name": quarter_name,
             "ttm": ttm,
-            "tail": self._calculate_tail(task.id, done_statuses, history),
-            "devlt": self._calculate_devlt(task.id, history),
-            "ttd": self._calculate_ttd(task.id, ["Готова к разработке"], history),
+            "tail": self._calculate_tail(task.id, done_statuses, history, as_of_date),
+            "devlt": self._calculate_devlt(task.id, history, as_of_date),
+            "ttd": self._calculate_ttd(
+                task.id, ["Готова к разработке"], history, as_of_date
+            ),
             "ttd_quarter": self._calculate_ttd_quarter(history, quarters),
             "pause": self._calculate_pause(task.id, history),
-            "ttd_pause": self._calculate_ttd_pause(task.id, history),
+            "ttd_pause": self._calculate_ttd_pause(task.id, history, as_of_date),
             "discovery_backlog_days": self._calculate_discovery_backlog_days(
-                task.id, history
+                task.id, history, as_of_date
             ),
-            "ready_for_dev_days": self._calculate_ready_for_dev_days(task.id, history),
+            "ready_for_dev_days": self._calculate_ready_for_dev_days(
+                task.id, history, as_of_date
+            ),
             "created_at": task.created_at,
             "last_discovery_backlog_exit_date": self._get_last_discovery_backlog_exit_date(
                 history
@@ -726,9 +784,12 @@ class TTMDetailsReportGenerator:
             "is_finished": is_finished,
         }
 
-    def _collect_csv_rows(self) -> List[dict]:
+    def _collect_csv_rows(self, as_of_date: Optional[datetime] = None) -> List[dict]:
         """
         Collect CSV rows data with optimized batch processing.
+
+        Args:
+            as_of_date: Optional date to generate report as-of
 
         Returns:
             List of dictionaries with CSV row data
@@ -748,7 +809,7 @@ class TTMDetailsReportGenerator:
         # Задачи уже отфильтрованы по TTM в _get_ttm_tasks_for_date_range_corrected
         tasks_data = []
         for task in all_tasks:
-            history = self.data_service.get_task_history(task.id)
+            history = self.data_service.get_task_history(task.id, as_of_date=as_of_date)
 
             # Находим stable_done один раз для использования в нескольких местах
             stable_done = self.metrics_service._find_stable_done(history, done_statuses)
@@ -756,7 +817,9 @@ class TTMDetailsReportGenerator:
             # Определяем квартал для задачи (TTM уже есть)
             quarter_name = None
             if stable_done:
-                done_date = stable_done.start_date
+                from radiator.commands.services.datetime_utils import normalize_to_utc
+
+                done_date = normalize_to_utc(stable_done.start_date)
                 # Find matching quarter
                 for quarter in quarters:
                     if quarter.start_date <= done_date <= quarter.end_date:
@@ -768,14 +831,20 @@ class TTMDetailsReportGenerator:
 
             # Собираем все метрики кроме возвратов
             task_metrics = self._calculate_task_metrics(
-                task, history, done_statuses, quarters, stable_done, is_finished=True
+                task,
+                history,
+                done_statuses,
+                quarters,
+                stable_done,
+                is_finished=True,
+                as_of_date=as_of_date,
             )
             tasks_data.append(task_metrics)
 
         # Добавляем незавершенные задачи
-        unfinished_tasks = self._get_unfinished_tasks()
+        unfinished_tasks = self._get_unfinished_tasks(as_of_date=as_of_date)
         for task in unfinished_tasks:
-            history = self.data_service.get_task_history(task.id)
+            history = self.data_service.get_task_history(task.id, as_of_date=as_of_date)
 
             # Проверяем, что задача действительно незавершенная (нет stable_done)
             stable_done = self.metrics_service._find_stable_done(history, done_statuses)
@@ -790,6 +859,7 @@ class TTMDetailsReportGenerator:
                 quarters,
                 stable_done=None,
                 is_finished=False,
+                as_of_date=as_of_date,
             )
             tasks_data.append(task_metrics)
 
@@ -909,12 +979,32 @@ class TTMDetailsReportGenerator:
             "Завершена": 1 if is_finished else 0,
         }
 
-    def generate_csv(self, output_path: str) -> str:
+    def _get_effective_as_of_date(self, as_of_date: Optional[datetime]) -> datetime:
+        """
+        Get effective as-of-date, using current date if None.
+
+        Args:
+            as_of_date: Optional as-of-date
+
+        Returns:
+            Effective as-of-date (timezone-aware UTC)
+        """
+        from radiator.commands.services.datetime_utils import normalize_to_utc
+
+        if as_of_date is None:
+            return datetime.now(timezone.utc)
+
+        return normalize_to_utc(as_of_date)
+
+    def generate_csv(
+        self, output_path: str, as_of_date: Optional[datetime] = None
+    ) -> str:
         """
         Generate TTM Details CSV report.
 
         Args:
             output_path: Path to output CSV file
+            as_of_date: Optional date to generate report as-of (for historical reports)
 
         Returns:
             Path to generated CSV file
@@ -924,7 +1014,7 @@ class TTMDetailsReportGenerator:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             # Collect CSV rows data
-            rows = self._collect_csv_rows()
+            rows = self._collect_csv_rows(as_of_date)
 
             # Create CSV with data
             with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
@@ -954,15 +1044,36 @@ def main():
         default="data/config",
         help="Configuration directory path (default: data/config)",
     )
+    parser.add_argument(
+        "--as-of-date",
+        type=str,
+        help="Generate report as of specific date (format: YYYY-MM-DD). "
+        "Useful for historical reports. If not specified, uses current date.",
+    )
 
     args = parser.parse_args()
 
     try:
         from radiator.core.database import SessionLocal
 
+        # Parse as_of_date if provided
+        as_of_date = None
+        if args.as_of_date:
+            try:
+                as_of_date = datetime.strptime(args.as_of_date, "%Y-%m-%d")
+                as_of_date = as_of_date.replace(tzinfo=timezone.utc)
+                logger.info(f"Generating report as of {args.as_of_date}")
+            except ValueError as e:
+                logger.error(
+                    f"Invalid date format: {args.as_of_date}. Use YYYY-MM-DD format."
+                )
+                import sys
+
+                sys.exit(1)
+
         with SessionLocal() as db:
             generator = TTMDetailsReportGenerator(db=db, config_dir=args.config_dir)
-            csv_path = generator.generate_csv(args.output)
+            csv_path = generator.generate_csv(args.output, as_of_date=as_of_date)
             print(f"TTM Details report generated: {csv_path}")
 
     except Exception as e:
