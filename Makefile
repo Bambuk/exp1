@@ -28,10 +28,14 @@ help:  ## Show this help message
 	@echo 'Time To Market Commands:'
 	@echo '  generate-ttm-details-report - Generate TTM Details CSV report (optional: AOD=YYYY-MM-DD)'
 	@echo '  generate-fullstack-subepic-returns-report - Generate FULLSTACK sub-epic returns CSV report'
+	@echo '  generate-heatmap - Generate heatmaps from TTM Details CSV reports'
 	@echo ''
 	@echo 'Examples:'
 	@echo '  make generate-ttm-details-report              # Current date'
 	@echo '  make generate-ttm-details-report AOD=2025-01-15  # Historical report'
+	@echo '  make generate-heatmap                         # Process most recent CSV → data/heatmaps/'
+	@echo '  make generate-heatmap INPUT="data/reports/new_ttm_details_*.csv"  # All matching files'
+	@echo '  make generate-heatmap INPUT="file1.csv file2.csv" OUTPUT_DIR="custom_out"  # Custom'
 	@echo ''
 	@echo 'Google Sheets Commands:'
 	@echo '  google-sheets-monitor - Start Google Sheets CSV uploader monitoring (handles both regular and pivot uploads)'
@@ -278,6 +282,13 @@ generate-fullstack-subepic-returns-report: ## Generate FULLSTACK sub-epic return
 	. venv/bin/activate && python -m radiator.commands.generate_fullstack_subepic_returns_report --output "data/reports/fullstack_subepic_returns_$$TIMESTAMP.csv" $(if $(START_DATE),--start-date "$(START_DATE)",)
 	@echo ""
 	@echo "✅ FULLSTACK Sub-epic Returns report generated successfully!"
+
+generate-heatmap: ## Generate heatmaps from TTM Details CSV reports
+	@echo "📊 Generating heatmaps from TTM Details reports..."
+	@mkdir -p data/heatmaps
+	@. venv/bin/activate && python -m radiator.commands.generate_heatmap $(if $(INPUT),--input $(INPUT),) $(if $(OUTPUT_DIR),--output-dir "$(OUTPUT_DIR)",) $(if $(AGGS),--aggs $(AGGS),)
+	@echo ""
+	@echo "✅ Heatmaps generated successfully!"
 
 generate-status-time-report: ## Generate status time report for queue with optional created-since
 	@echo "📊 Generating Status Time report..."
