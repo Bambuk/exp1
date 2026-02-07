@@ -7,7 +7,11 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from radiator.commands.models.time_to_market_models import Quarter, TaskData
+from radiator.commands.models.time_to_market_models import (
+    Quarter,
+    StatusHistoryEntry,
+    TaskData,
+)
 from radiator.commands.models.ttm_details_columns import TTMDetailsColumns
 from radiator.commands.services.author_team_mapping_service import (
     AuthorTeamMappingService,
@@ -607,7 +611,10 @@ class TTMDetailsReportGenerator:
         return self.team_lead_mapping_service.get_lead_by_team(team)
 
     def _has_valid_work_status(
-        self, task_id: int, history: Optional[List] = None
+        self,
+        task_id: int,
+        history: Optional[List] = None,
+        as_of_date: Optional[datetime] = None,
     ) -> bool:
         """
         Check if task has valid 'МП / В работе' status entry (>= 5 minutes).
@@ -615,6 +622,7 @@ class TTMDetailsReportGenerator:
         Args:
             task_id: Task ID
             history: Optional pre-loaded task history
+            as_of_date: Optional date to calculate duration for open intervals (defaults to current date)
 
         Returns:
             True if task has valid 'МП / В работе' entry, False otherwise
@@ -633,16 +641,20 @@ class TTMDetailsReportGenerator:
         if not work_entries:
             return False
 
-        # Filter "МП / В работе" entries: must have end_date and duration > 5 minutes
-        # Same validation logic as in calculate_dev_lead_time
+        # Check "МП / В работе" entries: must have duration >= 5 minutes
+        # For closed intervals, use end_date; for open intervals, use as_of_date or current date
         from radiator.commands.services.datetime_utils import normalize_to_utc
 
         for entry in work_entries:
-            if entry.end_date is None:
-                continue  # Skip open intervals (work not completed)
-
             start = normalize_to_utc(entry.start_date)
-            end = normalize_to_utc(entry.end_date)
+
+            # For closed intervals, use end_date
+            if entry.end_date is not None:
+                end = normalize_to_utc(entry.end_date)
+            else:
+                # For open intervals, use as_of_date or current date
+                end = self._get_effective_as_of_date(as_of_date)
+
             duration = (end - start).total_seconds()
             if duration >= self.metrics_service.min_status_duration_seconds:
                 return True  # Found at least one valid entry
@@ -715,6 +727,25 @@ class TTMDetailsReportGenerator:
 
         return unfinished_tasks
 
+    def _get_current_status(self, history: List[StatusHistoryEntry]) -> str:
+        """
+        Get current status from task history.
+
+        Note: The history should already be filtered by as_of_date if needed
+        (via DataService.get_task_history with as_of_date parameter).
+
+        Args:
+            history: Task history entries (may be filtered by as_of_date)
+
+        Returns:
+            Current status name or empty string if no history
+        """
+        if not history:
+            return ""
+
+        # Return the status from the last entry in history
+        return history[-1].status
+
     def _calculate_task_metrics(
         self,
         task: TaskData,
@@ -780,8 +811,14 @@ class TTMDetailsReportGenerator:
                 history
             ),
             "stable_done_date": stable_done.start_date if stable_done else None,
-            "has_development": self._has_valid_work_status(task.id, history),
+            "has_development": self._has_valid_work_status(
+                task.id, history, as_of_date
+            ),
             "is_finished": is_finished,
+            "current_status": self._get_current_status(history),
+            "status_group": self.config_service.get_status_group(
+                self._get_current_status(history)
+            ),
         }
 
     def _collect_csv_rows(self, as_of_date: Optional[datetime] = None) -> List[dict]:
@@ -896,6 +933,8 @@ class TTMDetailsReportGenerator:
                 task_metrics.get(
                     "is_finished", True
                 ),  # По умолчанию True для обратной совместимости
+                task_metrics.get("current_status", ""),
+                task_metrics.get("status_group", ""),
             )
             rows.append(row)
 
@@ -922,6 +961,8 @@ class TTMDetailsReportGenerator:
         stable_done_date: Optional[datetime] = None,
         has_development: bool = False,
         is_finished: bool = True,
+        current_status: str = "",
+        status_group: str = "",
     ) -> dict:
         """
         Format task data into CSV row dictionary.
@@ -977,6 +1018,8 @@ class TTMDetailsReportGenerator:
             else "",
             "Разработка": 1 if has_development else 0,
             "Завершена": 1 if is_finished else 0,
+            "Статус": current_status,
+            "Группа статусов": status_group,
         }
 
     def _get_effective_as_of_date(self, as_of_date: Optional[datetime]) -> datetime:
